@@ -89,7 +89,7 @@ with col_m2:
     m_kort = st.checkbox("Kort-sandsynlighed (Gule/Røde)", value=True, key="m_kor")
     m_scorer = st.checkbox("Målscorer (Anytime/Første)", value=True, key="m_sco")
 
-valgte_markeder =
+valgte_markeder = []
 if m_mål: valgte_markeder.append("Standard")
 if m_hjørne: valgte_markeder.append("Hjørnespark")
 if m_skud: valgte_markeder.append("Spillerskud / Skud på mål")
