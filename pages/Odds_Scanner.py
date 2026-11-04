@@ -9,7 +9,7 @@ st.write("Scan markedet på tværs af bookmakere, find fejl-odds og risikovurder
 
 st.header("🎰 1. Scan efter fejl-odds (Value Bets)")
 bettingsider = ["Bet365", "Unibet", "Danske Spil (Oddset)", "Betano", "LeoVegas", "ComeOn", "Expekt", "NordicBet", "bwin", "Mr Green", "Betfair"]
-valgt_side = st.selectbox("Vælg din primære bettingside:", bettettingsider)
+valgt_side = st.selectbox("Vælg din primære bettingside:", bettingsider)
 
 st.write(f"Robotten sammenligner odds live hos **{valgt_side}** for at finde overodds:")
 
