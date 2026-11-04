@@ -1,7 +1,7 @@
 import streamlit as st
 import datetime
 import random
-from .tidsstyring import dansk_tid
+
 
 if "mobil_init" not in st.session_state:
     st.session_state["mobil_init"] = True
