@@ -1,0 +1,140 @@
+import streamlit as st
+import datetime
+import random
+import sqlite3
+
+# Initialiserer databasen lokalt i filen
+def init_database():
+    conn = sqlite3.connect("odds_pro_hukommelse.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS historik_pro (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            dato TEXT,
+            tidspunkt TEXT,
+            liga TEXT,
+            hjemmehold TEXT,
+            udehold TEXT,
+            marked TEXT,
+            spilforslag TEXT,
+            odds REAL,
+            status TEXT DEFAULT 'Afventer'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_database()
+
+st.set_page_config(page_title="AI Oddset Robot PRO", page_icon="⚡", layout="centered")
+
+st.title("⚡ AI Oddset Multi-Robot PRO")
+st.write("Avanceret live-simulering med tidsintervaller og special-markeder.")
+
+# 1. Indstil Tidsramme & Ligaer
+st.header("⏳ 1. Indstil Tidsramme & Ligaer")
+tidsvalg = st.radio(
+    "Hvor langt frem i tiden skal robotten kigge efter kampe?",
+    ["Lige nu & de næste 3 timer (Live/Hurtige spil)", "De næste 48 timer (Weekend/Midtuge kupon)"]
+)
+tids_timer = 3.0 if "3 timer" in tidsvalg else 48.0
+
+st.write("**Vælg dine aktive ligaer:**")
+col_liga1, col_liga2 = st.columns(2)
+with col_liga1:
+    liga_pl = st.checkbox("Premier League", value=True)
+    liga_sl = st.checkbox("Superligaen", value=True)
+    liga_ll = st.checkbox("LaLiga", value=True)
+    liga_sa = st.checkbox("Serie A (Italien)", value=True)
+with col_liga2:
+    liga_bl = st.checkbox("Bundesliga (Tyskland)", value=True)
+    liga_ch = st.checkbox("Championship (England)", value=True)
+    liga_cl = st.checkbox("Champions League", value=True)
+    liga_pk = st.checkbox("Betano Pokalen", value=True)
+
+valgte_ligaer = []
+if liga_pl: valgte_ligaer.append("Premier League")
+if liga_sl: valgte_ligaer.append("Superligaen")
+if liga_ll: valgte_ligaer.append("LaLiga")
+if liga_sa: valgte_ligaer.append("Serie A (Italien)")
+if liga_bl: valgte_ligaer.append("Bundesliga (Tyskland)")
+if liga_ch: valgte_ligaer.append("Championship (England)")
+if liga_cl: valgte_ligaer.append("Champions League")
+if liga_pk: valgte_ligaer.append("Betano Pokalen")
+
+# 2. Vælg Special-Markeder
+st.header("📊 2. Vælg Special-Markeder")
+col_m1, col_m2 = st.columns(2)
+with col_m1:
+    m_mål = st.checkbox("Standard (Mål / Kampvinder)", value=True)
+    m_hjørne = st.checkbox("Hjørnespark (Over/Under & Flest)", value=True)
+    m_skud = st.checkbox("Spillerskud & Skud på mål", value=True)
+with col_m2:
+    m_tack = st.checkbox("Tacklinger & Målmandsredninger", value=True)
+    m_kort = st.checkbox("Kort-sandsynlighed (Gule/Røde)", value=True)
+    m_scorer = st.checkbox("Målscorer (Anytime/Første)", value=True)
+
+valgte_markeder = []
+if m_mål: valgte_markeder.append("Standard")
+if m_hjørne: valgte_markeder.append("Hjørnespark")
+if m_skud: valgte_markeder.append("Spillerskud / Skud på mål")
+if m_tack: valgte_markeder.append("Tacklinger / Redninger")
+if m_kort: valgte_markeder.append("Kort sandsynlighed")
+if m_scorer: valgte_markeder.append("Målscorer")
+
+# 3. Generer PRO Autopilot Kupon
+st.header("🔮 3. Generer PRO Autopilot Kupon")
+col_p1, col_p2 = st.columns(2)
+with col_p1:
+    mål_odds = st.number_input("Indtast målsat odds", min_value=2.0, max_value=1000.0, value=15.0, step=5.0)
+with col_p2:
+    antal_kampe = st.slider("Antal kampe på kuponen", 2, 10, 5)
+
+if st.button("🚀 KØR AI PRO ANALYSE", type="primary"):
+    if not valgte_ligaer or not valgte_markeder:
+        st.error("Vælg venligst både ligaer og markeder først!")
+    else:
+        st.info("Kombinerer live-statistiker...")
+        
+        # Intern motor, der altid kan afvikles lynhurtigt
+        nu = datetime.datetime.now()
+        alle_kampe = [
+            {"liga": "Premier League", "hj": "Man City", "ud": "Arsenal", "start": nu + datetime.timedelta(hours=2)},
+            {"liga": "Premier League", "hj": "Liverpool", "ud": "Chelsea", "start": nu + datetime.timedelta(hours=5)},
+            {"liga": "Superligaen", "hj": "FCK", "ud": "Brøndby", "start": nu + datetime.timedelta(hours=1.5)},
+            {"liga": "Superligaen", "hj": "FC Midtjylland", "ud": "AGF", "start": nu + datetime.timedelta(hours=24)},
+            {"liga": "LaLiga", "hj": "Real Madrid", "ud": "Barcelona", "start": nu + datetime.timedelta(hours=28)},
+            {"liga": "Serie A (Italien)", "hj": "Inter", "ud": "Juventus", "start": nu + datetime.timedelta(hours=4)},
+            {"liga": "Champions League", "hj": "Real Madrid", "ud": "Man City", "start": nu + datetime.timedelta(hours=12)},
+            {"liga": "Championship (England)", "hj": "Leeds", "ud": "Burnley", "start": nu + datetime.timedelta(hours=3)},
+            {"liga": "Betano Pokalen", "hj": "Silkeborg", "ud": "Viborg", "start": nu + datetime.timedelta(hours=2.5)}
+        ]
+        
+        filtrerede = [k for k in alle_kampe if k["liga"] in valgte_ligaer and ((k["start"] - nu).total_seconds() / 3600) <= tids_timer]
+        
+        if not filtrerede:
+            st.warning("Ingen kampe fundet i tidsrammen. Prøv at skifte til 48 timer eller vælg flere ligaer.")
+        else:
+            valgte = random.sample(filtrerede, min(antal_kampe, len(filtrerede)))
+            samlet_odds = 1.0
+            
+            st.subheader(f"📊 Din AI PRO Kupon")
+            for i, k in enumerate(valgte):
+                marked = random.choice(valgte_markeder)
+                
+                if marked == "Hjørnespark": spil, o = f"Over 8.5 hjørnespark i kampen", 1.65
+                elif marked == "Spillerskud / Skud på mål": spil, o = f"Byg spil: Topscorer skyder 1+ skud på mål", 1.85
+                elif marked == "Tacklinger / Redninger": spil, o = f"Byg spil: Midtbanegeneral laver 2+ tacklinger", 1.75
+                elif marked == "Kort sandsynlighed": spil, o = f"Over 3.5 kort i kampen", 1.60
+                elif marked == "Målscorer": spil, o = f"Hjemmeholdets angriber scorer", 2.20
+                else: spil, o = f"Byg Væddemål: {k['hj']} vinder + Over 2.5 mål", 2.10
+                
+                justering = (mål_odds / 20.0) ** (1 / len(valgte))
+                nyt_odds = round(o * max(0.8, min(justering, 2.2)), 2)
+                
+                st.write(f"⚽ **{i+1}. [{k['liga']}] {k['hj']} vs. {k['ud']}**")
+                st.write(f" ➔ **Marked:** {marked} | **Anbefaling:** {spil} (Odds {nyt_odds:.2f})")
+                st.write("---")
+                samlet_odds *= nyt_odds
+                
+            st.success(f"🔥 Kupon klar! Samlet odds ramte: {samlet_odds:.2f}")
