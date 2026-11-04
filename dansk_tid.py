@@ -1,6 +1,10 @@
 import datetime
 
 def hent_dansk_klokkeslaet():
+    # Henter serverens standardtid (UTC)
     server_tid = datetime.datetime.utcnow()
-    # Tilføjer præcis 1 time, så uret passer med dansk vintertid på din telefon
-    return server_tid + datetime.timedelta(hours=1)
+    
+    # Lægger præcis 1 time til, så det passer 100% med uret i Danmark (vintertid)
+    dansk_tid = server_tid + datetime.timedelta(hours=1)
+    
+    return dansk_tid
