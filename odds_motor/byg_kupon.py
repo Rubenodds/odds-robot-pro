@@ -10,12 +10,15 @@ def byg_kombineret_kupon(valgte_kampe, valgte_markeder, maal_odds):
     
     for k in valgte_kampe:
         kombier = []
+        
+        # RETTET: Generiske "topscorer" og "midtbanegeneral" er fjernet.
+        # Alle forslag bruger nu reelle hold-markeder eller mål-markeder, som ALTID findes hos Bet365 Byg Væddemål.
         pool_standard = [f"Resultat: {k['hj']} vinder", f"Halvleg/Fuldtid: {k['hj']}/{k['hj']}", "Begge hold scorer: JA"]
-        pool_hjoerne = ["Over 9.5 hjørnespark i kampen", f"Flest hjørnespark til {k['hj']}", "Under 11.5 hjørnespark samlet"]
-        pool_skud = [f"{k['hj']} topscorer: over 1.5 skud på mål", f"Udeholdets kantspiller: 1+ skud på mål", "Over 8.5 skud på mål samlet"]
-        pool_tack = ["Defensiv midtbane: over 2.5 tacklinger", "Målmand: over 3.5 redninger", "Over 14.5 tacklinger samlet"]
-        pool_kort = ["Over 4.5 gule kort i kampen", "Hjemmeholdet over 1.5 kort", "Kampens midtbanegeneral får kort"]
-        pool_scorer = [f"{k['hj']} angriber scorer anytime", f"{k['ud']} topscorer laver mål/assist", "Over 2.5 mål i kampen"]
+        pool_hjoerne = ["Over 9.5 hjørnespark i kampen", f"Flest hjørnespark til {k['hj']}", f"{k['hj']} over 4.5 hjørnespark"]
+        pool_skud = [f"{k['hj']} over 4.5 skud på mål", f"{k['ud']} over 3.5 skud på mål", "Over 8.5 skud på mål samlet"]
+        pool_tack = [f"{k['hj']} over 12.5 tacklinger", f"{k['ud']} over 13.5 tacklinger", "Over 25.5 tacklinger samlet"]
+        pool_kort = ["Over 4.5 gule kort i kampen", f"{k['hj']} over 1.5 kort", f"{k['ud']} over 1.5 kort"]
+        pool_scorer = ["Over 2.5 mål i kampen", "Over 1.5 mål i 2. halvleg", f"{k['hj']} over 1.5 mål"]
         
         if "Standard (Mål / Kampvinder)" in valgte_markeder: kombier.append(random.choice(pool_standard))
         if "Hjørnespark (Over/Under & Flest)" in valgte_markeder: kombier.append(random.choice(pool_hjoerne))
