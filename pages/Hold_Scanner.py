@@ -8,9 +8,24 @@ from odds_motor import byg_kupon
 st.set_page_config(page_title="AI Favorit-Hold Scanner", page_icon="🎯", layout="centered")
 
 st.title("🎯 AI Favorit-Hold Scanner")
-st.write("Søg og vælg specifikke hold, du vil have robotten til at analysere special-markeder på.")
+st.write("Vælg tidsinterval og ligaer for kun at søge blandt de hold, der er spilleaktuelle.")
 
-# Henter den præcise tid og det fælles kampprogram
+# ----------------- FILTRE FRA FORSIDEN -----------------
+st.header("⏳ 1. Indstil dit tidsinterval")
+
+tidsvalg = st.radio(
+    "Hvor langt frem i tiden skal robotten kigge efter kampe?",
+    ["Næste 3 timer", "Næste 6 timer", "Næste 12 timer", "Næste 24 timer", "Næste 48 timer"],
+    key="tids_valg_scanner_side"
+)
+
+if "3 timer" in tidsvalg: tids_timer = 3.0
+elif "6 timer" in tidsvalg: tids_timer = 6.0
+elif "12 timer" in tidsvalg: tids_timer = 12.0
+elif "24 timer" in tidsvalg: tids_timer = 24.0
+else: tids_timer = 48.0
+
+# Henter den præcise tid og det fælles, ægte kampprogram
 nu = dansk_tid.hent_dansk_klokkeslaet()
 alle_kampe = hent_kampe.hent_aegte_kampe_fra_nettet()
 
@@ -27,40 +42,64 @@ if not alle_kampe:
         {"liga": "Coupe de France", "hj": "Lyon", "ud": "Nice", "start": nu + datetime.timedelta(hours=5.0)}
     ]
 
-# Samler alle unikke holdnavne fra programmet
-alle_hold = sorted(list(set([k["hj"] for k in alle_kampe] + [k["ud"] for k in alle_kampe])))
+# 1. TIMEFILTER: Finder de ligaer, der overhovedet har kampe i tidsrummet
+tilgaengelige_ligaer = sorted(list(set([k["liga"] for k in alle_kampe if ((k["start"] - nu).total_seconds() / 3600) <= tids_timer])))
 
-st.header("⚽ 1. Vælg dine favorithold")
-valgte_hold = st.multiselect(
-    "Søg og vælg ét eller flere hold på tværs af alle ligaer:",
-    options=alle_hold,
-    help="Robotten vil udelukkende kigge efter kampe, hvor disse hold spiller."
-)
+st.header("⚽ 2. Vælg Aktive Ligaer")
+if not tilgaengelige_ligaer:
+    st.warning("Ingen ligaer har planlagte kampe i dette tidsrum.")
+    valgte_ligaer = list()
+else:
+    liga_afkrydsning = {}
+    kolonner = st.columns(min(3, len(tilgaengelige_ligaer)))
+    for idx, liga_navn in enumerate(tilgaengelige_ligaer):
+        med_kolonne = kolonner[idx % len(kolonner)]
+        with med_kolonne:
+            liga_afkrydsning[liga_navn] = st.checkbox(liga_navn, value=True, key=f"scanner_chk_{liga_navn}")
+    valgte_ligaer = [navn for navn, valgt in liga_afkrydsning.items() if valgt]
 
-st.header("📊 2. Indstil dine krav")
-col_o1, col_o2 = st.columns(2)
-with col_o1:
-    maal_odds = st.number_input("Målsat odds for dine valg:", min_value=2.0, max_value=1000.0, value=10.0, step=2.0)
-with col_o2:
-    st.write("")
-    st.write("*Robotten kombinerer hold-specialmarkeder (skud, tacklinger, kort, hjørnespark) hos bookmakerne.*")
+# 2. LIGAFILTER & TIMEFILTER PÅ KAMPE: Finder KUN de reelle, aktive kampe, der matcher begge krav
+aktive_kampe_i_periode = [
+    k for k in alle_kampe 
+    if k["liga"] in valgte_ligaer and ((k["start"] - nu).total_seconds() / 3600) <= tids_timer
+]
 
-if st.button("🔍 SCAN SPECIAL-MARKEDER PÅ MINE HOLD", type="primary"):
+# 3. HOLDFILTER: Trækker KUN de hold ud, som spiller i de filtrerede kampe
+aktive_hold_liste = sorted(list(set(
+    [k["hj"] for k in aktive_kampe_i_periode] + [k["ud"] for k in aktive_kampe_i_periode]
+)))
+
+# ----------------- DYNAMISK HOLD-VÆLGER -----------------
+st.header("🎯 3. Vælg dine favorit-hold")
+if not aktive_hold_liste:
+    st.info("Sæt flueben ved ligaerne ovenfor for at få vist de spilleaktuelle hold.")
+    valgte_hold = list()
+else:
+    valgte_hold = st.multiselect(
+        f"Søg blandt de hold, der spiller inden for {tidsvalg.lower()}:",
+        options=aktive_hold_liste,
+        help="Listen viser udelukkende hold, der passer til dit valgte tidsinterval og dine valgte ligaer."
+    )
+
+st.header("📊 4. Indstil dit målodds")
+maal_odds = st.number_input("Målsat odds for dine valgte hold:", min_value=2.0, max_value=1000.0, value=10.0, step=2.0, key="scanner_odds_input")
+
+if st.button("🔍 SCAN SPECIAL-MARKEDER PÅ MINE HOLD", type="primary", key="btn_scanner_side_generer"):
     if not valgte_hold:
         st.error("Vælg venligst mindst ét hold i søgefeltet først!")
     else:
-        # Filtrerer programmet så vi KUN har kampe med de valgte hold
-        scannede_kampe = [k for k in alle_kampe if k["hj"] in valgte_hold or k["ud"] in valgte_hold]
+        # Sorterer benhårdt, så der kun bygges væddemål på de kampe, hvor dine valgte favoritter spiller
+        kampe_til_analyse = [k for k in aktive_kampe_i_periode if k["hj"] in valgte_hold or k["ud"] in valgte_hold]
         
-        if not scannede_kampe:
-            st.warning("Ingen af dine valgte hold har planlagte kampe i det dagsaktuelle program lige nu.")
+        if not kampe_til_analyse:
+            st.warning("De valgte hold spiller ikke i de markerede ligaer inden for dette tidsinterval.")
         else:
             st.subheader(f"📊 Eksklusiv AI Analyse af dine hold:")
             st.write("---")
             
-            # Bruger den fælles odds-motor til at bygge rene hold-kombinationer
-            markeder_backup = ["Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Flest)", "Spillerskud & Skud på mål", "Tacklinger & Målmandsredninger"]
-            resultat = byg_kupon.byg_kombineret_kupon(scannede_kampe, markeder_backup, maal_odds)
+            # Kalder din fælles odds_motor og spytter udelukkende hold- og kampmarkeder ud
+            markeder_pro = ["Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Flest)", "Spillerskud & Skud på mål", "Tacklinger & Målmandsredninger"]
+            resultat = byg_kupon.byg_kombineret_kupon(kampe_til_analyse, markeder_pro, maal_odds)
             
             if resultat:
                 for idx_k, k in enumerate(resultat["kampe"]):
@@ -73,4 +112,4 @@ if st.button("🔍 SCAN SPECIAL-MARKEDER PÅ MINE HOLD", type="primary"):
                     st.write("---")
                 
                 st.success(f"🔥 **BEDSTE BOOKMAKER FOR DINE FAVORITTER: {resultat['bedste_side']}!**")
-                st.write(f"📈 **Samlet odds for kuponen: {resultat['bedste_odds']:.2f}**")
+                st.write(f"📈 **Samlet odds for dine valg: {resultat['bedste_odds']:.2f}**")
