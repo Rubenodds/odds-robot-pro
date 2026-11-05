@@ -4,13 +4,14 @@ import random
 from tidsstyring import dansk_tid
 from kampprogram import hent_kampe
 from odds_motor import byg_kupon
+from historik import gem_data
 
 st.set_page_config(page_title="AI Favorit-Hold Scanner", page_icon="🎯", layout="centered")
 
 st.title("🎯 AI Favorit-Hold Scanner")
 st.write("Vælg tidsinterval og ligaer for kun at søge blandt de hold, der er spilleaktuelle.")
 
-# ----------------- FILTRE FRA FORSIDEN -----------------
+# ----------------- PANEL 1: INDSTILLINGER -----------------
 st.header("⏳ 1. Indstil dit tidsinterval")
 
 tidsvalg = st.radio(
@@ -50,6 +51,7 @@ if not tilgaengelige_ligaer:
     st.warning("Ingen ligaer har planlagte kampe i dette tidsrum.")
     valgte_ligaer = list()
 else:
+    st.write(f"Følgende ligaer har reelle kampe tilgængelige inden for de **{tidsvalg.lower()}**:")
     liga_afkrydsning = {}
     kolonner = st.columns(min(3, len(tilgaengelige_ligaer)))
     for idx, liga_navn in enumerate(tilgaengelige_ligaer):
@@ -78,7 +80,8 @@ else:
     valgte_hold = st.multiselect(
         f"Søg blandt de hold, der spiller inden for {tidsvalg.lower()}:",
         options=aktive_hold_liste,
-        help="Listen viser udelukkende hold, der passer til dit valgte tidsinterval og dine valgte ligaer."
+        help="Listen viser udelukkende hold, der passer til dit valgte tidsinterval og dine valgte ligaer.",
+        key="hold_scanner_side_multiselect"
     )
 
 st.header("📊 4. Indstil dit målodds")
@@ -102,14 +105,31 @@ if st.button("🔍 SCAN SPECIAL-MARKEDER PÅ MINE HOLD", type="primary", key="bt
             resultat = byg_kupon.byg_kombineret_kupon(kampe_til_analyse, markeder_pro, maal_odds)
             
             if resultat:
+                gemme_ligaer = list()
+                gemme_forslag = list()
+                
                 for idx_k, k in enumerate(resultat["kampe"]):
                     timer_rest = (k["start"] - nu).total_seconds() / 3600
                     st.write(f"🏟️ **KAMP {idx_k+1}: [{k['liga']}] {k['hj']} vs. {k['ud']}** (Start om {timer_rest:.1f} timer)")
                     st.write("🧱 *Funderet Byg Væddemål på denne kamp:*")
                     for kombi_tekst in k["kombinationer"]:
                         st.write(f" ➔ {kombi_tekst}")
+                        gemme_forslag.append(f"[{k['hj']}-{k['ud']}]: {kombi_tekst}")
                     st.write(f"💵 **Kamp-odds:** Bet365: **{k['b365']:.2f}** | Unibet: **{k['uni']:.2f}** | Oddset: **{k['oddset']:.2f}**")
                     st.write("---")
+                    gemme_ligaer.append(k["liga"])
                 
+                # RETTET: Viser nu den fulde pro-bookmaker vurdering og 1-5 risikostjerner
                 st.success(f"🔥 **BEDSTE BOOKMAKER FOR DINE FAVORITTER: {resultat['bedste_side']}!**")
-                st.write(f"📈 **Samlet odds for dine valg: {resultat['bedste_odds']:.2f}**")
+                st.write(f"📈 **Samlet odds for dine valg hos {resultat['bedste_side']}: {resultat['bedste_odds']:.2f}**")
+                st.write(f"ℹ️ *Sammenligning:* Bet365: {resultat['samlet_b365']:.2f} | Unibet: {resultat['samlet_unibet']:.2f} | Oddset: {resultat['samlet_oddset']:.2f}")
+                st.write(f"🎯 **AI Sandsynlighed & Risiko (Værdi-vurdering):** {'⭐' * resultat['styrke']} ({resultat['styrke']}/5 stjerner)")
+                
+                # RETTET: Gemmer nu automatisk dine favoritkampe i databasen
+                gemt_status = gem_data.gem_kupon_i_historik(
+                    gemme_ligaer, gemme_forslag, 
+                    resultat["samlet_b365"], resultat["samlet_unibet"], resultat["samlet_oddset"], 
+                    resultat["bedste_side"], resultat["styrke"]
+                )
+                if gemt_status:
+                    st.info("🧠 Favorit-kupon gemt i AI-historikken! Robotten overvåger resultatet i databasen.")
