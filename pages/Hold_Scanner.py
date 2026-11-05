@@ -30,7 +30,7 @@ else: tids_timer = 48.0
 nu = dansk_tid.hent_dansk_klokkeslaet()
 alle_kampe = hent_kampe.hent_aegte_kampe_fra_nettet()
 
-# Backup hvis net-feedet loader i baggrunden
+# Backup baseret på programmet
 if not alle_kampe:
     alle_kampe = [
         {"liga": "Champions League", "hj": "Inter", "ud": "Arsenal", "start": nu + datetime.timedelta(hours=2.0)},
@@ -51,7 +51,6 @@ if not tilgaengelige_ligaer:
     st.warning("Ingen ligaer har planlagte kampe i dette tidsrum.")
     valgte_ligaer = list()
 else:
-    st.write(f"Følgende ligaer har reelle kampe tilgængelige inden for de **{tidsvalg.lower()}**:")
     liga_afkrydsning = {}
     kolonner = st.columns(min(3, len(tilgaengelige_ligaer)))
     for idx, liga_navn in enumerate(tilgaengelige_ligaer):
@@ -66,33 +65,58 @@ aktive_kampe_i_periode = [
     if k["liga"] in valgte_ligaer and ((k["start"] - nu).total_seconds() / 3600) <= tids_timer
 ]
 
-# 3. HOLDFILTER: Trækker KUN de hold ud, som spiller i de filtrerede kampe
-aktive_hold_liste = sorted(list(set(
-    [k["hj"] for k in aktive_kampe_i_periode] + [k["ud"] for k in aktive_kampe_i_periode]
-)))
-
-# ----------------- DYNAMISK HOLD-VÆLGER -----------------
+# ----------------- FILTRERING AF HOLD (SKUDSIKKER REGL) -----------------
 st.header("🎯 3. Vælg dine favorit-hold")
-if not aktive_hold_liste:
+
+if not aktive_kampe_i_periode:
     st.info("Sæt flueben ved ligaerne ovenfor for at få vist de spilleaktuelle hold.")
-    valgte_hold = list()
 else:
-    valgte_hold = st.multiselect(
+    # Initialiserer session state til dine valg
+    if "mine_valgte_hold" not in st.session_state:
+        st.session_state["mine_valgte_hold"] = []
+
+    # Vi bygger rullemenuen dynamisk hver gang der sker et valg!
+    valgte_nu = st.session_state["mine_valgte_hold"]
+    
+    # REGLEN: Find alle de modstandere, der skal blokeres omgående
+    blokerede_hold = set()
+    for k in aktive_kampe_i_periode:
+        if k["hj"] in valgte_nu or k["ud"] in valgte_nu:
+            # Hvis et af holdene i kampen er valgt, blokerer vi BEGGE hold fra fremtidige valg
+            blokerede_hold.add(k["hj"])
+            blokerede_hold.add(k["ud"])
+
+    # Listen over tilgængelige valg skæres benhårdt til:
+    # Den indeholder kun hold, der IKKE er blokerede, PLUS dem du allerede har klikket af
+    aktive_hold_liste = sorted(list(set(
+        [k["hj"] for k in aktive_kampe_i_periode if k["hj"] not in blokerede_hold or k["hj"] in valgte_nu] + 
+        [k["ud"] for k in aktive_kampe_i_periode if k["ud"] not in blokerede_hold or k["ud"] in valgte_nu]
+    )))
+
+    # Viser rullemenuen med den trimmede liste
+    valg_opdateret = st.multiselect(
         f"Søg blandt de hold, der spiller inden for {tidsvalg.lower()}:",
         options=aktive_hold_liste,
-        help="Listen viser udelukkende hold, der passer til dit valgte tidsinterval og dine valgte ligaer.",
-        key="hold_scanner_side_multiselect"
+        default=valgte_nu,
+        help="Når du vælger et hold, forsvinder modstanderen med det samme fra rullemenuen.",
+        key="hold_scanner_skudsikker_multi"
     )
+
+    # Hvis der er sket ændringer i valgene, opdaterer vi og genindlæser siden med det samme så modstanderne kastes ud!
+    if valg_opdateret != valgte_nu:
+        st.session_state["mine_valgte_hold"] = valg_opdateret
+        st.rerun()
+
+    valgte_hold = valg_opdateret
 
 st.header("📊 4. Indstil dit målodds")
 maal_odds = st.number_input("Målsat odds for dine valgte hold:", min_value=2.0, max_value=1000.0, value=10.0, step=2.0, key="scanner_odds_input")
 
 if st.button("🔍 SCAN SPECIAL-MARKEDER PÅ MINE HOLD", type="primary", key="btn_scanner_side_generer"):
-    if not valgte_hold:
+    if not st.session_state["mine_valgte_hold"]:
         st.error("Vælg venligst mindst ét hold i søgefeltet først!")
     else:
-        # Sorterer benhårdt, så der kun bygges væddemål på de kampe, hvor dine valgte favoritter spiller
-        kampe_til_analyse = [k for k in aktive_kampe_i_periode if k["hj"] in valgte_hold or k["ud"] in valgte_hold]
+        kampe_til_analyse = [k for k in aktive_kampe_i_periode if k["hj"] in st.session_state["mine_valgte_hold"] or k["ud"] in st.session_state["mine_valgte_hold"]]
         
         if not kampe_til_analyse:
             st.warning("De valgte hold spiller ikke i de markerede ligaer inden for dette tidsinterval.")
@@ -100,7 +124,6 @@ if st.button("🔍 SCAN SPECIAL-MARKEDER PÅ MINE HOLD", type="primary", key="bt
             st.subheader(f"📊 Eksklusiv AI Analyse af dine hold:")
             st.write("---")
             
-            # Kalder din fælles odds_motor og spytter udelukkende hold- og kampmarkeder ud
             markeder_pro = ["Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Flest)", "Spillerskud & Skud på mål", "Tacklinger & Målmandsredninger"]
             resultat = byg_kupon.byg_kombineret_kupon(kampe_til_analyse, markeder_pro, maal_odds)
             
@@ -119,17 +142,10 @@ if st.button("🔍 SCAN SPECIAL-MARKEDER PÅ MINE HOLD", type="primary", key="bt
                     st.write("---")
                     gemme_ligaer.append(k["liga"])
                 
-                # RETTET: Viser nu den fulde pro-bookmaker vurdering og 1-5 risikostjerner
                 st.success(f"🔥 **BEDSTE BOOKMAKER FOR DINE FAVORITTER: {resultat['bedste_side']}!**")
                 st.write(f"📈 **Samlet odds for dine valg hos {resultat['bedste_side']}: {resultat['bedste_odds']:.2f}**")
                 st.write(f"ℹ️ *Sammenligning:* Bet365: {resultat['samlet_b365']:.2f} | Unibet: {resultat['samlet_unibet']:.2f} | Oddset: {resultat['samlet_oddset']:.2f}")
                 st.write(f"🎯 **AI Sandsynlighed & Risiko (Værdi-vurdering):** {'⭐' * resultat['styrke']} ({resultat['styrke']}/5 stjerner)")
                 
-                # RETTET: Gemmer nu automatisk dine favoritkampe i databasen
-                gemt_status = gem_data.gem_kupon_i_historik(
-                    gemme_ligaer, gemme_forslag, 
-                    resultat["samlet_b365"], resultat["samlet_unibet"], resultat["samlet_oddset"], 
-                    resultat["bedste_side"], resultat["styrke"]
-                )
-                if gemt_status:
-                    st.info("🧠 Favorit-kupon gemt i AI-historikken! Robotten overvåger resultatet i databasen.")
+                gem_data.gem_kupon_i_historik(gemme_ligaer, gemme_forslag, resultat["samlet_b365"], resultat["samlet_unibet"], resultat["samlet_oddset"], resultat["bedste_side"], resultat["styrke"])
+                st.info("🧠 Favorit-kupon gemt i AI-historikken!")
