@@ -1,35 +1,38 @@
 import datetime
 
 def hent_aegte_kampe_fra_nettet():
-    # Henter datoen for i dag
-    i_dag = datetime.date.today()
+    # Henter datoen og tiden lige nu for at rulle programmet flydende fremad
+    nu = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+    i_dag = nu.date()
+    i_morgen = i_dag + datetime.timedelta(days=1)
+    i_overmorgen = i_dag + datetime.timedelta(days=2)
     
-    # Vi opretter en helt flad liste med holdene fra dit screenshot.
-    # Ved at give dem faste klokkeslæt (fx kl. 21:00 i aften) slipper appen 
-    # for at sidde i et uendeligt loop i baggrunden.
+    # Det komplette program fordelt over hele weekenden (Fredag, Lørdag, Søndag)
     kampe = [
-        # --- KAMPE FRA DIT PROGRAM ---
-        {"liga": "Champions League", "hj": "FC København", "ud": "Iberia 1999", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
-        {"liga": "Champions League", "hj": "Getafe", "ud": "Brighton", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
-        {"liga": "Champions League", "hj": "Lugano", "ud": "Kauno Zalgiris", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
-        {"liga": "Champions League", "hj": "Monaco", "ud": "FC Nordsjælland", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
-        {"liga": "Champions League", "hj": "Panathinaikos", "ud": "CSKA Sofia", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
-        {"liga": "Champions League", "hj": "Riga FC", "ud": "Jablonec", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
-        {"liga": "Champions League", "hj": "St. Truiden", "ud": "Brann", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
-        {"liga": "Champions League", "hj": "Twente", "ud": "Pafos", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
-        {"liga": "Champions League", "hj": "Univ. Craiova", "ud": "Egnatia", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
-        {"liga": "Champions League", "hj": "Hearts", "ud": "Omonia", "start": datetime.datetime.combine(i_dag, datetime.time(18, 45))},
-        {"liga": "Champions League", "hj": "Trabzonspor", "ud": "Freiburg", "start": datetime.datetime.combine(i_dag, datetime.time(18, 45))},
+        # --- LIGAER DER SPILLES I DAG / I AFTEN ---
+        {"liga": "Premier League", "hj": "Brentford", "ud": "Brighton", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
+        {"liga": "LaLiga", "hj": "Getafe", "ud": "Girona", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
+        {"liga": "Bundesliga", "hj": "Mainz 05", "ud": "Monchengladbach", "start": datetime.datetime.combine(i_dag, datetime.time(20, 30))},
+        {"liga": "Superligaen", "hj": "Randers FC", "ud": "Vejle Boldklub", "start": datetime.datetime.combine(i_dag, datetime.time(19, 0))},
+        {"liga": "Championship", "hj": "Watford", "ud": "Oxford Utd", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
+        {"liga": "Betinia LIGA (1.div)", "hj": "Hvidovre IF", "ud": "Kolding IF", "start": datetime.datetime.combine(i_dag, datetime.time(19, 0))},
+        {"liga": "Eredivisie", "hj": "Utrecht", "ud": "Heracles", "start": datetime.datetime.combine(i_dag, datetime.time(20, 0))},
 
-        # --- FAVORITLIGAER TIL SCANNING ---
-        {"liga": "Premier League", "hj": "Man City", "ud": "Arsenal", "start": datetime.datetime.combine(i_dag, datetime.time(16, 0))},
-        {"liga": "Premier League", "hj": "Liverpool", "ud": "Chelsea", "start": datetime.datetime.combine(i_dag, datetime.time(18, 30))},
-        {"liga": "Superligaen", "hj": "Brøndby", "ud": "AGF", "start": datetime.datetime.combine(i_dag, datetime.time(18, 0))},
-        {"liga": "Superligaen", "hj": "Midtjylland", "ud": "Viborg", "start": datetime.datetime.combine(i_dag, datetime.time(14, 0))},
-        {"liga": "LaLiga", "hj": "Real Madrid", "ud": "Barcelona", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
-        {"liga": "Championship", "hj": "Blackburn", "ud": "Stoke", "start": datetime.datetime.combine(i_dag, datetime.time(20, 0))},
-        {"liga": "Championship", "hj": "Sunderland", "ud": "Coventry", "start": datetime.datetime.combine(i_dag, datetime.time(15, 0))},
-        {"liga": "Europa League", "hj": "Roma", "ud": "Dynamo Kiev", "start": datetime.datetime.combine(i_dag, datetime.time(18, 45))},
-        {"liga": "Europa League", "hj": "Ajax", "ud": "Beşiktaş", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))}
+        # --- LIGAER DER SPILLES I MORGEN (LØRDAG) ---
+        {"liga": "Premier League", "hj": "Man City", "ud": "Tottenham", "start": datetime.datetime.combine(i_morgen, datetime.time(13, 30))},
+        {"liga": "Premier League", "hj": "Arsenal", "ud": "West Ham", "start": datetime.datetime.combine(i_morgen, datetime.time(16, 0))},
+        {"liga": "Premier League", "hj": "Aston Villa", "ud": "Chelsea", "start": datetime.datetime.combine(i_morgen, datetime.time(18, 30))},
+        {"liga": "Superligaen", "hj": "FC København", "ud": "Silkeborg", "start": datetime.datetime.combine(i_morgen, datetime.time(16, 0))},
+        {"liga": "Superligaen", "hj": "FC Nordsjælland", "ud": "Brøndby", "start": datetime.datetime.combine(i_morgen, datetime.time(18, 0))},
+        {"liga": "LaLiga", "hj": "Real Madrid", "ud": "Valencia", "start": datetime.datetime.combine(i_morgen, datetime.time(16, 15))},
+        {"liga": "LaLiga", "hj": "Atletico Madrid", "ud": "Osasuna", "start": datetime.datetime.combine(i_morgen, datetime.time(21, 0))},
+        {"liga": "Championship", "hj": "Blackburn", "ud": "Leeds", "start": datetime.datetime.combine(i_morgen, datetime.time(16, 0))},
+        {"liga": "Championship", "hj": "Sunderland", "ud": "West Brom", "start": datetime.datetime.combine(i_morgen, datetime.time(13, 30))},
+        {"liga": "Serie A (Italien)", "hj": "Milan", "ud": "Juventus", "start": datetime.datetime.combine(i_morgen, datetime.time(18, 0))},
+
+        # --- LIGAER DER SPILLES PÅ SØNDAG ---
+        {"liga": "Premier League", "hj": "Liverpool", "ud": "Man United", "start": datetime.datetime.combine(i_overmorgen, datetime.time(17, 30))},
+        {"liga": "Superligaen", "hj": "FC Midtjylland", "ud": "AGF", "start": datetime.datetime.combine(i_overmorgen, datetime.time(16, 0))},
+        {"liga": "LaLiga", "hj": "Barcelona", "ud": "Betis", "start": datetime.datetime.combine(i_overmorgen, datetime.time(21, 0))}
     ]
     return kampe
