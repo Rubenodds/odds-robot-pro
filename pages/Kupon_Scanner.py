@@ -1,103 +1,76 @@
 import streamlit as st
 
-# --- 1. INTRAKT BILLED-SCANNER (Bibeholdt præcis som før) ---
-st.header("📸 Billed-Scanner / Side 3")
-uploaded_file = st.file_uploader("Upload screenshot af din kupon", type=["jpg", "jpeg", "png"])
-
-# Dummy-variabel til at holde de scannede data fra din OCR-motor
-scannede_kampe = []
-
-if uploaded_file is not None:
-    st.info("Scanner billede for kampe og odds...")
-    # HER KØRER DIN EKSISTERENDE OCR-LOGIK 
-    # (Vi lader som om den har fundet disse kampe på dit screenshot):
-    scannede_kampe = [
-        {"hjemmehold": "FC København", "udehold": "Brøndby", "spilvalg": "1", "odds": 1.95},
-        {"hjemmehold": "Midtjylland", "udehold": "AGF", "spilvalg": "Over 2.5", "odds": 1.80},
-        {"hjemmehold": "Real Madrid", "udehold": "Barcelona", "spilvalg": "1X", "odds": 1.45},
-        {"hjemmehold": "Man City", "udehold": "Liverpool", "spilvalg": "Begge hold scorer", "odds": 1.65}
-    ]
+def tegn_betting_kupon_forslag(overskrift, kamp_liste, samlet_odds, info_tekst=""):
+    """
+    Genererer en visuel, mørk betting-kupon til optimerede forslag.
+    Denne erstatter den rå tekstvisning.
+    """
+    # Starten på den mørke kuponstamme med betting-tema
+    st.markdown(
+        f"""
+        <div style="
+            background-color: #12121A; 
+            padding: 22px; 
+            border-radius: 14px; 
+            border: 2px solid #2A2A3A;
+            border-left: 6px solid #FF4B4B;
+            box-shadow: 0px 6px 15px rgba(0,0,0,0.5);
+            color: #E2E2E2;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            max-width: 480px;
+            margin: 20px auto 20px 0;
+        ">
+            <!-- Kupon Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed #3A3A50; padding-bottom: 12px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 1.3rem;">🎫</span>
+                    <span style="font-weight: 800; letter-spacing: 0.5px; color: #FFFFFF; font-size: 1.05rem;">{overskrift.upper()}</span>
+                </div>
+                <span style="background-color: #222235; color: #FFD700; font-size: 0.75rem; padding: 4px 8px; border-radius: 6px; font-weight: bold; border: 1px solid #444460;">
+                    {info_tekst}
+                </span>
+            </div>
+            
+            <!-- Kampvalg -->
+            <div style="display: flex; flex-direction: column; gap: 12px; padding: 4px 0;">
+        """, 
+        unsafe_allow_html=True
+    )
     
-    # Vis den originale kuponstamme først, så du kan se hvad der blev skannet
-    # [Din eksisterende funktion til at tegne den mørke kuponstamme bruges her]
-
-# --- 2. AVANCERET MULTI-BALANCERING & LAG-HOLDER (Moderniseret tilføjelse) ---
-st.write("---")
-st.subheader("📊 Avanceret Multi-Balancering & Lag-Holder")
-
-col_min, col_max = st.columns(2)
-with col_min:
-    min_valgt = st.number_input("Minimum Odds-Lag", min_value=1.0, value=40.0, step=1.0)
-with col_max:
-    max_valgt = st.number_input("Maximum Odds-Lag", min_value=1.0, value=50.0, step=1.0)
-
-# Knappen kører KUN hvis der faktisk er skannet eller indlæst kampe fra billedet først
-if st.button("🚀 Kør Lag-Holder & Generer Forslagskupon", use_container_width=True):
-    if not scannede_kampe:
-        st.warning("⚠️ Du skal uploade og skanne en kupon først, før motoren kan beregne et lag-forslag!")
-    else:
-        # Beregn nuværende samlet odds fra skanningen
-        nuværende_odds = 1.0
-        for kamp in scannede_kampe:
-            nuværende_odds *= kamp['odds']
-            
-        # Motoren justerer værdierne ind i dit valgte interval (f.eks. 40-50)
-        justerede_kampe = []
-        if nuværende_odds < min_valgt:
-            retning = "OP"
-            faktor = (min_valgt / nuværende_odds) ** (1 / len(scannede_kampe))
-            status_tag = "Værdi-Boost 🔥"
-        elif nuværende_odds > max_valgt:
-            retning = "NED"
-            faktor = (max_valgt / nuværende_odds) ** (1 / len(scannede_kampe))
-            status_tag = "Lag-Sikret 🛡️"
-        else:
-            retning = "INGEN"
-            faktor = 1.0
-            status_tag = "Perfekt Match ✅"
-
-        nyt_total_odds = 1.0
-        for kamp in scannede_kampe:
-            nyt_odds = kamp['odds'] * faktor
-            nyt_valg = f"{kamp['spilvalg']} ({status_tag})" if retning != "INGEN" else kamp['spilvalg']
-            
-            justerede_kampe.append({
-                "hjemmehold": kamp['hjemmehold'],
-                "udehold": kamp['udehold'],
-                "spilvalg": nyt_valg,
-                "odds": nyt_odds
-            })
-            nyt_total_odds *= nyt_odds
-
-        # TEGN FORSLAGET SOM EN KUPON IGEN
-        st.markdown(
-            f"""
-            <div style="background-color: #1E1E2E; padding: 20px; border-radius: 12px; border-left: 5px solid #FF4B4B; color: #FFFFFF; font-family: 'Courier New', monospace; margin-top: 15px;">
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #555; padding-bottom: 8px;">
-                    <span style="font-weight: bold; color: #FFD700;">🎫 OPTIMERET FORSLAGSKUPON</span>
-                    <span style="font-size: 0.85rem; color: #888;">Låst til: {min_valgt}-{max_valgt}</span>
-                </div>
-                <div style="padding: 10px 0;">
-            """, unsafe_allow_html=True
-        )
+    # Løkke igennem de foreslåede kampe
+    for kamp in kamp_liste:
+        # Tjek om det er et risiko/sikkert valg for at farve ikonet derefter
+        ikon = "🔥" if "boost" in kamp.get('type', '').lower() else "🛡️"
         
-        for k in justerede_kampe:
-            st.markdown(
-                f"""
-                <div style="display: flex; justify-content: space-between; font-size: 0.95rem; margin: 6px 0;">
-                    <span>⚽ {k['hjemmehold']} - {k['udehold']}</span>
-                    <span style="font-weight: bold; color: #00FFCC;">{k['spilvalg']} @ {k['odds']:.2f}</span>
-                </div>
-                """, unsafe_allow_html=True
-            )
-            
         st.markdown(
             f"""
+            <div style="background-color: #1A1A26; padding: 10px 12px; border-radius: 8px; border: 1px solid #252538; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-size: 0.82rem; color: #8A8A9F; font-weight: 500;">⚽ {kamp['hjemmehold']} - {kamp['udehold']}</span>
+                    <span style="font-size: 0.92rem; color: #FFFFFF; font-weight: 600;">{kamp['spilvalg']}</span>
                 </div>
-                <div style="border-top: 1px dashed #555; padding-top: 8px; display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem;">
-                    <span style="color: #FF4B4B;">TOTALT ODDS:</span>
-                    <span style="color: #00FFCC;">{nyt_total_odds:.2f}</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 0.85rem;">{ikon}</span>
+                    <span style="background-color: #00FFCC; color: #051510; font-weight: 800; font-size: 0.95rem; padding: 3px 8px; border-radius: 4px; min-width: 45px; text-align: center;">
+                        {kamp['odds']:.2f}
+                    </span>
                 </div>
             </div>
-            """, unsafe_allow_html=True
+            """, 
+            unsafe_allow_html=True
         )
+        
+    # Kupon Bund / Total Odds
+    st.markdown(
+        f"""
+            </div>
+            <div style="margin-top: 14px; border-top: 2px dashed #3A3A50; padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #FF4B4B; font-weight: 800; font-size: 1.05rem; letter-spacing: 0.5px;">SAMLET ODDS:</span>
+                <span style="color: #00FFCC; font-weight: 900; font-size: 1.4rem; text-shadow: 0px 0px 8px rgba(0,255,204,0.3);">
+                    {samlet_odds:.2f}
+                </span>
+            </div>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
