@@ -9,7 +9,7 @@ from historik import gem_data
 st.set_page_config(page_title="AI Favorit-Hold Scanner", page_icon="🎯", layout="centered")
 
 st.title("🎯 AI Favorit-Hold Scanner")
-st.write("Vælg tidsinterval og ligaer for kun at søge blandt de hold, der er spilleaktuelle.")
+st.write("Vælg turneringer inden for dit tidsinterval for at få alle tilgængelige hold frem i søgemenuen.")
 
 # ----------------- PANEL 1: INDSTILLINGER -----------------
 st.header("⏳ 1. Indstil dit tidsinterval")
@@ -30,98 +30,84 @@ else: tids_timer = 48.0
 nu = dansk_tid.hent_dansk_klokkeslaet()
 alle_kampe = hent_kampe.hent_aegte_kampe_fra_nettet()
 
-# Backup baseret på programmet
-if not alle_kampe:
-    alle_kampe = [
-        {"liga": "Champions League", "hj": "Inter", "ud": "Arsenal", "start": nu + datetime.timedelta(hours=2.0)},
-        {"liga": "Champions League", "hj": "PSG", "ud": "Atletico Madrid", "start": nu + datetime.timedelta(hours=2.0)},
-        {"liga": "Champions League", "hj": "Liverpool", "ud": "Leverkusen", "start": nu + datetime.timedelta(hours=2.0)},
-        {"liga": "Championship", "hj": "Coventry", "ud": "Derby", "start": nu + datetime.timedelta(hours=1.5)},
-        {"liga": "Championship", "hj": "Blackburn", "ud": "Stoke", "start": nu + datetime.timedelta(hours=1.5)},
-        {"liga": "League One", "hj": "Bolton", "ud": "Portsmouth", "start": nu + datetime.timedelta(hours=0.5)},
-        {"liga": "Europa League", "hj": "Roma", "ud": "Dynamo Kiev", "start": nu + datetime.timedelta(hours=4.0)},
-        {"liga": "Coupe de France", "hj": "Lyon", "ud": "Nice", "start": nu + datetime.timedelta(hours=5.0)}
-    ]
-
-# 1. TIMEFILTER: Finder de ligaer, der overhovedet har kampe i tidsrummet
+# TIMEFILTER: Finder præcis hvilke turneringer der har kampe i den valgte periode
 tilgaengelige_ligaer = sorted(list(set([k["liga"] for k in alle_kampe if ((k["start"] - nu).total_seconds() / 3600) <= tids_timer])))
 
-st.header("⚽ 2. Vælg Aktive Ligaer")
+# ----------------- PANEL 2: DYNAMISKE LIGAER -----------------
+st.header("⚽ 2. Vælg Aktive Turneringer")
+
 if not tilgaengelige_ligaer:
-    st.warning("Ingen ligaer har planlagte kampe i dette tidsrum.")
+    st.warning("Ingen turneringer har planlagte kampe i dette tidsrum.")
     valgte_ligaer = list()
 else:
+    st.write("Sæt kryds ved de turneringer, du vil søge hold i:")
     liga_afkrydsning = {}
+    
     kolonner = st.columns(min(3, len(tilgaengelige_ligaer)))
     for idx, liga_navn in enumerate(tilgaengelige_ligaer):
         med_kolonne = kolonner[idx % len(kolonner)]
         with med_kolonne:
-            liga_afkrydsning[liga_navn] = st.checkbox(liga_navn, value=True, key=f"scanner_chk_{liga_navn}")
+            # KUN LIGA-FLUEBEN FJERNET: value=False sikrer, at kasserne starter helt blanke
+            liga_afkrydsning[liga_navn] = st.checkbox(liga_navn, value=False, key=f"scanner_chk_{liga_navn}")
+            
     valgte_ligaer = [navn for navn, valgt in liga_afkrydsning.items() if valgt]
 
-# 2. LIGAFILTER & TIMEFILTER PÅ KAMPE: Finder KUN de reelle, aktive kampe, der matcher begge krav
+# KAMPFILTER: Finder alle kampe der matcher BÅDE turneringer og tidsinterval
 aktive_kampe_i_periode = [
     k for k in alle_kampe 
     if k["liga"] in valgte_ligaer and ((k["start"] - nu).total_seconds() / 3600) <= tids_timer
 ]
 
-# ----------------- FILTRERING AF HOLD (SKUDSIKKER REGL) -----------------
+# ----------------- DYNAMISK SØGNING BLANDT HOLD -----------------
 st.header("🎯 3. Vælg dine favorit-hold")
 
-if not aktive_kampe_i_periode:
-    st.info("Sæt flueben ved ligaerne ovenfor for at få vist de spilleaktuelle hold.")
+if not valgte_ligaer:
+    st.info("Sæt flueben ved turneringerne i punkt 2 ovenfor for at åbne op for dagens tilgængelige hold.")
+elif not aktive_kampe_i_periode:
+    st.warning("Ingen aktive kampe fundet for de valgte turneringer inden for dette tidsfilter.")
 else:
-    # Initialiserer session state til dine valg
     if "mine_valgte_hold" not in st.session_state:
-        st.session_state["mine_valgte_hold"] = []
+        st.session_state["mine_valgte_hold"] = list()
 
-    # Vi bygger rullemenuen dynamisk hver gang der sker et valg!
     valgte_nu = st.session_state["mine_valgte_hold"]
     
-    # REGLEN: Find alle de modstandere, der skal blokeres omgående
+    # Skudsikker regel: Find modstandere og udeluk overlap
     blokerede_hold = set()
     for k in aktive_kampe_i_periode:
         if k["hj"] in valgte_nu or k["ud"] in valgte_nu:
-            # Hvis et af holdene i kampen er valgt, blokerer vi BEGGE hold fra fremtidige valg
             blokerede_hold.add(k["hj"])
             blokerede_hold.add(k["ud"])
 
-    # Listen over tilgængelige valg skæres benhårdt til:
-    # Den indeholder kun hold, der IKKE er blokerede, PLUS dem du allerede har klikket af
     aktive_hold_liste = sorted(list(set(
         [k["hj"] for k in aktive_kampe_i_periode if k["hj"] not in blokerede_hold or k["hj"] in valgte_nu] + 
         [k["ud"] for k in aktive_kampe_i_periode if k["ud"] not in blokerede_hold or k["ud"] in valgte_nu]
     )))
 
-    # Viser rullemenuen med den trimmede liste
     valg_opdateret = st.multiselect(
-        f"Søg blandt de hold, der spiller inden for {tidsvalg.lower()}:",
+        f"Søg frit blandt alle {len(aktive_hold_liste)} hold i de valgte turneringer:",
         options=aktive_hold_liste,
         default=valgte_nu,
-        help="Når du vælger et hold, forsvinder modstanderen med det samme fra rullemenuen.",
+        help="Når du vælger et hold, forsvinder modstanderen omgående fra søgningen.",
         key="hold_scanner_skudsikker_multi"
     )
 
-    # Hvis der er sket ændringer i valgene, opdaterer vi og genindlæser siden med det samme så modstanderne kastes ud!
     if valg_opdateret != valgte_nu:
         st.session_state["mine_valgte_hold"] = valg_opdateret
         st.rerun()
-
-    valgte_hold = valg_opdateret
 
 st.header("📊 4. Indstil dit målodds")
 maal_odds = st.number_input("Målsat odds for dine valgte hold:", min_value=2.0, max_value=1000.0, value=10.0, step=2.0, key="scanner_odds_input")
 
 if st.button("🔍 SCAN SPECIAL-MARKEDER PÅ MINE HOLD", type="primary", key="btn_scanner_side_generer"):
-    if not st.session_state["mine_valgte_hold"]:
+    if "mine_valgte_hold" not in st.session_state or not st.session_state["mine_valgte_hold"]:
         st.error("Vælg venligst mindst ét hold i søgefeltet først!")
     else:
         kampe_til_analyse = [k for k in aktive_kampe_i_periode if k["hj"] in st.session_state["mine_valgte_hold"] or k["ud"] in st.session_state["mine_valgte_hold"]]
         
         if not kampe_til_analyse:
-            st.warning("De valgte hold spiller ikke i de markerede ligaer inden for dette tidsinterval.")
+            st.warning("De valgte hold matcher ikke det aktuelle program.")
         else:
-            st.subheader(f"📊 Eksklusiv AI Analyse af dine hold:")
+            st.subheader("📊 Eksklusiv AI Analyse af dine hold:")
             st.write("---")
             
             markeder_pro = ["Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Flest)", "Spillerskud & Skud på mål", "Tacklinger & Målmandsredninger"]
