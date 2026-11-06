@@ -76,10 +76,8 @@ if uploadet_billede:
         with col_i2:
             max_o = st.number_input("Maksimum samlet odds:", min_value=2.0, max_value=5000.0, value=50.0, step=2.0)
 
-        # Beregn midten af det valgte interval dynamisk
+        # ⚠️ BEREGNINGER FLYTTET OP FØR VISNING AF KUPONEN
         mål_odds_midt = round((min_o + max_o) / 2, 2)
-        
-        # Dynamisk baglæns Multi-Balancering baseret på det nye samlede odds-niveau
         odds_uden_hovedkamp = 1.45 * 5.00 * 4.50
         nødvendigt_opjusteret_odds = round(mål_odds_midt / odds_uden_hovedkamp, 2)
         
