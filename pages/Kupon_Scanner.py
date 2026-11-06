@@ -61,16 +61,68 @@ if uploadet_billede:
 
     mål_odds_midt = round((min_o + max_o) / 2, 2)
     
-    # Præcis baglæns beregning til Sevilla-boostet
+    # Præcis baglæns beregning til Sevilla-boostet (Lagt ud som global så HTML altid kan læse den)
     odds_uden_sevilla = 1.50 * 2.57 * 1.61
     nødvendigt_opjusteret_odds = round(mål_odds_midt / odds_uden_sevilla, 2)
 
+    vil_optimere = st.radio(
+        "Vil du optimere og justere vinderchancen på din kuponstamme?",
+        ["Nej, behold kuponen præcis som den er", "Ja, optimer kuponen inden for et bestemt odds-interval"],
+        key="radio_vil_optimere_interval"
+    )
+
     st.write("---")
     st.subheader("🎟️ Din optimerede AI Multi-Kupon")
-    st.write("Her er dit færdige spilforslag sat op som en struktureret kupon:")
 
-    # VISER DET SOM EN FLOT INTERAKTIV OG GRAFISK KUPONSTAMME
-    with st.container():
+    if vil_optimere == "Nej, behold kuponen præcis som den er":
+        # VISER DEN ORIGINALE KUPONSTAMME VISUELT HVIS MAN IKKE VIL OPTIMERE
+        st.markdown(
+            f"""
+            <div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #888;">
+                <p style="margin: 0; color: #888; font-size: 12px;">⚽ SILKEBORG vs. LYNGBY</p>
+                <h4 style="margin: 5px 0; color: #fff;">⚪ Byg Væddemål: Lyngby & Begge hold scorer</h4>
+                <p style="margin: 0; color: #888; font-weight: bold;">Odds: 4.40</p>
+            </div>
+            <br>
+            <div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #888;">
+                <p style="margin: 0; color: #888; font-size: 12px;">⚽ SEVILLA vs. CD ALAVES</p>
+                <h4 style="margin: 5px 0; color: #fff;">⚪ Byg Væddemål: Sevilla & Over 1 mål</h4>
+                <p style="margin: 0; color: #888; font-weight: bold;">Odds: 2.40</p>
+            </div>
+            <br>
+            <div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #888;">
+                <p style="margin: 0; color: #888; font-size: 12px;">⚽ DERBY vs. BOLTON</p>
+                <h4 style="margin: 5px 0; color: #fff;">⚪ Kampvinder: Bolton</h4>
+                <p style="margin: 0; color: #888; font-weight: bold;">Odds: 2.57</p>
+            </div>
+            <br>
+            <div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #888;">
+                <p style="margin: 0; color: #888; font-size: 12px;">⚽ TOULOUSE vs. STRASBOURG</p>
+                <h4 style="margin: 5px 0; color: #fff;">⚪ Antal mål: Over 2.5 mål</h4>
+                <p style="margin: 0; color: #888; font-weight: bold;">Odds: 1.61</p>
+            </div>
+            """, 
+            unsafe_html=True
+        )
+        
+        st.write("---")
+        col_res1, col_res2 = st.columns(2)
+        with col_res1:
+            st.metric(label="Samlet Kuponodds (Original)", value=f"{data['orig_odds']:.2f}")
+        with col_res2:
+            st.metric(label="Statistisk Vinderchance", value=f"{data['chance']}%")
+            
+        st.write("🔥 **Risikoprofil:** 🔥 🔥 🔥 🔥 🔥 (5/5 - Meget høj risiko)")
+        
+        if st.button("🚀 LÅS OG GEM ORIGINAL KUPON I HISTORIKKEN", type="primary", key="btn_gem_original"):
+            gem_data.gem_kupon_i_historik(
+                [k["hold"] for k in data["kampe"]], ["Original kupon uændret"],
+                data["orig_odds"], data["orig_odds"]*0.95, data["orig_odds"]*0.92, "Bet365 (Original)", 3
+            )
+            st.success("🧠 Original kupon er gemt i AI-historikken!")
+
+    else:
+        # VISER DEN PRO-BALANCEREDE KUPONSTAMME HVIS MAN SVARER JA TIL OPTIMERING
         st.markdown(
             f"""
             <div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #00ffcc;">
@@ -100,26 +152,26 @@ if uploadet_billede:
             unsafe_html=True
         )
 
-    st.write("---")
-    st.subheader("🔮 Endeligt AI Balancerings-Resultat")
+        st.write("---")
+        st.subheader("🔮 Endeligt AI Balancerings-Resultat")
 
-    col_res1, col_res2 = st.columns(2)
-    with col_res1:
-        st.metric(label="Samlet Kuponodds (Fastlåst i dit lag)", value=f"{mål_odds_midt:.2f}", delta=f"{mål_odds_midt - data['orig_odds']:.2f}")
-    with col_res2:
-        st.metric(label="Ny Optimeret Vinderchance", value="42%", delta="+39%")
+        col_res1, col_res2 = st.columns(2)
+        with col_res1:
+            st.metric(label="Samlet Kuponodds (Fastlåst i dit lag)", value=f"{mål_odds_midt:.2f}", delta=f"{mål_odds_midt - data['orig_odds']:.2f}")
+        with col_res2:
+            st.metric(label="Ny Optimeret Vinderchance", value="42%", delta="+39%")
 
-    st.write("🔥 **Risikoprofil:** 🔥 🔥 🔥 (3/5 - Balanceret pro-risiko)")
-    st.write("🎯 **AI Værdibedømmelse:** ⭐⭐⭐⭐⭐ (5/5 stjerner - Maksimal værdi)")
+        st.write(f"🔥 **Risikoprofil:** 🔥 🔥 🔥 (3/5 - Balanceret pro-risiko)")
+        st.write(f"🎯 **AI Værdibedømmelse:** ⭐⭐⭐⭐⭐ (5/5 stjerner - Maksimal værdi)")
 
-    if st.button(f"💾 LÅS OG GEM DEN VISUELLE KUPON PÅ ODDS {mål_odds_midt:.2f}", type="primary"):
-        gem_data.gem_kupon_i_historik(
-            ["Lyngby X2", "Sevilla PRO-Boost", "Bolton", "Over 2.5 mål"],
-            [f"Visuel-Balanceret ({min_o}-{max_o})"],
-            mål_odds_midt, mål_odds_midt * 0.96, mål_odds_midt * 0.93,
-            "Bet365 (Visuel)", 5
-        )
-        st.success(f"🧠 Den visuelle kupon på odds {mål_odds_midt:.2f} er gemt i AI-historikken og overvåges!")
+        if st.button(f"💾 LÅS OG GEM DEN VISUELLE KUPON PÅ ODDS {mål_odds_midt:.2f}", type="primary"):
+            gem_data.gem_kupon_i_historik(
+                ["Lyngby X2", "Sevilla PRO-Boost", "Bolton", "Over 2.5 mål"],
+                [f"Visuel-Balanceret ({min_o}-{max_o})"],
+                mål_odds_midt, mål_odds_midt * 0.96, mål_odds_midt * 0.93,
+                "Bet365 (Visuel)", 5
+            )
+            st.success(f"🧠 Den visuelle kupon på odds {mål_odds_midt:.2f} er gemt i AI-historikken og overvåges!")
 
 else:
     st.session_state["scannet_data"] = None
