@@ -61,7 +61,7 @@ if uploadet_billede:
 
     mål_odds_midt = round((min_o + max_o) / 2, 2)
     
-    # Præcis baglæns beregning til Sevilla-boostet (Lagt ud som global så HTML altid kan læse den)
+    # Præcis baglæns beregning til Sevilla-boostet
     odds_uden_sevilla = 1.50 * 2.57 * 1.61
     nødvendigt_opjusteret_odds = round(mål_odds_midt / odds_uden_sevilla, 2)
 
@@ -75,7 +75,6 @@ if uploadet_billede:
     st.subheader("🎟️ Din optimerede AI Multi-Kupon")
 
     if vil_optimere == "Nej, behold kuponen præcis som den er":
-        # VISER DEN ORIGINALE KUPONSTAMME VISUELT HVIS MAN IKKE VIL OPTIMERE
         st.markdown(
             f"""
             <div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #888;">
@@ -122,7 +121,6 @@ if uploadet_billede:
             st.success("🧠 Original kupon er gemt i AI-historikken!")
 
     else:
-        # VISER DEN PRO-BALANCEREDE KUPONSTAMME HVIS MAN SVARER JA TIL OPTIMERING
         st.markdown(
             f"""
             <div style="background-color: #1a1a1a; padding: 15px; border-radius: 10px; border-left: 5px solid #00ffcc;">
@@ -164,7 +162,7 @@ if uploadet_billede:
         st.write(f"🔥 **Risikoprofil:** 🔥 🔥 🔥 (3/5 - Balanceret pro-risiko)")
         st.write(f"🎯 **AI Værdibedømmelse:** ⭐⭐⭐⭐⭐ (5/5 stjerner - Maksimal værdi)")
 
-        if st.button(f"💾 LÅS OG GEM DEN VISUELLE KUPON PÅ ODDS {mål_odds_midt:.2f}", type="primary"):
+        if st.button("💾 LÅS OG GEM DEN VISUELLE KUPON PÅ ODDS " + str(mål_odds_midt), type="primary"):
             gem_data.gem_kupon_i_historik(
                 ["Lyngby X2", "Sevilla PRO-Boost", "Bolton", "Over 2.5 mål"],
                 [f"Visuel-Balanceret ({min_o}-{max_o})"],
