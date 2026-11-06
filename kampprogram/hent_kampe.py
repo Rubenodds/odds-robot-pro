@@ -10,11 +10,11 @@ def hent_aegte_kampe_fra_nettet():
     # Henter den aktuelle ugedag (0 = Mandag, 1 = Tirsdag, 2 = Onsdag, 3 = Torsdag, 4 = Fredag, 5 = Lørdag, 6 = Søndag)
     ugedag = nu.weekday()
     
-    # KORREKT: Initialiseres som en tom liste
+    # Initialiseres korrekt som en tom liste
     kampe = []
 
     # =========================================================================
-    # STRATEGI A: MIDTUGE-PROGRAM (Hvis ugedagen er Mandag, Tirsdag, Onsdag eller Torsdag)
+    # STRATEGI A: MIDTUGE-PROGRAM (Mandag, Tirsdag, Onsdag, Torsdag)
     # =========================================================================
     if ugedag in:
         kampe += [
@@ -31,11 +31,11 @@ def hent_aegte_kampe_fra_nettet():
             {"liga": "Conference League", "hj": "Hearts", "ud": "Omonia", "start": datetime.datetime.combine(i_morgen, datetime.time(18, 45))}
         ]
     # =========================================================================
-    # STRATEGI B: WEEKEND-PROGRAM (Hvis ugedagen er Fredag, Lørdag eller Søndag)
+    # STRATEGI B: WEEKEND-PROGRAM (Fredag, Lørdag, Søndag)
     # =========================================================================
     else:
         kampe += [
-            # --- FREDAGSPROGRAM (Spilles i aften - Vises KUN ved 6 / 12 timers filter og frem) ---
+            # --- FREDAGSPROGRAM (Spilles i aften - Vises ved 6 / 12 timers filter og frem) ---
             {"liga": "Superliga", "hj": "Randers FC", "ud": "Vejle Boldklub", "start": datetime.datetime.combine(i_dag, datetime.time(19, 0))},
             {"liga": "Betinia LIGA", "hj": "Hvidovre IF", "ud": "Kolding IF", "start": datetime.datetime.combine(i_dag, datetime.time(19, 0))},
             {"liga": "Betinia LIGA", "hj": "B93", "ud": "Hobro", "start": datetime.datetime.combine(i_dag, datetime.time(19, 0))},
@@ -57,7 +57,7 @@ def hent_aegte_kampe_fra_nettet():
             {"liga": "Ligue 2", "hj": "Nancy", "ud": "Sochaux", "start": datetime.datetime.combine(i_dag, datetime.time(20, 0))},
             {"liga": "Ligue 2", "hj": "USL Dunkerque", "ud": "Guingamp", "start": datetime.datetime.combine(i_dag, datetime.time(20, 0))},
 
-            # --- LØRDAGSPROGRAM (Vises automatisk ved 24 / 48 timers filter) ---
+            # --- LØRDAGSPROGRAM (Vises ved 24 / 48 timers filter) ---
             {"liga": "J2 League", "hj": "Yokohama FC", "ud": "Chiba", "start": datetime.datetime.combine(i_morgen, datetime.time(6, 0))},
             {"liga": "Premier League", "hj": "Man City", "ud": "Tottenham", "start": datetime.datetime.combine(i_morgen, datetime.time(13, 30))},
             {"liga": "Premier League", "hj": "Arsenal", "ud": "West Ham", "start": datetime.datetime.combine(i_morgen, datetime.time(16, 0))},
@@ -65,7 +65,7 @@ def hent_aegte_kampe_fra_nettet():
             {"liga": "Superliga", "hj": "FC Nordsjælland", "ud": "Brøndby", "start": datetime.datetime.combine(i_morgen, datetime.time(18, 0))},
             {"liga": "Serie A", "hj": "Milan", "ud": "Juventus", "start": datetime.datetime.combine(i_morgen, datetime.time(18, 0))},
 
-            # --- SØNDAGSPROGRAM (Vises automatisk ved 48 timers filter) ---
+            # --- SØNDAGSPROGRAM (Vises ved 48 timers filter) ---
             {"liga": "Premier League", "hj": "Liverpool", "ud": "Man United", "start": datetime.datetime.combine(i_overmorgen, datetime.time(17, 30))},
             {"liga": "Superliga", "hj": "FC Midtjylland", "ud": "AGF", "start": datetime.datetime.combine(i_overmorgen, datetime.time(16, 0))}
         ]
