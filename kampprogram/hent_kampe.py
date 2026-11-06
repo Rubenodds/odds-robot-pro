@@ -10,7 +10,7 @@ def hent_aegte_kampe_fra_nettet():
     # Henter den aktuelle ugedag (0 = Mandag, 1 = Tirsdag, 2 = Onsdag, 3 = Torsdag, 4 = Fredag, 5 = Lørdag, 6 = Søndag)
     ugedag = nu.weekday()
     
-    # Initialiseres korrekt som en tom liste
+    # Oprettes korrekt som en tom liste
     kampe = []
 
     # =========================================================================
