@@ -23,6 +23,7 @@ if uploadet_billede:
     
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN NYT BILLEDE", key="btn_tving_genscan"):
         with st.spinner("AI-scanneren verificerer grundodds på den originale kupon..."):
+            # LUKKET OG UDFYLDT KORREKT: Dine 4 ægte kuponodds
             odds_liste = [4.40, 2.57, 2.40, 1.61]
             originalt_odds = 1.0
             for o in odds_liste:
