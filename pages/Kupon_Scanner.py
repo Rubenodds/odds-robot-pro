@@ -1,5 +1,6 @@
 import streamlit as st
 from PIL import Image
+import random
 from historik import gem_data
 # KRAV 1 & UNDERMAPPE IMPORT
 from bookmaker_scanner.scanner_motor import scan_efter_realistisk_kupon
@@ -24,6 +25,7 @@ if uploadet_billede:
     
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN NYT BILLEDE & BOOKMAKERE", key="btn_tving_genscan"):
         with st.spinner("AI-scanneren verificerer grundodds på den originale kupon..."):
+            # Udfyldt korrekt for at forhindre koks ved genindlæsning
             odds_liste = [2.80, 4.50, 5.00, 4.50]
             originalt_odds = 1.0
             for o in odds_liste:
@@ -69,7 +71,7 @@ if uploadet_billede:
         st.write("---")
         st.subheader("🎟️ Din optimerede AI Multi-Kupon")
 
-        if vil_optimere == "Nej, behold kuponen præcis som den er":
+        if vil_optimere == "Nej, behold kuponen præcis os den er":
             with st.container():
                 st.info("⚽ **OB vs. VIBORG**\n\n⚪ Kampvinder: OB — **Odds: 2.80**\n\n🔥 Risiko: 5/5 | 📊 Chance: 33%")
                 st.info("⚽ **FC KØBENHAVN vs. BRØNDBY**\n\n⚪ Kampvinder: Brøndby — **Odds: 4.50**\n\n🔥 Risiko: 5/5 | 📊 Chance: 21%")
@@ -79,24 +81,23 @@ if uploadet_billede:
             reelt_samlet_odds = data['orig_odds']
             vinder_chance = "3%"
         else:
-            # 🚀 AKIVER DEN REALISTISKE MÅLRETTER FRA UNDERMAPPEN
+            # AKTIVER DEN REALISTISKE MÅLRETTER FRA UNDERMAPPEN
             scan_resultat = scan_efter_realistisk_kupon(mål_odds_midt)
             
-            # Hvis odds-kravet er for sindssygt til virkeligheden, spyttes en klar forklaring ud!
             if not scan_resultat["muligt"]:
                 st.warning(scan_resultat["forklaring"])
 
             with st.container():
                 for spil in scan_resultat["kampe"]:
-                    # Genererer stjerner dynamisk baseret på rating-teksten
-                    stjerner_str = "⭐" * len(spil["stjerner"]) if "⭐" in spil["stjerner"] else spil["stjerner"]
+                    # RETTET: Vi læser nu bare den færdige stjerne-streng direkte i stedet for at lave 'len()'
+                    stjerner_str = spil["stjerner"]
                     
                     if spil["type"] == "success":
                         st.success(
                             f"⚽ **{spil['hold']}**\n\n"
                             f"🔵 **AI Foreslår:** {spil['variant']} — **Odds: {spil['odds']:.2f}**\n\n"
                             f"📊 **Chance:** {spil['chance']}% | 🔥 Værdi: {spil['flammer']}\n"
-                            f"⭐ **AI Rating:** {spil['stjerner']}\n"
+                            f"⭐ **AI Rating:** {stjerner_str}\n"
                             f"📝 *Analyse: {spil['analyse']}*"
                         )
                     else:
@@ -104,7 +105,7 @@ if uploadet_billede:
                             f"⚽ **{spil['hold']}**\n\n"
                             f"🟢 **AI Foreslår (Lag-holder):** {spil['variant']} — **Odds: {spil['odds']:.2f}**\n\n"
                             f"📊 **Chance:** {spil['chance']}% | 🔥 Værdi: {spil['flammer']}\n"
-                            f"⭐ **AI Rating:** {spil['stjerner']}\n"
+                            f"⭐ **AI Rating:** {stjerner_str}\n"
                             f"📝 *Analyse: {spil['analyse']}*"
                         )
             
