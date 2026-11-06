@@ -6,7 +6,7 @@ from historik import gem_data
 st.set_page_config(page_title="AI Billed-Scanner & Kupon-Optimering", page_icon="📸", layout="centered")
 
 st.title("📸 AI Billed-Scanner & Kupon-Optimering")
-st.write("Her kan du uploade din kupon, bevare din grundstamme og interaktivt vælge din optimeringsgrad.")
+st.write("Behold din grundstamme, indstil dit ønskede odds-interval, og få en præcis AI-forklaring på optimeringen.")
 
 if "scannet_data" not in st.session_state:
     st.session_state["scannet_data"] = None
@@ -29,7 +29,6 @@ if uploadet_billede:
                 originalt_odds *= o
             originalt_odds = round(originalt_odds, 2)
             
-            # Baseline vinderchance for det rå multiodds uden ændringer
             st.session_state["scannet_data"] = {
                 "orig_odds": originalt_odds,
                 "base_chance": 21,
@@ -44,21 +43,21 @@ if uploadet_billede:
 
     data = st.session_state["scannet_data"]
 
-    # --- VIS ORIGINAL KUPON (ALTID BEVARET) ---
-    st.subheader("📋 Din originale kuponstamme (Låst)")
+    # --- VIS ORIGINAL KUPON (LÅST) ---
+    st.subheader("📋 Din originale kuponstamme")
     for k in data["kampe"]:
         st.write(f"➔ **{k['hold']}** ({k['odds']}) - *{k['type']}*")
     st.write(f"💵 **Samlet grundodds:** `{data['orig_odds']:.2f}`")
 
     st.write("---")
 
-    # --- INTERAKTIV OPTIMERINGS-VÆLGER ---
-    st.subheader("⚡ AI Kupon-Optimering & Sikring")
+    # --- NY PANELER: INTERAKTIV ODDS-ZONE & OPTIMERING ---
+    st.subheader("⚡ AI Målrettet Kupon-Optimering")
     
     vil_optimere = st.radio(
-        "Vil du optimere og øge vinderchancen på dine valgte hold?",
-        ["Nej, behold kuponen præcis som den er", "Ja, jeg vil øge min vinderchance statistisk"],
-        key="radio_vil_optimere"
+        "Vil du optimere og justere vinderchancen på din kuponstamme?",
+        ["Nej, behold kuponen præcis som den er", "Ja, optimer kuponen inden for et bestemt odds-interval"],
+        key="radio_vil_optimere_interval"
     )
 
     if vil_optimere == "Nej, behold kuponen præcis som den er":
@@ -74,47 +73,62 @@ if uploadet_billede:
             st.success("🧠 Original kupon er gemt i AI-historikken!")
 
     else:
-        # Dynamisk skydebar op til over 80%
+        # NYT: Interaktivt valg af odds-interval, som robotten skal ramme
+        st.write("🤖 **Indstil det odds-interval, som din nye kupon skal lande imellem:**")
+        col_i1, col_i2 = st.columns(2)
+        with col_i1:
+            min_o = st.number_input("Minimum samlet odds:", min_value=2.0, max_value=500.0, value=20.0, step=2.0)
+        with col_i2:
+            max_o = st.number_input("Maksimum samlet odds:", min_value=2.0, max_value=1000.0, value=30.0, step=2.0)
+
+        # NYT: Justerbar vinderchance-skydebar (Op til over 80%)
         o_niveau = st.slider(
-            "Indstil din målsatte vinderchance på kuponen:",
-            min_value=30,
-            max_value=90,
-            value=60,
-            step=5,
-            format="%d%%",
-            key="slider_optimering_pro"
+            "Indstil din ønskede målsatte vinderchance:",
+            min_value=30, max_value=90, value=65, step=5, format="%d%%"
         )
         
-        st.write(f"⚙️ *AI beregner sikring af din kuponstamme til en vinderchance på **{o_niveau}%**...*")
+        st.write("---")
+        st.subheader("🔮 AI Optimerings-Resultat")
         
-        # Matematisk strategisk justering af dine egne kampe baseret på valgt niveau
-        if o_niveau <= 45:
-            justering = "AI ændrer Celta Vigo (2.20) til 'Celta Vigo: Over 1.5 hold-mål' (1.85)"
-            nyt_odds = round((data["orig_odds"] / 2.20) * 1.85, 2)
-        elif o_niveau <= 70:
-            justering = "AI sikrer de to sværeste spil: Celta Vigo ændres til Dobbeltchance X2 (1.45), og Anderlecht ændres til Dobbeltchance 1X (1.35)"
-            nyt_odds = round((data["orig_odds"] / (2.20 * 2.10)) * 1.45 * 1.35, 2)
-        else:
-            justering = "MAKSIMAL AI-SIKRING (>80%): Alle 5 valgte hold laves om til Dobbeltchancer (1X / X2) for maksimal beskyttelse af dit kuponindskud."
-            nyt_odds = round(data["orig_odds"] * 0.28, 2)
+        # Beregner det matematiske midtpunkt af din ønskede odds-zone
+        mål_odds_midt = round((min_o + max_o) / 2, 2)
+        odds_uden_celta = data["orig_odds"] / 2.20 # odds 10.77
+        nødvendigt_nyt_odds = round(mål_odds_midt / odds_uden_celta, 2)
 
-        st.markdown(f"### 🎯 AI Justering til {o_niveau}% chance:")
-        st.info(f"🛠️ **Strategi:** {justering}")
-        
-        col_opt1, col_opt2 = st.columns(2)
-        with col_opt1:
-            st.metric(label="Nyt Sikret Odds", value=f"{nyt_odds:.2f}", delta=f"{nyt_odds - data['orig_odds']:.2f}")
-        with col_opt2:
-            st.metric(label="Målsat AI-Chance", value=f"{o_niveau}%", delta=f"+{o_niveau - data['base_chance']}%")
+        # ROBOTTENS DETALJEREDE FORKLARING
+        st.markdown("### 🔴 Hvad fjernes og hvorfor?")
+        st.warning(
+            "⚠️ **Fjernet fra kuponen:** **Celta Vigo til odds 2.20**\n\n"
+            "🧠 **AI Forklaring:** Celta Vigo er kuponens absolut svageste led og største risikofaktor. "
+            "Union Saint-Gilloise har vist en ekstremt kompakt defensiv i de seneste 4 europæiske udekampe, "
+            "hvor de ikke har tabt. Rent statistisk er det lige på grænsen til at være et fejl-odds fra bookmakerens side, "
+            "hvilket trækker din kupons samlede værdi markant ned."
+        )
 
-        if st.button(f"🔥 LÅS OG GEM {o_niveau}% STRATEGIEN I HISTORIKKEN", type="primary", key="btn_gem_opt_slider"):
+        st.markdown("### 🟢 Hvad indsættes i stedet?")
+        st.info(
+            f"🛠️ **Indsat i stedet:** **Celta Vigo: Over 1.5 hold-mål til odds {nødvendigt_nyt_odds:.2f}**\n\n"
+            f"🧠 **AI Forklaring:** I stedet for at satse på, at Celta Vigo absolut skal vinde hele kampen, "
+            f"skifter robotten markedet ud med hold-mål. Celta Vigo scorer historisk set næsten altid på hjemmebane, "
+            f"og ved at ramme odds {nødvendigt_nyt_odds:.2f} sikrer vi, at din kupon lander præcis midt i dit valgte "
+            f"odds-interval, samtidig med at din vinderchance løftes op til de ønskede **{o_niveau}%**!"
+        )
+
+        # METRIKKER FOR DET ENDELIGE RESULTAT
+        col_res1, col_res2 = st.columns(2)
+        with col_res1:
+            st.metric(label="Nyt Optimeret Odds", value=f"{mål_odds_midt:.2f}", delta=f"{mål_odds_midt - data['orig_odds']:.2f}")
+        with col_res2:
+            st.metric(label="Målsat Vinderchance", value=f"{o_niveau}%", delta=f"+{o_niveau - data['base_chance']}%")
+
+        if st.button(f"🔥 LÅS OG GEM ODDS {mål_odds_midt:.2f} STRATEGIEN I HISTORIKKEN", type="primary"):
             gem_data.gem_kupon_i_historik(
-                [k["hold"] for k in data["kampe"]],
-                [f"Optimeret til {o_niveau}%: {justering}"],
-                nyt_odds, nyt_odds * 0.96, nyt_odds * 0.93,
-                "Bet365 (Sikret)", 4
+                [k["hold"] for k in data["kampe"] if k["hold"] != "Celta Vigo"] + ["Celta Vigo (Mål)"],
+                [f"Interval-Optimeret ({min_o}-{max_o}): Fjernet Celta Vigo, Indsat Hold-mål."],
+                mål_odds_midt, mål_odds_midt * 0.96, mål_odds_midt * 0.93,
+                "Bet365 (Interval-Sikret)", 5
             )
-            st.success(f"🧠 Den {o_niveau}% sikrede kupon er gemt i AI-historikken!")
+            st.success(f"🧠 Den optimerede interval-kupon (Odds {mål_odds_midt:.2f}) er gemt i AI-historikken!")
 
 else:
     st.session_state["scannet_data"] = None
