@@ -9,7 +9,6 @@ def vis_manuel_kamp_scanner(alle_kampe, valgte_markeder, mål_odds):
     st.write("Scan automatisk samtlige aktive kampe i dine valgte ligaer og tidsintervaller for at finde de største fejl-odds.")
 
     # Finder automatisk de præcise kampe baseret på de filtre, der allerede er sat i punkt 1 og 2
-    # Vi henter uret fra session state eller dansk tid
     if "tids_valg_key" in st.session_state:
         tidsvalg = st.session_state["tids_valg_key"]
         if "3 timer" in tidsvalg: tids_timer = 3.0
@@ -26,11 +25,9 @@ def vis_manuel_kamp_scanner(alle_kampe, valgte_markeder, mål_odds):
         if "chk_" + k["liga"] in st.session_state and st.session_state["chk_" + k["liga"]]
     ]
     
-    # Hvis ingen specifikke ligaer er tjekket af på forsiden endnu, kigger vi på hele puljen i tidsrammen
     if not fra_valgte_ligaer:
         fra_valgte_ligaer = alle_kampe
 
-    # Sikrer vi holder os inden for timerne
     aktive_kampe_i_tidsramme = fra_valgte_ligaer
 
     st.info(f"🤖 Klar til at scanne **{len(aktive_kampe_i_tidsramme)} aktive kampe** i dit valgte program automatisk.")
@@ -43,7 +40,7 @@ def vis_manuel_kamp_scanner(alle_kampe, valgte_markeder, mål_odds):
                 resultat = byg_kupon.byg_kombineret_kupon(aktive_kampe_i_tidsramme, valgte_markeder, mål_odds)
                 
                 if resultat:
-                    st.subheader("📊 Resultat af din Lyn-Scanning:")
+                    st.subheader("📊 Resultat og fund af din Lyn-Scanning:")
                     st.write("---")
                     
                     gemme_ligaer = list()
@@ -59,11 +56,16 @@ def vis_manuel_kamp_scanner(alle_kampe, valgte_markeder, mål_odds):
                         st.write("---")
                         gemme_ligaer.append(k["liga"])
                     
+                    # BEREGNER REEL %-CHANCE OG HENTER FLAMMERNE FEJLFRIT IND UDEN INDEX-FEJL
                     beregnet_chance = max(2, min(80, int((1 / resultat['bedste_odds']) * 100 * 1.25)))
-                    risiko_flammer = max(1, min(5, list(range(1, 6))[5 - int(beregnet_chance / 15) if int(beregnet_chance / 15) < 5 else 0]))
+                    risiko_flammer = 5 - int(beregnet_chance / 15)
+                    risiko_flammer = max(1, min(5, risiko_flammer))
                     
                     st.success(f"🔥 **BEDSTE BOOKMAKER FUNDET: {resultat['bedste_side']}!**")
                     st.write(f"📈 **Samlet odds for de scannede fund: {resultat['bedste_odds']:.2f}**")
+                    st.write(f"ℹ️ *Sammenligning:* Bet365: {resultat['samlet_b365']:.2f} | Unibet: {resultat['samlet_unibet']:.2f} | Oddset: {resultat['samlet_oddset']:.2f}")
+                    
+                    # FEJLFRI VISNING: %-sandsynlighed, stjerner og risikoflammer side om side
                     st.write(f"🎯 **Statistisk vinderchance beregnet af AI:** `{beregnet_chance}%`")
                     st.write(f"⚠️ **Risikoprofil:** {'🔥' * risiko_flammer} ({risiko_flammer}/5)")
                     st.write(f"🎯 **AI Værdi-vurdering:** {'⭐' * resultat['styrke']} ({resultat['styrke']}/5 stjerner)")
