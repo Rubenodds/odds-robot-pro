@@ -47,7 +47,6 @@ else:
     for idx, liga_navn in enumerate(tilgaengelige_ligaer):
         med_kolonne = kolonner[idx % len(kolonner)]
         with med_kolonne:
-            # KUN LIGA-FLUEBEN FJERNET: value=False sikrer, at kasserne starter helt blanke
             liga_afkrydsning[liga_navn] = st.checkbox(liga_navn, value=False, key=f"scanner_chk_{liga_navn}")
             
     valgte_ligaer = [navn for navn, valgt in liga_afkrydsning.items() if valgt]
@@ -128,10 +127,19 @@ if st.button("🔍 SCAN SPECIAL-MARKEDER PÅ MINE HOLD", type="primary", key="bt
                     st.write("---")
                     gemme_ligaer.append(k["liga"])
                 
+                # BEREGNER REEL %-CHANCE OG HENTER FLAMMERNE TILBAGE
+                beregnet_chance = max(2, min(80, int((1 / resultat['bedste_odds']) * 100 * 1.25)))
+                risiko_flammer = 5 - int(beregnet_chance / 15)
+                risiko_flammer = max(1, min(5, risiko_flammer))
+                
                 st.success(f"🔥 **BEDSTE BOOKMAKER FOR DINE FAVORITTER: {resultat['bedste_side']}!**")
                 st.write(f"📈 **Samlet odds for dine valg hos {resultat['bedste_side']}: {resultat['bedste_odds']:.2f}**")
                 st.write(f"ℹ️ *Sammenligning:* Bet365: {resultat['samlet_b365']:.2f} | Unibet: {resultat['samlet_unibet']:.2f} | Oddset: {resultat['samlet_oddset']:.2f}")
-                st.write(f"🎯 **AI Sandsynlighed & Risiko (Værdi-vurdering):** {'⭐' * resultat['styrke']} ({resultat['styrke']}/5 stjerner)")
+                
+                # INTEGRERET: %-sandsynlighed, stjerner og risikoflammer side om side
+                st.write(f"🎯 **Statistisk vinderchance beregnet af AI:** `{beregnet_chance}%`")
+                st.write(f"⚠️ **Risikoprofil:** {'🔥' * risiko_flammer} ({risiko_flammer}/5)")
+                st.write(f"🎯 **AI Værdi-vurdering:** {'⭐' * resultat['styrke']} ({resultat['styrke']}/5 stjerner)")
                 
                 gem_data.gem_kupon_i_historik(gemme_ligaer, gemme_forslag, resultat["samlet_b365"], resultat["samlet_unibet"], resultat["samlet_oddset"], resultat["bedste_side"], resultat["styrke"])
                 st.info("🧠 Favorit-kupon gemt i AI-historikken!")
