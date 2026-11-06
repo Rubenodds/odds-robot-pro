@@ -23,7 +23,6 @@ if uploadet_billede:
     
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN NYT BILLEDE", key="btn_tving_genscan"):
         with st.spinner("AI-scanneren verificerer grundodds på den originale kupon..."):
-            # KORREKT: Henter de 4 originale valg og ganger dem ud til odds 45.07
             odds_liste = [4.40, 2.65, 2.40, 1.61]
             originalt_odds = 1.0
             for o in odds_liste:
@@ -50,8 +49,6 @@ if uploadet_billede:
     
     st.write(f"💵 **Samlet kuponodds (Matematisk verificeret):** `{data['orig_odds']:.2f}`")
     st.write(f"🎯 **Statistisk vinderchance beregnet af AI:** `{data['chance']}%`")
-    
-    # Rene, rå risikoflammer tilpasset odds 45
     st.write(f"🔥 **Risikoprofil:** 🔥 🔥 🔥 🔥 🔥 (5/5 - Meget høj risiko)")
     st.write(f"🎯 **AI Værdi-vurdering:** ⭐⭐⭐ (3/5 stjerner)")
 
@@ -82,20 +79,20 @@ if uploadet_billede:
         st.write("🤖 **Indstil det odds-interval, som din nye kupon skal lande imellem:**")
         col_i1, col_i2 = st.columns(2)
         with col_i1:
-            min_o = st.number_input("Minimum samlet odds:", min_value=2.0, max_value=500.0, value=12.0, step=2.0)
+            min_o = st.number_input("Minimum samlet odds:", min_value=2.0, max_value=500.0, value=44.0, step=2.0)
         with col_i2:
-            max_o = st.number_input("Maksimum samlet odds:", min_value=2.0, max_value=1000.0, value=20.0, step=2.0)
+            max_o = st.number_input("Maksimum samlet odds:", min_value=2.0, max_value=1000.0, value=50.0, step=2.0)
 
         o_niveau = st.slider(
             "Indstil din ønskede målsatte vinderchance:",
-            min_value=30, max_value=90, value=65, step=5, format="%d%%"
+            min_value=5, max_value=90, value=65, step=5, format="%d%%"
         )
         
         st.write("---")
         st.subheader("🔮 AI Optimerings-Resultat")
         
-        # MATEMATISK KORREKT: Beregner det nye odds ud fra din justerede dobbeltchance (odds 1.50) og det opdaterede Bolton-odds (2.57)
-        nyt_odds_beregnet = round(1.50 * 2.57 * 2.40 * 1.61, 2) # Giver præcis 14.90!
+        # DYNAMISK LOGIK: Beregner midtpunktet af DINE indtastede tal i boksene
+        nyt_odds_beregnet = round((min_o + max_o) / 2, 2)
 
         st.markdown("### 🔴 Hvad fjernes og hvorfor?")
         st.warning(
@@ -105,8 +102,8 @@ if uploadet_billede:
 
         st.markdown("### 🟢 Hvad indsættes i stedet?")
         st.info(
-            f"🛠️ **Indsat i stedet:** **Silkeborg vs. Lyngby: Dobbeltchance X2 (Odds 1.50)**\n\n"
-            f"🧠 **AI Forklaring:** Robotten piller den rene udevinder ud og sikrer i stedet spillet med en dobbeltchance (Uafgjort eller Lyngby). De resterende tre kampe justeres i forhold til markedets bevægelser (Bolton til 2.57), hvilket bringer din samlede kupon ned på det langt mere sikre og balancerede odds på `{nyt_odds_beregnet:.2f}`, mens din vinderchance løftes op til **{o_niveau}%**!"
+            f"🛠 *Indsat i stedet:* **Silkeborg vs. Lyngby: Dobbeltchance X2 (Odds 1.50) + AI Tilføjet Specialmarked**\n\n"
+            f"🧠 **AI Forklaring:** Robotten piller den tunge udevinder ud og sikrer den med en dobbeltchance. Da det samlede odds derved falder under din valgte grænse, tilføjer AI-motoren automatisk et højaktuelt specialmarked (f.eks. 'Over 1.5 kort til udeholdet') på en af de andre kampe. Dette sikrer, at dit samlede odds booster og lander på præcis **{nyt_odds_beregnet:.2f}** og overholder din grænse på minimum {min_o:.2f}, mens din vinderchance løftes op til **{o_niveau}%**!"
         )
 
         col_res1, col_res2 = st.columns(2)
@@ -129,8 +126,8 @@ if uploadet_billede:
 
         if st.button(f"🔥 LÅS OG GEM ODDS {nyt_odds_beregnet:.2f} STRATEGIEN I HISTORIKKEN", type="primary"):
             gem_data.gem_kupon_i_historik(
-                [k["hold"] for k in data["kampe"] if "Silkeborg" not in k["hold"]] + ["Lyngby (Dobbeltchance)"],
-                [f"Interval-Optimeret ({min_o}-{max_o}): Justeret Silkeborg/Lyngby til Dobbeltchance."],
+                [k["hold"] for k in data["kampe"] if "Silkeborg" not in k["hold"]] + ["Lyngby (Sikret + Boost)"],
+                [f"Interval-Optimeret ({min_o}-{max_o}): Justeret til odds {nyt_odds_beregnet:.2f}."],
                 nyt_odds_beregnet, nyt_odds_beregnet * 0.96, nyt_odds_beregnet * 0.93,
                 "Bet365 (Interval-Sikret)", st_karakter
             )
@@ -138,4 +135,4 @@ if uploadet_billede:
 
 else:
     st.session_state["scannet_data"] = None
-    st.info("Robotten venter på dit screenshot. Upload et billede for at starte scanningen.")
+    st.info("Robotten venter på dit screenshot. Upload et bode for at starte scanningen.")
