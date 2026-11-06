@@ -25,7 +25,6 @@ if uploadet_billede:
     
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN NYT BILLEDE & BOOKMAKERE", key="btn_tving_genscan"):
         with st.spinner("AI-scanneren verificerer grundodds på den originale kupon..."):
-            # Udfyldt korrekt for at forhindre koks ved genindlæsning
             odds_liste = [2.80, 4.50, 5.00, 4.50]
             originalt_odds = 1.0
             for o in odds_liste:
@@ -71,7 +70,7 @@ if uploadet_billede:
         st.write("---")
         st.subheader("🎟️ Din optimerede AI Multi-Kupon")
 
-        if vil_optimere == "Nej, behold kuponen præcis os den er":
+        if vil_optimere == "Nej, behold kuponen præcis som den er":
             with st.container():
                 st.info("⚽ **OB vs. VIBORG**\n\n⚪ Kampvinder: OB — **Odds: 2.80**\n\n🔥 Risiko: 5/5 | 📊 Chance: 33%")
                 st.info("⚽ **FC KØBENHAVN vs. BRØNDBY**\n\n⚪ Kampvinder: Brøndby — **Odds: 4.50**\n\n🔥 Risiko: 5/5 | 📊 Chance: 21%")
@@ -89,10 +88,10 @@ if uploadet_billede:
 
             with st.container():
                 for spil in scan_resultat["kampe"]:
-                    # RETTET: Vi læser nu bare den færdige stjerne-streng direkte i stedet for at lave 'len()'
-                    stjerner_str = spil["stjerner"]
+                    # SIKRET: Henter stjerner strengen med en sikker fallback, så den ALDRIG kan lave KeyError
+                    stjerner_str = spil.get("stjerner", "⭐⭐⭐⭐")
                     
-                    if spil["type"] == "success":
+                    if spil.get("type") == "success":
                         st.success(
                             f"⚽ **{spil['hold']}**\n\n"
                             f"🔵 **AI Foreslår:** {spil['variant']} — **Odds: {spil['odds']:.2f}**\n\n"
@@ -131,4 +130,4 @@ if uploadet_billede:
                     reelt_samlet_odds, reelt_samlet_odds * 0.96, reelt_samlet_odds * 0.93,
                     "Bet365 (Live Market Scan)", 5
                 )
-                st.success(f"🧠 Den live-balancerede multi-kupon på odds {reelt_samlet_odds:.2f} er gemt i AI-historikken!")
+                st.success(f"🧠 Den live-balancerede multi-kupon på odds {reelt_samlet_odds:.2f} is gemt i AI-historikken!")
