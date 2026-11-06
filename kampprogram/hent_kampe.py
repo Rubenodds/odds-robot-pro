@@ -17,7 +17,7 @@ def hent_aegte_kampe_fra_nettet():
         {"liga": "Championship", "hj": "Watford", "ud": "Oxford Utd", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
         {"liga": "LaLiga", "hj": "Getafe", "ud": "Girona", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
         {"liga": "Bundesliga", "hj": "Mainz 05", "ud": "Monchengladbach", "start": datetime.datetime.combine(i_dag, datetime.time(20, 30))},
-        {"liga": "2. Bundesliga", "hj": "Paderborn", "ud": "Nürnberg", "start": datetime.datetime.combine(i_dag, datetime.time(18, 30))},
+        {"toggle_liga": "2. Bundesliga", "hj": "Paderborn", "ud": "Nürnberg", "start": datetime.datetime.combine(i_dag, datetime.time(18, 30))},
         {"liga": "2. Bundesliga", "hj": "Köln", "ud": "Greuther Fürth", "start": datetime.datetime.combine(i_dag, datetime.time(18, 30))},
         {"liga": "Serie A", "hj": "Lecce", "ud": "Empoli", "start": datetime.datetime.combine(i_dag, datetime.time(20, 45))},
         {"liga": "Ligue 1", "hj": "Auxerre", "ud": "Rennes", "start": datetime.datetime.combine(i_dag, datetime.time(20, 45))},
@@ -44,4 +44,7 @@ def hent_aegte_kampe_fra_nettet():
         {"liga": "Superliga", "hj": "FC Midtjylland", "ud": "AGF", "start": datetime.datetime.combine(i_overmorgen, datetime.time(16, 0))}
     ]
 
-    return kampe
+    # PRO RETTELSE: Filtrer listen så der KUN returneres fremtidige kampe
+    fremtidige_kampe = [kamp for kamp in kampe if kamp["start"] > nu]
+
+    return fremtidige_kampe
