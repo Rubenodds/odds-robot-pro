@@ -72,10 +72,10 @@ if uploadet_billede:
 
         if vil_optimere == "Nej, behold kuponen præcis som den er":
             with st.container():
-                st.info("⚽ **OB vs. VIBORG**\n\n⚪ Kampvinder: OB — **Odds: 2.80**\n\n🔥 Risiko: 5/5 | 📊 Chance: 33%")
-                st.info("⚽ **FC KØBENHAVN vs. BRØNDBY**\n\n⚪ Kampvinder: Brøndby — **Odds: 4.50**\n\n🔥 Risiko: 5/5 | 📊 Chance: 21%")
-                st.info("⚽ **AGF vs. AC HORSENS**\n\n⚪ Kampvinder: AC Horsens — **Odds: 5.00**\n\n🔥 Risiko: 5/5 | 📊 Chance: 18%")
-                st.info("⚽ **RANDERS FC vs. FC NORDSJÆLLAND**\n\n⚪ Kampvinder: Randers FC — **Odds: 4.50**\n\n🔥 Risiko: 5/5 | 📊 Chance: 21%")
+                st.info("⚽ **OB vs. VIBORG**\n\n⚪ Kampvinder: OB — **Odds: 2.80**\n\n🔥 Risiko: 5/5\n\n📊 Chance: 33%")
+                st.info("⚽ **FC KØBENHAVN vs. BRØNDBY**\n\n⚪ Kampvinder: Brøndby — **Odds: 4.50**\n\n🔥 Risiko: 5/5\n\n📊 Chance: 21%")
+                st.info("⚽ **AGF vs. AC HORSENS**\n\n⚪ Kampvinder: AC Horsens — **Odds: 5.00**\n\n🔥 Risiko: 5/5\n\n📊 Chance: 18%")
+                st.info("⚽ **RANDERS FC vs. FC NORDSJÆLLAND**\n\n⚪ Kampvinder: Randers FC — **Odds: 4.50**\n\n🔥 Risiko: 5/5\n\n📊 Chance: 21%")
             
             reelt_samlet_odds = data['orig_odds']
             vinder_chance = "3%"
@@ -88,25 +88,21 @@ if uploadet_billede:
 
             with st.container():
                 for spil in scan_resultat["kampe"]:
-                    # SIKRET: Henter stjerner strengen med en sikker fallback, så den ALDRIG kan lave KeyError
-                    stjerner_str = spil.get("stjerner", "⭐⭐⭐⭐")
+                    # RENSAT LAYOUT: Alt det gamle rod, afstumpede emojier og '1' er slettet.
+                    # Vi udskriver udelukkende de rene, strukturerede linjer.
+                    tekst_indhold = (
+                        f"⚽ **{spil['hold']}**\n\n"
+                        f"🔵 **AI Foreslår:** {spil['variant']} — **Odds: {spil['odds']:.2f}**\n\n"
+                        f"📊 **Vinderchance:** {spil['chance']}%\n\n"
+                        f"🔥 **Værdi-Rating:** {spil['flammer']}\n\n"
+                        f"⭐ **AI Match-Rating:** {spil['stjerner']}\n\n"
+                        f"📝 **Lyn-Analyse:** *{spil['analyse']}*"
+                    )
                     
-                    if spil.get("type") == "success":
-                        st.success(
-                            f"⚽ **{spil['hold']}**\n\n"
-                            f"🔵 **AI Foreslår:** {spil['variant']} — **Odds: {spil['odds']:.2f}**\n\n"
-                            f"📊 **Chance:** {spil['chance']}% | 🔥 Værdi: {spil['flammer']}\n"
-                            f"⭐ **AI Rating:** {stjerner_str}\n"
-                            f"📝 *Analyse: {spil['analyse']}*"
-                        )
+                    if spil["type"] == "success":
+                        st.success(tekst_indhold)
                     else:
-                        st.error(
-                            f"⚽ **{spil['hold']}**\n\n"
-                            f"🟢 **AI Foreslår (Lag-holder):** {spil['variant']} — **Odds: {spil['odds']:.2f}**\n\n"
-                            f"📊 **Chance:** {spil['chance']}% | 🔥 Værdi: {spil['flammer']}\n"
-                            f"⭐ **AI Rating:** {stjerner_str}\n"
-                            f"📝 *Analyse: {spil['analyse']}*"
-                        )
+                        st.error(tekst_indhold)
             
             reelt_samlet_odds = scan_resultat["samlet_odds"]
             vinder_chance = f"{random.randint(14, 22)}%" if not scan_resultat["muligt"] else "42%"
@@ -130,4 +126,4 @@ if uploadet_billede:
                     reelt_samlet_odds, reelt_samlet_odds * 0.96, reelt_samlet_odds * 0.93,
                     "Bet365 (Live Market Scan)", 5
                 )
-                st.success(f"🧠 Den live-balancerede multi-kupon på odds {reelt_samlet_odds:.2f} is gemt i AI-historikken!")
+                st.success(f"🧠 Den live-balancerede multi-kupon på odds {reelt_samlet_odds:.2f} er gemt i AI-historikken!")
