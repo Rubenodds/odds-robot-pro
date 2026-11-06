@@ -1,4 +1,4 @@
-import streamlit st
+import streamlit as st
 from PIL import Image
 
 # Henter din historik-funktion (justeret efter din filstruktur)
@@ -38,7 +38,6 @@ if uploadet_billede:
     if st.session_state.get("scannet_data") is None or st.button("🔄 SCAN NYT BILLEDE", key="btn_tving_genscan"):
         with st.spinner("AI-scanneren verificerer grundodds på den originale kupon..."):
             
-            # KORRIGERET: Listen er nu lukket korrekt med de ægte odds fra dit screenshot
             nye_odds = [2.80, 4.50, 5.00, 4.50]
             samlet_originalt_odds = 1.0
             for o in nye_odds:
