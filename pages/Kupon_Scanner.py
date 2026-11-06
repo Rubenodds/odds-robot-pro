@@ -51,7 +51,7 @@ if uploadet_billede:
 
     st.write("---")
 
-    # --- NY PANELER: INTERAKTIV ODDS-ZONE & OPTIMERING ---
+    # --- INTERAKTIV ODDS-ZONE & OPTIMERING ---
     st.subheader("⚡ AI Målrettet Kupon-Optimering")
     
     vil_optimere = st.radio(
@@ -61,7 +61,9 @@ if uploadet_billede:
     )
 
     if vil_optimere == "Nej, behold kuponen præcis som den er":
+        # TILFØJET: Risikoflammer på din uændrede kupon
         st.info(f"📊 Original opsætning bevaret. Statistisk vinderchance: **{data['base_chance']}%**")
+        st.write(f"⚠️ **Risikoprofil:** 🔥 🔥 🔥 🔥 (4/5 - Høj risiko)")
         
         if st.button("🚀 LÅS OG GEM ORIGINAL KUPON I HISTORIKKEN", type="primary", key="btn_gem_original"):
             gem_data.gem_kupon_i_historik(
@@ -70,10 +72,10 @@ if uploadet_billede:
                 data["orig_odds"], data["orig_odds"]*0.95, data["orig_odds"]*0.92,
                 "Bet365 (Original)", 3
             )
-            st.success("🧠 Original kupon er gemt i AI-historikken!")
+            st.success("🧠 Original kupon is gemt i AI-historikken!")
 
     else:
-        # NYT: Interaktivt valg af odds-interval, som robotten skal ramme
+        # Interaktivt valg af odds-interval
         st.write("🤖 **Indstil det odds-interval, som din nye kupon skal lande imellem:**")
         col_i1, col_i2 = st.columns(2)
         with col_i1:
@@ -81,7 +83,7 @@ if uploadet_billede:
         with col_i2:
             max_o = st.number_input("Maksimum samlet odds:", min_value=2.0, max_value=1000.0, value=30.0, step=2.0)
 
-        # NYT: Justerbar vinderchance-skydebar (Op til over 80%)
+        # Justerbar vinderchance-skydebar
         o_niveau = st.slider(
             "Indstil din ønskede målsatte vinderchance:",
             min_value=30, max_value=90, value=65, step=5, format="%d%%"
@@ -92,10 +94,10 @@ if uploadet_billede:
         
         # Beregner det matematiske midtpunkt af din ønskede odds-zone
         mål_odds_midt = round((min_o + max_o) / 2, 2)
-        odds_uden_celta = data["orig_odds"] / 2.20 # odds 10.77
+        odds_uden_celta = data["orig_odds"] / 2.20
         nødvendigt_nyt_odds = round(mål_odds_midt / odds_uden_celta, 2)
 
-        # ROBOTTENS DETALJEREDE FORKLARING
+        # ROBOTTENS DETALJERED FORKLARING
         st.markdown("### 🔴 Hvad fjernes og hvorfor?")
         st.warning(
             "⚠️ **Fjernet fra kuponen:** **Celta Vigo til odds 2.20**\n\n"
@@ -114,19 +116,32 @@ if uploadet_billede:
             f"odds-interval, samtidig med at din vinderchance løftes op til de ønskede **{o_niveau}%**!"
         )
 
-        # METRIKKER FOR DET ENDELIGE RESULTAT
+        # METRIKKER & NYE STRÅLENDE GRAFISKE INDIKATORER
         col_res1, col_res2 = st.columns(2)
         with col_res1:
             st.metric(label="Nyt Optimeret Odds", value=f"{mål_odds_midt:.2f}", delta=f"{mål_odds_midt - data['orig_odds']:.2f}")
         with col_res2:
             st.metric(label="Målsat Vinderchance", value=f"{o_niveau}%", delta=f"+{o_niveau - data['base_chance']}%")
 
+        # TILFØJET: Dynamiske stjerner/flammer baseret på din skydebar-indstilling
+        if o_niveau >= 75:
+            st_karakter = 5
+            st_tekst = "⭐⭐⭐⭐⭐ (5/5 - Fremragende værdi og maksimal sikkerhed)"
+        elif o_niveau >= 55:
+            st_karakter = 4
+            st_tekst = "⭐⭐⭐⭐ (4/5 - Stærk value-kupon med balanceret risiko)"
+        else:
+            st_karakter = 3
+            st_tekst = "⭐⭐⭐ (3/5 - Godkendt optimering, men stadig i det offensive spænd)"
+
+        st.write(f"🎯 **AI Værdibedømmelse af ny strategi:** {st_tekst}")
+
         if st.button(f"🔥 LÅS OG GEM ODDS {mål_odds_midt:.2f} STRATEGIEN I HISTORIKKEN", type="primary"):
             gem_data.gem_kupon_i_historik(
                 [k["hold"] for k in data["kampe"] if k["hold"] != "Celta Vigo"] + ["Celta Vigo (Mål)"],
                 [f"Interval-Optimeret ({min_o}-{max_o}): Fjernet Celta Vigo, Indsat Hold-mål."],
                 mål_odds_midt, mål_odds_midt * 0.96, mål_odds_midt * 0.93,
-                "Bet365 (Interval-Sikret)", 5
+                "Bet365 (Interval-Sikret)", st_karakter
             )
             st.success(f"🧠 Den optimerede interval-kupon (Odds {mål_odds_midt:.2f}) er gemt i AI-historikken!")
 
