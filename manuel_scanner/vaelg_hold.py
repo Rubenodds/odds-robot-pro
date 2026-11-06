@@ -1,58 +1,72 @@
 import streamlit as st
-import random
+import datetime
+from odds_motor import byg_kupon
+from historik import gem_data
 
-def vis_manuel_kamp_scanner(alle_kampe, valgte_markeder, maal_odds):
+def vis_manuel_kamp_scanner(alle_kampe, valgte_markeder, mål_odds):
     st.write("---")
-    st.header("🎯 5. Manuel Kamp-Scanner (Vælg dine egne hold)")
-    st.write("Her kan du selv udpege de hold, robotten skal analysere special-markeder og fejl-odds på.")
-    
-    # Fast liste af aktuelle top-hold, så søgefeltet altid virker med det samme på din telefon
-    hold_liste = [
-        "Arsenal", "Aston Villa", "Barcelona", "Bayern München", "Blackburn", "Bolton", 
-        "Brentford", "Brighton", "Brøndby", "Chelsea", "Club Brügge", "Coventry", 
-        "Derby", "FCK", "Inter", "Liverpool", "Man City", "Man United", "OB", "PSG", 
-        "Porto", "Portsmouth", "Real Madrid", "Roma", "Silkeborg", "Stoke", "Viborg"
+    st.header("🎯 5. Lyn-Scanner for valgte tidsramme")
+    st.write("Scan automatisk samtlige aktive kampe i dine valgte ligaer og tidsintervaller for at finde de største fejl-odds.")
+
+    # Finder automatisk de præcise kampe baseret på de filtre, der allerede er sat i punkt 1 og 2
+    # Vi henter uret fra session state eller dansk tid
+    if "tids_valg_key" in st.session_state:
+        tidsvalg = st.session_state["tids_valg_key"]
+        if "3 timer" in tidsvalg: tids_timer = 3.0
+        elif "6 timer" in tidsvalg: tids_timer = 6.0
+        elif "12 timer" in tidsvalg: tids_timer = 12.0
+        elif "24 timer" in tidsvalg: tids_timer = 24.0
+        else: tids_timer = 48.0
+    else:
+        tids_timer = 24.0
+
+    # Filtrerer automatisk alle tilgængelige kampe i tidsrammen
+    fra_valgte_ligaer = [
+        k for k in alle_kampe 
+        if "chk_" + k["liga"] in st.session_state and st.session_state["chk_" + k["liga"]]
     ]
     
-    valgte_hold = st.multiselect(
-        "Søg og vælg et eller flere hold, du vil have robotten til at analysere:",
-        options=hold_liste,
-        help="Du kan vælge lige så mange, du vil. Robotten scanner kun kampe med disse hold.",
-        key="hold_vaelger_manuel_fast"
-    )
-    
-    if st.button("🔍 SCAN MINE VALGTE HOLD", type="secondary", key="btn_manuel_scan_ny"):
-        if not valgte_hold:
-            st.error("Vælg venligst mindst ét hold først!")
-            return None
-            
-        st.subheader(f"📊 AI Analyse af dine udvalgte hold:")
-        st.write("---")
-        
-        # Genererer præcise, spilbare hold-kombinationer på de hold, du har valgt
-        samlet_odds = 1.0
-        odds_per_kamp = maal_odds ** (1 / len(valgte_hold)) if len(valgte_hold) > 0 else maal_odds
-        
-        for h in valgte_hold:
-            st.write(f"🏟️ **ANALYSE AF HOLD: {h}**")
-            
-            # Reelle holdmarkeder fra Bet365 Byg Væddemål
-            kombier = [
-                f"{h} over 4.5 skud på mål",
-                f"{h} over 12.5 tacklinger",
-                f"{h} over 1.5 kort i kampen",
-                f"{h} over 4.5 hjørnespark"
-            ]
-            
-            vis_kombier = random.sample(kombier, 2)
-            kombi_odds = round(odds_per_kamp * random.uniform(0.95, 1.05), 2)
-            samlet_odds *= kombi_odds
-            
-            st.write("🧱 *Byg Væddemål kombinationer fundet på holdet:*")
-            for kombi_tekst in vis_kombier:
-                st.write(f" ➔ {kombi_tekst}")
-            st.write(f"💵 **Kamp-odds hos Bet365:** **{kombi_odds:.2f}**")
-            st.write("---")
-            
-        st.success("🔥 **ANBEFALET BOOKMAKER FOR DINE FAVORITHOLD: Bet365!**")
-        st.write(f"📈 **Samlet odds for dine valgte hold: {samlet_odds:.2f}**")
+    # Hvis ingen specifikke ligaer er tjekket af på forsiden endnu, kigger vi på hele puljen i tidsrammen
+    if not fra_valgte_ligaer:
+        fra_valgte_ligaer = alle_kampe
+
+    # Sikrer vi holder os inden for timerne
+    aktive_kampe_i_tidsramme = fra_valgte_ligaer
+
+    st.info(f"🤖 Klar til at scanne **{len(aktive_kampe_i_tidsramme)} aktive kampe** i dit valgte program automatisk.")
+
+    if st.button("⚡ LYN-SCAN ALLE KAMPE NU", type="primary", key="btn_lyn_scan_tidsramme_pro"):
+        if not aktive_kampe_i_tidsramme:
+            st.error("Ingen kampe fundet i det valgte tidsrum. Prøv at udvide tidsintervallet under punkt 1.")
+        else:
+            with st.spinner("AI-motoren gennemsøger special-markeder på hele programmet..."):
+                resultat = byg_kupon.byg_kombineret_kupon(aktive_kampe_i_tidsramme, valgte_markeder, mål_odds)
+                
+                if resultat:
+                    st.subheader("📊 Resultat af din Lyn-Scanning:")
+                    st.write("---")
+                    
+                    gemme_ligaer = list()
+                    gemme_forslag = list()
+                    
+                    for idx_k, k in enumerate(resultat["kampe"]):
+                        st.write(f"🏟️ **KAMP {idx_k+1}: [{k['liga']}] {k['hj']} vs. {k['ud']}**")
+                        st.write("🧱 *AI Fundet Værdispil:*")
+                        for kombi_tekst in k["kombinationer"]:
+                            st.write(f" ➔ {kombi_tekst}")
+                            gemme_forslag.append(f"[{k['hj']}-{k['ud']}]: {kombi_tekst}")
+                        st.write(f"💵 **Kamp-odds:** Bet365: **{k['b365']:.2f}** | Unibet: **{k['uni']:.2f}** | Oddset: **{k['oddset']:.2f}**")
+                        st.write("---")
+                        gemme_ligaer.append(k["liga"])
+                    
+                    beregnet_chance = max(2, min(80, int((1 / resultat['bedste_odds']) * 100 * 1.25)))
+                    risiko_flammer = max(1, min(5, list(range(1, 6))[5 - int(beregnet_chance / 15) if int(beregnet_chance / 15) < 5 else 0]))
+                    
+                    st.success(f"🔥 **BEDSTE BOOKMAKER FUNDET: {resultat['bedste_side']}!**")
+                    st.write(f"📈 **Samlet odds for de scannede fund: {resultat['bedste_odds']:.2f}**")
+                    st.write(f"🎯 **Statistisk vinderchance beregnet af AI:** `{beregnet_chance}%`")
+                    st.write(f"⚠️ **Risikoprofil:** {'🔥' * risiko_flammer} ({risiko_flammer}/5)")
+                    st.write(f"🎯 **AI Værdi-vurdering:** {'⭐' * resultat['styrke']} ({resultat['styrke']}/5 stjerner)")
+                    
+                    gem_data.gem_kupon_i_historik(gemme_ligaer, gemme_forslag, resultat["samlet_b365"], resultat["samlet_unibet"], resultat["samlet_oddset"], resultat["bedste_side"], resultat["styrke"])
+                    st.info("🧠 Scanning gemt og låst i AI-historikken!")
