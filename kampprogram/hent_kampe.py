@@ -2,7 +2,7 @@ import datetime
 
 def hent_aegte_kampe_fra_nettet():
     # Henter dato og tid lige nu (justeret til dansk tid)
-    nu = datetime.timedelta(hours=1) + datetime.datetime.utcnow()
+    nu = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
     i_dag = nu.date()
     i_morgen = i_dag + datetime.timedelta(days=1)
     i_overmorgen = i_dag + datetime.timedelta(days=2)
@@ -10,7 +10,7 @@ def hent_aegte_kampe_fra_nettet():
     # Henter den aktuelle ugedag (0 = Mandag, 1 = Tirsdag, 2 = Onsdag, 3 = Torsdag, 4 = Fredag, 5 = Lørdag, 6 = Søndag)
     ugedag = nu.weekday()
     
-    # Initialiseres korrekt som en tom liste
+    # Oprettes korrekt som en tom liste fra start
     kampe = []
 
     # =========================================================================
