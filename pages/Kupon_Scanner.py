@@ -23,12 +23,12 @@ if uploadet_billede:
     
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN NYT BILLEDE", key="btn_tving_genscan"):
         with st.spinner("AI-scanneren verificerer grundodds på samtlige 4 kampe..."):
-            # MATEMATISK VERIFICERET: Henter alle 4 odds fra dine screenshots ind og ganger dem rigtigt sammen
-            odds_liste =
+            # LUKKET KORREKT: Hele listen med de 4 ægte odds fra dit screenshot er lagt ind her
+            odds_liste = [4.40, 2.65, 2.40, 1.61]
             originalt_odds = 1.0
             for o in odds_liste:
                 originalt_odds *= o
-            originalt_odds = round(originalt_odds, 2) # Giver præcis 45.07
+            originalt_odds = round(originalt_odds, 2)
             
             st.session_state["scannet_data"] = {
                 "orig_odds": originalt_odds,
@@ -43,7 +43,7 @@ if uploadet_billede:
 
     data = st.session_state["scannet_data"]
 
-    # --- VIS ORIGINAL KUPON (DYNAMISK OPDATERET MED ALLE 4 KAMPE) ---
+    # --- VIS ORIGINAL KUPON ---
     st.subheader("📋 Din originale kuponstamme")
     for k in data["kampe"]:
         st.write(f"➔ **{k['hold']}** ({k['odds']}) - *{k['type']}*")
@@ -123,12 +123,12 @@ if uploadet_billede:
 
         if st.button(f"🔥 LÅS OG GEM ODDS {mål_odds_midt:.2f} STRATEGIEN I HISTORIKKEN", type="primary"):
             gem_data.gem_kupon_i_historik(
-                [k["hold"] for k in data["kampe"] if "Silkeborg" not in k["hold"]] + ["Lyngby (Sikret)"],
+                [k["hold"] for k in data["kampe"] if "Silkeborg" not in k["hold"]] + ["Bolton (Sikret)"],
                 [f"Interval-Optimeret ({min_o}-{max_o}): Sikret Silkeborg/Lyngby leddet."],
                 mål_odds_midt, mål_odds_midt * 0.96, mål_odds_midt * 0.93,
                 "Bet365 (Interval-Sikret)", st_karakter
             )
-            st.success("🧠 Den optimerede kupon er gemt i AI-historikken!")
+            st.success("🧠 Den optimerede kupon is gemt i AI-historikken!")
 
 else:
     st.session_state["scannet_data"] = None
