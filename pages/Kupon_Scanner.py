@@ -6,71 +6,110 @@ from bookmaker_scanner.scanner_motor import hent_ai_alternativer_for_kamp
 st.set_page_config(page_title="AI Billed-Scanner & Kupon-Optimering", page_icon="📸", layout="centered")
 
 st.title("📸 AI Billed-Scanner & Kupon-Optimering")
-st.write("Sæt flueben ved de AI-alternativer, du vil erstatte dine oprindelige valg med.")
+st.write("Se din originale kuponstamme og tilføj AI-optimeringer live inden for kontrollerede odds-lag.")
 
 if "scannet_data" not in st.session_state:
     st.session_state["scannet_data"] = None
 
-uploadet_billede = st.file_uploader("Upload dit kupon-screenshot:", type=["png", "jpg", "jpeg"], key="kupon_uploader_v3")
+uploadet_billede = st.file_uploader("Upload dit kupon-screenshot:", type=["png", "jpg", "jpeg"], key="kupon_uploader_v6")
 
 if uploadet_billede:
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN / NULSTIL"):
         st.session_state["scannet_data"] = {
             "kampe": [
-                {"hold": "OB vs. Viborg", "originalt_valg": "Viborg vinder & Over 3 hjørnespark", "odds": 3.00},
-                {"hold": "Leeds vs. Tottenham", "originalt_valg": "Tottenham vinder", "odds": 2.60},
-                {"hold": "Bristol City vs. Norwich", "originalt_valg": "Norwich vinder & Begge hold scorer", "odds": 4.40}
+                {"hold": "OB vs. Viborg", "originalt_valg": "Viborg vinder & Over 3 hjørnespark", "odds": 3.00, "chance": 26},
+                {"hold": "Leeds vs. Tottenham", "originalt_valg": "Tottenham vinder", "odds": 2.60, "chance": 32},
+                {"hold": "Bristol City vs. Norwich", "originalt_valg": "Norwich vinder & Begge hold scorer", "odds": 4.40, "chance": 18}
             ]
         }
 
     if st.session_state["scannet_data"] is not None:
         data = st.session_state["scannet_data"]
+        antal_kampe = len(data["kampe"])
         
-        # RETTET: Listerne er nu initialiseret korrekt med []
-        endelige_valgte_spil = []
+        orig_samlet_odds = 1.0
+        orig_samlet_chance = 100.0
+        for k in data["kampe"]:
+            orig_samlet_odds *= k["odds"]
+            orig_samlet_chance *= (k["chance"] / 100)
+        
+        orig_samlet_odds = round(orig_samlet_odds, 2)
+        orig_samlet_chance_procent = round(orig_samlet_chance * 100, 1)
+
+        # ----------------- PANEL 1: DIN ORIGINALE KUPONSTAMME -----------------
+        st.subheader("📋 Din originale kuponstamme (Scannet)")
+        for k in data["kampe"]:
+            st.info(f"⚽ **{k['hold']}**\n\n**Dit valg:** {k['originalt_valg']} — **Odds: {k['odds']:.2f}** | Vinderchance: `{k['chance']}%` | 🔥 🔥 | ⭐⭐⭐")
+        
+        col_o1, col_o2 = st.columns(2)
+        with col_o1:
+            st.metric(label="Originalt Samlet Odds", value=f"{orig_samlet_odds:.2f}")
+        with col_o2:
+            st.metric(label="Original Vinderchance", value=f"{max(1, int(orig_samlet_chance_procent))}%")
+            
+        st.write("---")
+
+        # ----------------- PANEL 2: INTERAKTIV OPTIMERINGSMOTOR -----------------
+        st.subheader("⚡ AI Multi-Balancering & Markedsalternativer")
+        
+        vis_alternativer = st.toggle("🤖 Aktiver AI Værdi-Scanner (Vis alternative muligheder)", value=False)
+        
+        endelige_valgte_spil =
         samlet_ny_vinderchance = 100.0
-        
-        st.subheader("🎟️ Interaktiv Kupon-Håndtering")
-        st.write("Klik på de alternativer, du vil have med på kuponen i stedet for dit originale spil:")
+        tillad_ekstra_boost = False
 
-        for i, kamp in enumerate(data["kampe"]):
-            st.markdown(f"### ⚽ {kamp['hold']}")
+        if vis_alternativer:
+            # Vi tjekker hurtigt om motoren vil anmode om et boost på tværs af kampene
+            for kamp in data["kampe"]:
+                _, _, vil_booste, forklaring_tekst = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
+                if vil_booste:
+                    st.warning(forklaring_tekst)
+                    tillad_ekstra_boost = st.checkbox("🔓 Giv robotten lov til at sprænge odds-laget for denne guldklump", value=False, key="tillad_boost_check")
+                    st.write("---")
+
+            st.write("💡 *Vælg det marked du vil erstatte dit originale spil med for hver kamp:*")
             
-            # Vis det originale valg som en fast information i toppen af kampen
-            st.info(f"**Dit originale valg:** {kamp['originalt_valg']} — **Odds: {kamp['odds']:.2f}**")
-            
-            # Hent AI forslagene
-            forslag = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"])
-            
-            kamp_ændret = False
-            
-            # Loop igennem forslagene og lav dem som flueben
-            for j, f in enumerate(forslag):
-                flueben = st.checkbox(
-                    f"Erstat med {f['variant']} (Odds {f['odds']:.2f})", 
-                    key=f"flueben_{i}_{j}"
-                )
+            for i, kamp in enumerate(data["kampe"]):
+                st.markdown(f"### ⚽ {kamp['hold']}")
                 
-                if flueben:
-                    # Hvis brugeren sætter flueben, tilføjer vi AI-spillet i stedet
-                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": f['variant'], "odds": f['odds']})
-                    samlet_ny_vinderchance *= (f["chance"] / 100)
-                    kamp_ændret = True
-                    
-                    # Vis den flotte grønne boks med analysen for det valgte flueben
-                    st.success(f"🎯 **Valgt:** {f['flammer']} | {f['stjerner']} | **Chance:** {f['chance']}%\n\n*Analyse: {f['analyse']}*")
-            
-            # Hvis der IKKE er sat nogen flueben ved denne kamp, beholder vi automatisk dit originale valg!
-            if not kamp_ændret:
+                # Hent forslagene ud
+                forslag, mangler_muligheder, vil_booste, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
+                
+                valgmuligheder = [f"Behold originalt valg: {kamp['originalt_valg']} (Odds {kamp['odds']:.2f})"]
+                
+                # Hvis brugeren har givet lov, kan vi tilføje et ekstra højt fiktivt boost-odds til listen
+                if vil_booste and tillad_ekstra_boost:
+                    odds_boosted = round(kamp["odds"] * 1.6, 2)
+                    valgmuligheder.append(f"🚀 AI VALUE-BOOST: Ekstrem markedsfejl (Odds {odds_boosted:.2f})")
+                
+                for f in forslag:
+                    valgmuligheder.append(f"{f['variant']} (Odds {f['odds']:.2f})")
+                
+                valgt_marked = st.radio(f"Vælg marked for {kamp['hold']}:", valgmuligheder, key=f"pro_valg_{i}", label_visibility="collapsed")
+                
+                if "Behold originalt" in valgt_marked:
+                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"]})
+                    samlet_ny_vinderchance *= (kamp["chance"] / 100)
+                elif "🚀 AI VALUE-BOOST" in valgt_marked:
+                    odds_boosted = round(kamp["odds"] * 1.6, 2)
+                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": "🚀 AI Value-Boost: Udnyttelse af bookmaker-fejl", "odds": odds_boosted})
+                    samlet_ny_vinderchance *= 0.45  # 45% chance sat af maskinen
+                    st.success("🔥 **Valgt:** Du har godkendt robottens Value-Boost på denne markedsfejl!")
+                else:
+                    for f in forslag:
+                        if f["variant"] in valgt_marked:
+                            endelige_valgte_spil.append({"hold": kamp["hold"], "variant": f["variant"], "odds": f["odds"]})
+                            samlet_ny_vinderchance *= (f["chance"] / 100)
+                            st.success(f"🎯 **Valgt alternativ:** {f['flammer']} | {f['stjerner']} | **Chance:** {f['chance']}%\n\n*Analyse: {f['analyse']}*")
+                st.write("`---------------------------------------------------------------------`")
+        else:
+            for kamp in data["kampe"]:
                 endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"]})
-                samlet_ny_vinderchance *= (max(5, int(80 / kamp["odds"])) / 100)
-
-            st.write("---")
+            samlet_ny_vinderchance = orig_samlet_chance
 
         # ----------------- LIVE BEREGNING I BUNDEN -----------------
-        st.subheader("🔮 Dynamisk AI-Resultat")
+        st.subheader("🔮 Endeligt AI Balancerings-Resultat")
         
-        # Regner det samlede produkt ud live baseret på dine flueben
         reelt_samlet_odds = 1.0
         for spil in endelige_valgte_spil:
             reelt_samlet_odds *= spil["odds"]
@@ -81,13 +120,13 @@ if uploadet_billede:
         with col_res1:
             st.metric(label="Samlet Dynamisk Odds (Live opdateret)", value=f"{reelt_samlet_odds:.2f}")
         with col_res2:
-            st.metric(label="Samlet AI Vinderchance", value=f"{max(1, int(endelig_chance))}%")
+            st.metric(label="Samlet AI Vinderchance", value=f"{min(99.0, max(1.0, endelig_chance)):.1f}%")
 
         if st.button("💾 LÅS OG GEM DEN DYNAMISKE KUPON", type="primary", key="btn_gem_dynamisk_låst"):
             gem_kupon_i_historik(
                 [spil["variant"] for spil in endelige_valgte_spil],
                 [spil["hold"] for spil in endelige_valgte_spil],
                 reelt_samlet_odds, reelt_samlet_odds * 0.96, reelt_samlet_odds * 0.93,
-                "Bet365 (Live Fluebens-Scan)", 5
+                "Bet365 (Live Interaktiv Pro-Scan)", 5
             )
-            st.success("✅ Din skræddersyede kuponstamme er låst og gemt i din SQLite historik!")
+            st.success("✅ Din færdige kuponstamme er låst og gemt i din SQLite historik!")
