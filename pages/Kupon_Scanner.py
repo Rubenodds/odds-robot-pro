@@ -1,7 +1,8 @@
 import streamlit as st
 from PIL import Image
 import random
-from historik import gem_data
+# 🚀 KRAV 1 OVERHOLDT & IMPORTERET RIGTIGT EFTER DIN MAPPESTRUKTUR
+from historik.gem_data import gem_kupon_i_historik
 # KRAV 1 & UNDERMAPPE IMPORT
 from bookmaker_scanner.scanner_motor import scan_efter_realistisk_kupon
 
@@ -144,7 +145,8 @@ if uploadet_billede:
 
         if vil_optimere == "Ja, optimer kuponen inden for et bestemt odds-interval":
             if st.button("💾 LÅS OG GEM DEN DYNAMISKE KUPON", type="primary", key="btn_gem_dynamisk_låst"):
-                gem_data.gem_kupon_i_historik(
+                # 🚀 KORRIGERET DYNAMISK KALD: Nu gemmes kuponen fejlfrit uden at give AttributeError!
+                gem_kupon_i_historik(
                     ["Viborg X2 + Over 2.5", "Tottenham & BTS", "Norwich & Over 2.5"],
                     [f"Realistisk-Lag ({min_o}-{max_o})"],
                     reelt_samlet_odds, reelt_samlet_odds * 0.96, reelt_samlet_odds * 0.93,
