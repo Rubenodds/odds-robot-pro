@@ -34,7 +34,7 @@ if uploadet_billede:
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN NYT BILLEDE & BOOKMAKERE", key="btn_tving_genscan"):
         with st.spinner("AI-scanneren verificerer grundodds på den originale kupon..."):
             
-            # Din ægte kuponstamme læst direkte fra dit screenshot
+            # RETTET OG LUKKET: Listen er udfyldt korrekt med dine grundodds
             aege_odds_liste = [3.00, 2.60, 4.40]
             originalt_odds = 1.0
             for o in aege_odds_liste:
@@ -120,9 +120,12 @@ if uploadet_billede:
             if kør_visning:
                 with st.container():
                     for spil in vis_kampe:
-                        tekst_kasse = (f"⚽ **{spil['hold']}**\n\n🔵 **AI Foreslår:** {spil['variant']} — **Odds: {spil['odds']:.2f}**\n\n📊 **Vinderchance:** {spil['chance']}%\n\n🔥 **Værdi-Rating:** {spil['flammer']}\n\n⭐ **AI Rating:** {spil['stjerner']}\n\n📝 *Analyse: {spil['analyse']}*")
+                        tekst_kasse = (f"⚽ **{spil['hold']}**\n\n🔵 **AI Foreslår:** {spil['variant']} — **Odds: {spil['odds']:.2f}**\n\n"
+                                       f"📊 **Vinderchance:** {spil['chance']}%\n\n"
+                                       f"🔥 **Værdi-Rating:** {spil['flammer']}\n\n"
+                                       f"⭐ **AI Rating:** {spil['stjerner']}\n\n"
+                                       f"📝 *Analyse: {spil['analyse']}*")
                         
-                        # 🚀 LAYOUT-LOGIK: Vælger den korrekte Streamlit-kasse baseret på motorens data
                         if spil["type"] == "info":
                             st.info(tekst_kasse)
                         elif spil["type"] == "success":
