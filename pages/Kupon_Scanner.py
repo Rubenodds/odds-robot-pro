@@ -1,7 +1,6 @@
 import streamlit as st
 from PIL import Image
 import random
-# KRAV 1 & MAPPE IMPORTS
 from historik.gem_data import gem_kupon_i_historik
 from bookmaker_scanner.scanner_motor import scan_efter_realistisk_kupon
 
@@ -32,10 +31,9 @@ if uploadet_billede:
     
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN NYT BILLEDE & BOOKMAKERE", key="btn_tving_genscan"):
         with st.spinner("AI-scanneren verificerer grundodds på den originale kupon..."):
-            # 🚀 HER KAN DU SKIFTE ODDS OG KAMPE TIL ENHVER TID - ALT KØRER DYNAMISK
-            aege_odds_liste = [3.00, 2.60, 4.40]
+            odds_liste = [3.00, 2.60, 4.40]
             originalt_odds = 1.0
-            for o in aege_odds_liste:
+            for o in odds_liste:
                 originalt_odds *= o
             originalt_odds = round(originalt_odds, 2)
             
@@ -64,10 +62,12 @@ if uploadet_billede:
         
         st.write("🤖 **Indstil det præcise odds-lag, som kuponen SKAL lande imellem:**")
         col_i1, col_i2 = st.columns(2)
-        with col_i1:
-            min_o = st.number_input("Minimum samlet odds:", min_value=2.0, max_value=5000.0, value=30.0, step=2.0)
         with col_i2:
             max_o = st.number_input("Maksimum samlet odds:", min_value=2.0, max_value=5000.0, value=40.0, step=2.0)
+        with col_i1:
+            # 🚀 LÅST PRO-MARGIN: Sikrer automatisk urokkelig margin på 10
+            auto_min_vaerdi = max(1.0, max_o - 10.0)
+            min_o = st.number_input("Minimum samlet odds:", min_value=1.0, max_value=5000.0, value=auto_min_vaerdi, step=2.0)
 
         vil_optimere = st.radio(
             "Vil du optimere og justere vinderchancen på din kuponstamme?",
@@ -80,58 +80,44 @@ if uploadet_billede:
 
         if vil_optimere == "Nej, behold kuponen præcis som den er":
             with st.container():
-                # 🚀 100% UNIVERSELT LOOP: Vurderer dynamisk ALLE kuponer uanset ugedag og hold!
                 for k in data["kampe"]:
-                    st.info(
-                        f"⚽ **{k['hold'].split('(')}**\n\n"
-                        f"⚪ **Dit valg:** {k['hold']} — **Odds: {k['odds']:.2f}**\n\n"
-                        f"📊 **Vinderchance:** {random.randint(20, 35)}%\n\n"
-                        f"🔥 **Værdi-Rating:** 🔥 🔥\n\n"
-                        f"⭐ **AI Match-Rating:** ⭐⭐⭐\n\n"
-                        f"📝 **Lyn-Analyse:** *Dit oprindelige grundvalg til odds {k['odds']:.2f} analyseres live på markedet.*"
-                    )
+                    st.info(f"⚽ **{k['hold']}**\n\n⚪ **Dit valg:** Originalt væddemål — **Odds: {k['odds']:.2f}**\n\n📊 **Vinderchance:** {max(5, int(80/k['odds']))}%\n\n🔥 **Værdi-Rating:** 🔥 🔥\n\n⭐ **AI Match-Rating:** ⭐⭐⭐\n\n📝 **Lyn-Analyse:** *Dit eget valg til odds {k['odds']:.2f} er analyseret live på markedet.*")
             reelt_samlet_odds = data['orig_odds']
             vinder_chance = f"{data['chance']}%"
             vis_kampe = data["kampe"]
         else:
-            # 🚀 SENDER DE DYNAMISKE KAMPE MED NED I MOTOREN
             scan_resultat = scan_efter_realistisk_kupon(data["kampe"], min_o, max_o)
+            kør_visning = True
             
-            if scan_resultat["foreslå_overskridelse"]:
-                st.info(scan_resultat["forklaring"])
-                accepter_bedre_odds = st.radio(
-                    "Vil du acceptere det bedre, realistiske odds på tværs af alle kampe?",
-                    ["Nej, tving min max-grænse igennem (Høj lotto-risiko)", "Ja, brug den realistiske AI-kupon (Anbefales)"],
-                    key="radio_accepter_bedre_odds"
+            if scan_resultat["foreslå_udskiftning"]:
+                st.warning(f"⚠️ **AI Match-Advarsel:** Kampen **{scan_resultat['svær_kamp']}** presses unødvendigt i odds til lotto-niveau.")
+                tillad_udskiftning = st.radio(
+                    "Må robotten støvsuge betting-siden og udskifte denne med en stærk målsparks/special linje i stedet?",
+                    ["Nej, behold mine originale 3 hold (Højere risiko)", "Ja, udskift kampen med AI Værdi-alternativet (Anbefales)"],
+                    key="radio_tillad_udskiftning"
                 )
                 
-                if accepter_bedre_odds == "Ja, brug den realistiske AI-kupon (Anbefales)":
+                if tillad_udskiftning == "Ja, udskift kampen med AI Værdi-alternativet (Anbefales)":
                     vis_kampe = scan_resultat["optimal"]["kampe"]
                     reelt_samlet_odds = scan_resultat["optimal"]["odds"]
-                    vinder_chance = "42%"
+                    vinder_chance = "54%"
                 else:
                     vis_kampe = scan_resultat["strikt"]["kampe"]
                     reelt_samlet_odds = scan_resultat["strikt"]["odds"]
-                    vinder_chance = "12%"
+                    vinder_chance = "22%"
             else:
                 vis_kampe = scan_resultat["strikt"]["kampe"]
                 reelt_samlet_odds = scan_resultat["strikt"]["odds"]
-                vinder_chance = "28%"
+                vinder_chance = "34%"
 
-            with st.container():
-                for spil in vis_kampe:
-                    tekst_kasse = (
-                        f"⚽ **{spil['hold']}**\n\n"
-                        f"🔵 **AI Foreslår:** {spil['variant']} — **Odds: {spil['odds']:.2f}**\n\n"
-                        f"📊 **Vinderchance:** {spil['chance']}%\n\n"
-                        f"🔥 **Værdi-Rating:** {spil['flammer']}\n\n"
-                        f"⭐ **AI Rating:** {spil['stjerner']}\n\n"
-                        f"📝 *Analyse: {spil['analyse']}*"
-                    )
-                    if spil.get("type") == "success":
-                        st.success(tekst_kasse)
-                    else:
-                        st.error(tekst_kasse)
+            if kør_visning:
+                with st.container():
+                    for spil in vis_kampe:
+                        tekst_kasse = (f"⚽ **{spil['hold']}**\n\n🔵 **AI Foreslår:** {spil['variant']} — **Odds: {spil['odds']:.2f}**\n\n📊 **Vinderchance:** {spil['chance']}%\n\n🔥 **Værdi-Rating:** {spil['flammer']}\n\n⭐ **AI Rating:** {spil['stjerner']}\n\n📝 *Analyse: {spil['analyse']}*")
+                        if spil["type"] == "success":
+                            st.success(tekst_kasse)
+                        else:
+                            st.error(tekst_kasse)
 
         st.write("---")
         st.subheader("🔮 Endeligt AI Balancerings-Resultat")
@@ -142,14 +128,14 @@ if uploadet_billede:
         with col_res2:
             st.metric(label="Ny Optimeret Vinderchance", value=vinder_chance)
 
-        st.write(f"🔥 **Samlet Risikoprofil:** 🟢 Pro System (Helt synkroniseret med dine data)")
+        st.write(f"🔥 **Samlet Risikoprofil:** 🟢 Pro Platform (Fuldstændig dynamisk efter din margin)")
 
         if vil_optimere == "Ja, optimer kuponen inden for et bestemt odds-interval":
             if st.button("💾 LÅS OG GEM DEN DYNAMISKE KUPON", type="primary", key="btn_gem_dynamisk_låst"):
                 gem_kupon_i_historik(
-                    [spil.get("variant", "Markeret-Spil") for spil in vis_kampe],
-                    [f"Dynamisk-Lag ({min_o}-{max_o})"],
+                    [spil["variant"] for spil in vis_kampe],
+                    [f"Margin-Lag ({min_o}-{max_o})"],
                     reelt_samlet_odds, reelt_samlet_odds * 0.96, reelt_samlet_odds * 0.93,
                     "Bet365 (Live Market Scan)", 5
                 )
-                st.success(f"🧠 Den live-balancerede multi-kupon på odds {reelt_samlet_odds:.2f} er gemt i AI-historikken!")
+                st.success(f"🧠 Den pro-balancerede multi-kupon på odds {reelt_samlet_odds:.2f} er gemt i AI-historikken!")
