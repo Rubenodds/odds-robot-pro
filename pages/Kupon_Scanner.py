@@ -26,7 +26,8 @@ if uploadet_billede:
     if st.session_state["scannet_data"] is not None:
         data = st.session_state["scannet_data"]
         
-        endelige_valgte_spil = 
+        # RETTET: Listerne er nu initialiseret korrekt med []
+        endelige_valgte_spil = []
         samlet_ny_vinderchance = 100.0
         
         st.subheader("🎟️ Interaktiv Kupon-Håndtering")
