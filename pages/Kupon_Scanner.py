@@ -185,3 +185,5 @@ if uploadet_billede:
                 [spil["variant"] for spil in endelige_valgte_spil],
                 [spil["hold"] for spil in endelige_valgte_spil],
                 reelt_samlet_odds, reelt_samlet_odds * 0.96, reelt_samlet_odds * 0.93,
+                "Bet365 (Live Interaktiv Pro-Scan)", 5
+            )
