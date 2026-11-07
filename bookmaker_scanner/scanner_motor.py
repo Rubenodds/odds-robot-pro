@@ -2,14 +2,12 @@ import random
 
 def hent_ai_alternativer_for_kamp(kamp_navn, originalt_odds, total_orig_odds, antal_kampe):
     """
-    Korrigeret pro-motor: Regner ægte markedsodds for garderinger (X2/1X) og 
-    returnerer sandsynligheder som korrekte decimalfaktorer (0.0 til 1.0).
+    Korrigeret pro-motor: Leverer korrekte odds-lag og præcise tekststrenge
+    med tilhørende grafik til både valg og det endelige kuponprint.
     """
     originalt_odds = float(originalt_odds)
     
-    # 🎯 REALISTISK MARKEDSODDS: En gardering (X2) ligger typisk på 40-50% af det oprindelige svære odds
     odds_lav = round(max(1.20, originalt_odds * 0.48), 2)
-    # Et specialmarked (mål/kort) tilpasses, så det holder sig tæt på det scannede odds
     odds_midt = round(max(1.35, originalt_odds * 0.90), 2)
     
     anmod_om_hoejt_odds_boost = False
@@ -36,7 +34,6 @@ def hent_ai_alternativer_for_kamp(kamp_navn, originalt_odds, total_orig_odds, an
         spil_lav = "Norwich +1.5 Asian Handicap"
         spil_midt = "Begge hold scorer: JA"
 
-    # Ægte statistiske vinderchancer (mellem 0.0 og 1.0)
     chance_lav = round(min(0.85, 0.88 / odds_lav), 2)
     chance_midt = round(min(0.65, 0.75 / odds_midt), 2)
 
