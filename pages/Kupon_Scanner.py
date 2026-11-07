@@ -7,15 +7,6 @@ from bookmaker_scanner.scanner_motor import scan_efter_realistisk_kupon
 
 st.set_page_config(page_title="AI Billed-Scanner & Kupon-Optimering", page_icon="📸", layout="centered")
 
-st.title("📸 AI Billed-import streamlit as st
-from PIL import Image
-import random
-# KRAV 1 & MAPPE IMPORTS
-from historik.gem_data import gem_kupon_i_historik
-from bookmaker_scanner.scanner_motor import scan_efter_realistisk_kupon
-
-st.set_page_config(page_title="AI Billed-Scanner & Kupon-Optimering", page_icon="📸", layout="centered")
-
 st.title("📸 AI Billed-Scanner & Kupon-Optimering")
 st.write("Avanceret Multi-Balancering: Se din skræddersyede AI-kuponstamme herunder.")
 
@@ -43,7 +34,7 @@ if uploadet_billede:
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN NYT BILLEDE & BOOKMAKERE", key="btn_tving_genscan"):
         with st.spinner("AI-scanneren verificerer grundodds på den originale kupon..."):
             
-            # RETTET OG LUKKET: Listen er udfyldt korrekt med dine grundodds
+            # RETTET: Listen er nu lukket og sat op med dine oprindelige odds
             aege_odds_liste = [3.00, 2.60, 4.40]
             originalt_odds = 1.0
             for o in aege_odds_liste:
@@ -99,7 +90,7 @@ if uploadet_billede:
             
             reelt_samlet_odds = data['orig_odds']
             vinder_chance = f"{data['chance']}%"
-            # Sørger for at opbygge listen med "variant" nøglen, så historik-gemmeren ikke crasher bagefter!
+            # RETTET: Tom liste initialiseret korrekt []
             vis_kampe = []
             for k in data["kampe"]:
                 vis_kampe.append({
