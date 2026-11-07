@@ -54,8 +54,8 @@ if uploadet_billede:
         
         vis_alternativer = st.toggle("🤖 Aktiver AI Værdi-Scanner (Vis alternative muligheder)", value=False)
         
-        # RETTET: Tomme lister er nu lukket korrekt
-        endelige_valgte_spil =
+        # RETTET OG LUKKET MED []
+        endelige_valgte_spil = []
         samlet_ny_vinderchance = 100.0
         tillad_ekstra_boost = False
 
@@ -67,7 +67,7 @@ if uploadet_billede:
                     tillad_ekstra_boost = st.checkbox("🔓 Giv robotten lov til at sprænge odds-laget for denne guldklump", value=False, key="tillad_boost_check")
                     st.write("---")
 
-            st.write("💡 *Vælg det marked du vil ersatte dit originale spil med for hver kamp:*")
+            st.write("💡 *Vælg det marked du vil erstatte dit originale spil med for hver kamp:*")
             
             for i, kamp in enumerate(data["kampe"]):
                 st.markdown(f"### ⚽ {kamp['hold']}")
@@ -101,7 +101,8 @@ if uploadet_billede:
                             st.success(f"🎯 **Valgt alternativ:** {f['flammer']} | {f['stjerner']} | **Chance:** {f['chance']}%\n\n*Analyse: {f['analyse']}*")
                 st.write("`---------------------------------------------------------------------`")
         else:
-            # RETTET: Tomme lister lukket korrekt her
+            # RETTET OG LUKKET MED []
+            endelige_valgte_spil = []
             for kamp in data["kampe"]:
                 endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"]})
             samlet_ny_vinderchance = orig_samlet_chance
