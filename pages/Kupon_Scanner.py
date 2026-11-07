@@ -7,6 +7,15 @@ from bookmaker_scanner.scanner_motor import scan_efter_realistisk_kupon
 
 st.set_page_config(page_title="AI Billed-Scanner & Kupon-Optimering", page_icon="📸", layout="centered")
 
+st.title("📸 AI Billed-import streamlit as st
+from PIL import Image
+import random
+# KRAV 1 & MAPPE IMPORTS
+from historik.gem_data import gem_kupon_i_historik
+from bookmaker_scanner.scanner_motor import scan_efter_realistisk_kupon
+
+st.set_page_config(page_title="AI Billed-Scanner & Kupon-Optimering", page_icon="📸", layout="centered")
+
 st.title("📸 AI Billed-Scanner & Kupon-Optimering")
 st.write("Avanceret Multi-Balancering: Se din skræddersyede AI-kuponstamme herunder.")
 
@@ -87,9 +96,17 @@ if uploadet_billede:
             with st.container():
                 for k in data["kampe"]:
                     st.info(f"⚽ **{k['hold']}**\n\n⚪ **Dit valg:** Originalt væddemål — **Odds: {k['odds']:.2f}**\n\n📊 **Vinderchance:** {max(5, int(80/k['odds']))}%\n\n🔥 **Værdi-Rating:** 🔥 🔥\n\n⭐ **AI Match-Rating:** ⭐⭐⭐\n\n📝 **Lyn-Analyse:** *Dit eget valg til odds {k['odds']:.2f} er analyseret live på markedet.*")
+            
             reelt_samlet_odds = data['orig_odds']
             vinder_chance = f"{data['chance']}%"
-            vis_kampe = data["kampe"]
+            # Sørger for at opbygge listen med "variant" nøglen, så historik-gemmeren ikke crasher bagefter!
+            vis_kampe = []
+            for k in data["kampe"]:
+                vis_kampe.append({
+                    "hold": k["hold"],
+                    "variant": "Originalt valg",
+                    "odds": k["odds"]
+                })
             kør_visning = True
         else:
             # Kald den universelle undermappemotor og send dine data med ned
@@ -144,7 +161,7 @@ if uploadet_billede:
 
         st.write(f"🔥 **Samlet Risikoprofil:** 🟢 Pro Platform (Fuldstændig dynamisk efter din margin)")
 
-        if vil_optimere == "Ja, optimer kuponen inden for et bestemt odds-interval" and kør_visning:
+        if kør_visning:
             if st.button("💾 LÅS OG GEM DEN DYNAMISKE KUPON", type="primary", key="btn_gem_dynamisk_låst"):
                 gem_kupon_i_historik(
                     [spil["variant"] for spil in vis_kampe],
@@ -152,4 +169,4 @@ if uploadet_billede:
                     reelt_samlet_odds, reelt_samlet_odds * 0.96, reelt_samlet_odds * 0.93,
                     "Bet365 (Live Market Scan)", 5
                 )
-                st.success(f"🧠 Den pro-balancerede multi-kupon på odds {reelt_samlet_odds:.2f} er gemt i AI-historikken!")
+                st.success("✅ Kupon gemt fejlfrit i din SQLite databaserapport!")
