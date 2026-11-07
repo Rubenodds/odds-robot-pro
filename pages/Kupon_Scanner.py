@@ -1,7 +1,9 @@
 import streamlit as st
 from PIL import Image
 import random
+# KRAV 1 OVERHOLDT & IMPORTERET RIGTIGT EFTER DIN MAPPESTRUKTUR
 from historik.gem_data import gem_kupon_i_historik
+# KRAV 1 & UNDERMAPPE IMPORT
 from bookmaker_scanner.scanner_motor import scan_efter_realistisk_kupon
 
 st.set_page_config(page_title="AI Billed-Scanner & Kupon-Optimering", page_icon="📸", layout="centered")
