@@ -27,7 +27,7 @@ if uploadet_billede:
         data = st.session_state["scannet_data"]
         antal_kampe = len(data["kampe"])
         
-        # Sikring mod gamle session data i din browser (omregner hele tal til decimaler live)
+        # Sikring mod gamle session data i din browser
         for k in data["kampe"]:
             if k["chance"] > 1.0:
                 k["chance"] = round(k["chance"] / 100, 2)
@@ -52,13 +52,15 @@ if uploadet_billede:
         st.subheader("⚡ AI Multi-Balancering & Markedsalternativer")
         vis_alternativer = st.toggle("🤖 Aktiver AI Værdi-Scanner (Vis alternative muligheder)", value=False)
         
-        endelige_valgte_spil =
+        # RETTET: Initialiseret med tom liste
+        endelige_valgte_spil = []
         samlet_ny_vinderchance = 1.0
         tillad_ekstra_boost = False
 
         if vis_alternativer:
             for kamp in data["kampe"]:
-                _, _, vil_booste, forklaring_tekst = hent_ai_alternativer_for_kamp(campaign_navn=kamp["hold"], originalt_odds=kamp["odds"], total_orig_odds=orig_samlet_odds, antal_kampe=antal_kampe)
+                # RETTET: Ændret fra campaign_navn til kamp_navn
+                _, _, vil_booste, forklaring_tekst = hent_ai_alternativer_for_kamp(kamp_navn=kamp["hold"], originalt_odds=kamp["odds"], total_orig_odds=orig_samlet_odds, antal_kampe=antal_kampe)
                 if vil_booste:
                     st.warning(forklaring_tekst)
                     tillad_ekstra_boost = st.checkbox("🔓 Giv robotten lov til at sprænge odds-laget for denne guldklump", value=False, key="tillad_boost_check")
@@ -107,6 +109,8 @@ if uploadet_billede:
                             st.success(f"🎯 **Valgt:** {f['flammer']} | Chance: {int(f['chance']*100)}%")
                 st.write("---")
         else:
+            # RETTET: Initialiseret med tom liste
+            endelige_valgte_spil = []
             for kamp in data["kampe"]:
                 endelige_valgte_spil.append({
                     "hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"],
@@ -133,7 +137,6 @@ if uploadet_billede:
         kupon_tekst_blok += f"💵 SAMLET ODDS: {reelt_samlet_odds:.2f}\n"
         kupon_tekst_blok += f"🔮 SAMLET AI VINDERCHANCE: {min(99.9, max(0.1, endelig_chance_procent)):.1f}%"
         
-        # Viser det i en urokkelig mørk kodeboks, som virker på alle smartphones
         st.code(kupon_tekst_blok, language="text")
 
         st.write("---")
