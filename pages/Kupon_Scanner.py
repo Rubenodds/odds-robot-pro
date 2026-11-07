@@ -51,7 +51,6 @@ if uploadet_billede:
         # ----------------- PANEL 2: STRATEGI & INTERAKTIV MOTOR -----------------
         st.subheader("⚡ AI Multi-Balancering & Markedsalternativer")
         
-        # PRO-FUNKTION: Lad brugeren vælge robottens arbejdsmetode live!
         ai_strategi = st.selectbox(
             "Vælg robottens arbejdsværktøj:",
             [
@@ -82,9 +81,7 @@ if uploadet_billede:
                 
                 forslag, mangler_muligheder, vil_booste, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 
-                # Hvis strategien er sat til "Fri Optimering", lader vi bare motoren spytte sine standard rå forslag ud
                 if "Fri AI Værdi-Optimering" in ai_strategi:
-                    # Giver motoren lov til at give et naturligt boost uden at tvinge odds_lav kunstigt op
                     for f in forslag:
                         if f["id"] == "lav":
                             f["odds"] = round(max(1.20, kamp["odds"] * 0.48), 2)
@@ -104,15 +101,13 @@ if uploadet_billede:
                 
                 valgt_marked = st.radio(f"Vælg marked for {kamp['hold']}:", valgmuligheder, key=f"pro_valg_{i}", label_visibility="collapsed")
                 
-                # HÅNDTERING AF VALG ELLER MANUEL INDTASTNING
                 if "⌨️ Tast selv" in valgt_marked:
-                    col_t1, col_t2 = st.columns([2, 1])
+                    col_t1, col_t2 = st.columns(2)
                     with col_t1:
                         manuelt_spil = st.text_input("Hvad spiller du på kampen?", value="F.eks. Over 9.5 hjørnespark", key=f"man_navn_{i}")
                     with col_t2:
                         manuelt_odds = st.number_input("Odds:", min_value=1.01, max_value=500.0, value=2.00, step=0.05, key=f"man_odds_{i}")
                     
-                    # Udregner en estimeret chance baseret på dit indtastede odds
                     estimeret_chance = round(min(0.90, 0.85 / manuelt_odds), 2)
                     
                     endelige_valgte_spil.append({
@@ -147,6 +142,7 @@ if uploadet_billede:
                             st.success(f"🎯 **Valgt:** {f['flammer']} | Chance: {int(f['chance']*100)}%")
                 st.markdown("`---------------------------------------------------------------------`")
         else:
+            endelige_valgte_spil = []
             for kamp in data["kampe"]:
                 endelige_valgte_spil.append({
                     "hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"],
@@ -181,3 +177,11 @@ if uploadet_billede:
         st.table({
             "Kupon-type": ["Original Kupon", "Din Aktuelle AI-Kupon"],
             "Samlet Odds": [f"{orig_samlet_odds:.2f}", f"{reelt_samlet_odds:.2f}"],
+            "Vinderchance (%)": [f"{max(0.1, orig_samlet_chance_procent):.1f}%", f"{min(99.9, max(0.1, endelig_chance_procent)):.1f}%"]
+        })
+
+        if st.button("💾 LÅS OG GEM DEN DYNAMISKE KUPON", type="primary", key="btn_gem_dynamisk_låst"):
+            gem_kupon_i_historik(
+                [spil["variant"] for spil in endelige_valgte_spil],
+                [spil["hold"] for spil in endelige_valgte_spil],
+                reelt_samlet_odds, reelt_samlet_odds * 0.96, reelt_samlet_odds * 0.93,
