@@ -54,12 +54,12 @@ if uploadet_billede:
         
         vis_alternativer = st.toggle("🤖 Aktiver AI Værdi-Scanner (Vis alternative muligheder)", value=False)
         
+        # RETTET: Tomme lister er nu lukket korrekt
         endelige_valgte_spil =
         samlet_ny_vinderchance = 100.0
         tillad_ekstra_boost = False
 
         if vis_alternativer:
-            # Vi tjekker hurtigt om motoren vil anmode om et boost på tværs af kampene
             for kamp in data["kampe"]:
                 _, _, vil_booste, forklaring_tekst = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 if vil_booste:
@@ -67,17 +67,15 @@ if uploadet_billede:
                     tillad_ekstra_boost = st.checkbox("🔓 Giv robotten lov til at sprænge odds-laget for denne guldklump", value=False, key="tillad_boost_check")
                     st.write("---")
 
-            st.write("💡 *Vælg det marked du vil erstatte dit originale spil med for hver kamp:*")
+            st.write("💡 *Vælg det marked du vil ersatte dit originale spil med for hver kamp:*")
             
             for i, kamp in enumerate(data["kampe"]):
                 st.markdown(f"### ⚽ {kamp['hold']}")
                 
-                # Hent forslagene ud
                 forslag, mangler_muligheder, vil_booste, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 
                 valgmuligheder = [f"Behold originalt valg: {kamp['originalt_valg']} (Odds {kamp['odds']:.2f})"]
                 
-                # Hvis brugeren har givet lov, kan vi tilføje et ekstra højt fiktivt boost-odds til listen
                 if vil_booste and tillad_ekstra_boost:
                     odds_boosted = round(kamp["odds"] * 1.6, 2)
                     valgmuligheder.append(f"🚀 AI VALUE-BOOST: Ekstrem markedsfejl (Odds {odds_boosted:.2f})")
@@ -93,7 +91,7 @@ if uploadet_billede:
                 elif "🚀 AI VALUE-BOOST" in valgt_marked:
                     odds_boosted = round(kamp["odds"] * 1.6, 2)
                     endelige_valgte_spil.append({"hold": kamp["hold"], "variant": "🚀 AI Value-Boost: Udnyttelse af bookmaker-fejl", "odds": odds_boosted})
-                    samlet_ny_vinderchance *= 0.45  # 45% chance sat af maskinen
+                    samlet_ny_vinderchance *= 0.45
                     st.success("🔥 **Valgt:** Du har godkendt robottens Value-Boost på denne markedsfejl!")
                 else:
                     for f in forslag:
@@ -103,6 +101,7 @@ if uploadet_billede:
                             st.success(f"🎯 **Valgt alternativ:** {f['flammer']} | {f['stjerner']} | **Chance:** {f['chance']}%\n\n*Analyse: {f['analyse']}*")
                 st.write("`---------------------------------------------------------------------`")
         else:
+            # RETTET: Tomme lister lukket korrekt her
             for kamp in data["kampe"]:
                 endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"]})
             samlet_ny_vinderchance = orig_samlet_chance
