@@ -61,7 +61,7 @@ if uploadet_billede:
         
         vis_alternativer = st.toggle("🤖 Aktiver AI Værdi-Scanner (Vis alternative muligheder)", value=False)
         
-        endelige_valgte_spil =
+        endelige_valgte_spil = []
         samlet_ny_vinderchance = 1.0
         tillad_ekstra_boost = False
 
@@ -80,7 +80,6 @@ if uploadet_billede:
                 
                 forslag, mangler_muligheder, vil_booste, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 
-                # 🚀 DYNAMISK STRATEGI-SKIFT: Justerer alternativerne live baseret på dit dropdown-valg!
                 if "Låst Margin-Sikring" in ai_strategi:
                     for f in forslag:
                         if f["id"] == "lav":
@@ -157,7 +156,7 @@ if uploadet_billede:
                             st.success(f"🎯 **Valgt:** {f['flammer']} | Chance: {int(f['chance']*100)}%")
                 st.markdown("`---------------------------------------------------------------------`")
         else:
-            endelige_valgte_spil =
+            endelige_valgte_spil = []
             for kamp in data["kampe"]:
                 endelige_valgte_spil.append({
                     "hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"],
@@ -179,3 +178,6 @@ if uploadet_billede:
                 f"⚽ **Kamp {i+1}: {spil['hold']}**\n\n"
                 f"➔ **Valgt spil:** {spil['variant']}\n\n"
                 f"📊 **Odds:** {spil['odds']:.2f} | **Vinderchance:** {int(spil['chance']*100)}% | "
+                f"**Rating:** {spil['flammer']} | {spil['stjerner']}"
+            )
+
