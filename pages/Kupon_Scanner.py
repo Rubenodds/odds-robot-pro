@@ -17,9 +17,9 @@ if uploadet_billede:
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN / NULSTIL"):
         st.session_state["scannet_data"] = {
             "kampe": [
-                {"hold": "OB vs. Viborg", "originalt_valg": "Viborg vinder & Over 3 hjørnespark", "odds": 3.00, "chance": 26},
-                {"hold": "Leeds vs. Tottenham", "originalt_valg": "Tottenham vinder", "odds": 2.60, "chance": 32},
-                {"hold": "Bristol City vs. Norwich", "originalt_valg": "Norwich vinder & Begge hold scorer", "odds": 4.40, "chance": 18}
+                {"hold": "OB vs. Viborg", "originalt_valg": "Viborg vinder & Over 3 hjørnespark", "odds": 3.00, "chance": 0.26},
+                {"hold": "Leeds vs. Tottenham", "originalt_valg": "Tottenham vinder", "odds": 2.60, "chance": 0.32},
+                {"hold": "Bristol City vs. Norwich", "originalt_valg": "Norwich vinder & Begge hold scorer", "odds": 4.40, "chance": 0.18}
             ]
         }
 
@@ -28,10 +28,10 @@ if uploadet_billede:
         antal_kampe = len(data["kampe"])
         
         orig_samlet_odds = 1.0
-        orig_samlet_chance = 100.0
+        orig_samlet_chance = 1.0
         for k in data["kampe"]:
             orig_samlet_odds *= k["odds"]
-            orig_samlet_chance *= (k["chance"] / 100)
+            orig_samlet_chance *= k["chance"]
         
         orig_samlet_odds = round(orig_samlet_odds, 2)
         orig_samlet_chance_procent = round(orig_samlet_chance * 100, 1)
@@ -39,7 +39,7 @@ if uploadet_billede:
         # ----------------- PANEL 1: DIN ORIGINALE KUPONSTAMME -----------------
         st.subheader("📋 Din originale kuponstamme (Scannet)")
         for k in data["kampe"]:
-            st.info(f"⚽ **{k['hold']}**\n\n**Dit valg:** {k['originalt_valg']} — **Odds: {k['odds']:.2f}** | Vinderchance: `{k['chance']}%` | 🔥 🔥 | ⭐⭐⭐")
+            st.info(f"⚽ **{k['hold']}**\n\n**Dit valg:** {k['originalt_valg']} — **Odds: {k['odds']:.2f}** | Vinderchance: `{int(k['chance']*100)}%` | 🔥 🔥 | ⭐⭐⭐")
         
         st.write("---")
 
@@ -48,7 +48,7 @@ if uploadet_billede:
         vis_alternativer = st.toggle("🤖 Aktiver AI Værdi-Scanner (Vis alternative muligheder)", value=False)
         
         endelige_valgte_spil = []
-        samlet_ny_vinderchance = 100.0
+        samlet_ny_vinderchance = 1.0
         tillad_ekstra_boost = False
 
         if vis_alternativer:
@@ -70,7 +70,7 @@ if uploadet_billede:
                 
                 if vil_booste and tillad_ekstra_boost:
                     odds_boosted = round(kamp["odds"] * 1.6, 2)
-                    valgmuligheder.append(f"🚀 AI VALUE-BOOST: Over 4.5 kort i kampen (Odds {odds_boostedfilename})")
+                    valgmuligheder.append(f"🚀 AI VALUE-BOOST: Over 4.5 kort i kampen (Odds {odds_boosted})")
                 
                 for f in forslag:
                     valgmuligheder.append(f"{f['titel']} (Odds {f['odds']:.2f})")
@@ -79,7 +79,7 @@ if uploadet_billede:
                 
                 if "Behold originalt" in valgt_marked:
                     endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"]})
-                    samlet_ny_vinderchance *= (kamp["chance"] / 100)
+                    samlet_ny_vinderchance *= kamp["chance"]
                 elif "🚀 AI VALUE-BOOST" in valgt_marked:
                     odds_boosted = round(kamp["odds"] * 1.6, 2)
                     endelige_valgte_spil.append({"hold": kamp["hold"], "variant": "Over 4.5 kort i kampen (Value-Boost)", "odds": odds_boosted})
@@ -89,8 +89,8 @@ if uploadet_billede:
                     for f in forslag:
                         if f["titel"] in valgt_marked:
                             endelige_valgte_spil.append({"hold": kamp["hold"], "variant": f["variant"], "odds": f["odds"]})
-                            samlet_ny_vinderchance *= (f["chance"] / 100)
-                            st.success(f"🎯 **Valgt:** {f['flammer']} | Chance: {f['chance']}%")
+                            samlet_ny_vinderchance *= f["chance"]
+                            st.success(f"🎯 **Valgt:** {f['flammer']} | Chance: {int(f['chance']*100)}%")
                 st.write("---")
         else:
             for kamp in data["kampe"]:
@@ -111,17 +111,16 @@ if uploadet_billede:
                 unsafe_allow_html=True
             )
             for spil in endelige_valgte_spil:
-                st.markdown(f"🔹 **{spil['hold']}**: `{spil['variant']}` — (Odds {spil['odds']:.2f})")
+                st.markdown(f"<span style='color: #fff;'>🔹 <b>{spil['hold']}</b>: {spil['variant']} — (Odds {spil['odds']:.2f})</span>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
         st.write("---")
         st.subheader("📊 VS-Sammenligning: Original vs. AI-Optimeret")
         
-        # Opretter en direkte sammenligningstabel
         st.table({
             "Kupon-type": ["Original Kupon", "Din Aktuelle AI-Kupon"],
             "Samlet Odds": [f"{orig_samlet_odds:.2f}", f"{reelt_samlet_odds:.2f}"],
-            "Vinderchance (%)": [f"{max(1, int(orig_samlet_chance_procent))}%", f"{min(99, max(1, int(endelig_chance_procent)))}%"]
+            "Vinderchance (%)": [f"{max(0.1, orig_samlet_chance_procent):.1f}%", f"{min(99.9, max(0.1, endelig_chance_procent)):.1f}%"]
         })
 
         if st.button("💾 LÅS OG GEM DEN DYNAMISKE KUPON", type="primary", key="btn_gem_dynamisk_låst"):
