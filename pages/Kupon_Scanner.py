@@ -181,3 +181,4 @@ if uploadet_billede:
                 f"**Rating:** {spil['flammer']} | {spil['stjerner']}"
             )
 
+        st.write("---")
