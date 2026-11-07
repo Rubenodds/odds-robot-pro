@@ -76,7 +76,7 @@ if uploadet_billede:
             st.write("💡 *Vælg marked eller tast dit eget spil ind for hver kamp:*")
             
             for i, kamp in enumerate(data["kampe"]):
-                st.markdown(f"### ⚽ {campaign_name:=kamp['hold']}")
+                st.markdown(f"### ⚽ {kamp['hold']}")
                 
                 forslag, mangler_muligheder, vil_booste, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 
