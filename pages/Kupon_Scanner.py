@@ -76,7 +76,7 @@ if uploadet_billede:
             st.write("💡 *Vælg marked eller tast dit eget spil ind for hver kamp:*")
             
             for i, kamp in enumerate(data["kampe"]):
-                st.markdown(f"### ⚽ {kamp['hold']}")
+                st.markdown(f"### ⚽ {campaign_name:=kamp['hold']}")
                 
                 forslag, mangler_muligheder, vil_booste, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 
@@ -118,9 +118,9 @@ if uploadet_billede:
                 if "⌨️ Tast selv" in valgt_marked:
                     col_t1, col_t2 = st.columns(2)
                     with col_t1:
-                        manuelt_spil = st.text_input("Hvad spiller du på kampen?", value="F.eks. Over 9.5 hjørnespark", key=f"man_navn_{i}")
+                        manuelt_spil = st.text_input("Hvad spiller du på kampen? (Tastatur-søgning)", value="F.eks. Over 9.5 hjørnespark", key=f"man_navn_{i}")
                     with col_t2:
-                        manuelt_odds = st.number_input("Odds:", min_value=1.01, max_value=500.0, value=2.00, step=0.05, key=f"man_odds_{i}")
+                        manuelt_odds = st.number_input("Indtast markedets odds:", min_value=1.01, max_value=500.0, value=2.00, step=0.05, key=f"man_odds_{i}")
                     
                     estimeret_chance = round(min(0.90, 0.85 / manuelt_odds), 2)
                     
@@ -178,6 +178,3 @@ if uploadet_billede:
                 f"⚽ **Kamp {i+1}: {spil['hold']}**\n\n"
                 f"➔ **Valgt spil:** {spil['variant']}\n\n"
                 f"📊 **Odds:** {spil['odds']:.2f} | **Vinderchance:** {int(spil['chance']*100)}% | "
-                f"**Rating:** {spil['flammer']} | {spil['stjerner']}"
-            )
-
