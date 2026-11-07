@@ -61,7 +61,7 @@ if uploadet_billede:
         
         vis_alternativer = st.toggle("🤖 Aktiver AI Værdi-Scanner (Vis alternative muligheder)", value=False)
         
-        endelige_valgte_spil = []
+        endelige_valgte_spil =
         samlet_ny_vinderchance = 1.0
         tillad_ekstra_boost = False
 
@@ -80,12 +80,27 @@ if uploadet_billede:
                 
                 forslag, mangler_muligheder, vil_booste, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 
-                if "Fri AI Værdi-Optimering" in ai_strategi:
+                # 🚀 DYNAMISK STRATEGI-SKIFT: Justerer alternativerne live baseret på dit dropdown-valg!
+                if "Låst Margin-Sikring" in ai_strategi:
+                    for f in forslag:
+                        if f["id"] == "lav":
+                            f["odds"] = round(max(1.20, kamp["odds"] * 0.75), 2)
+                            f["titel"] = f"🛡️ AI Risiko-Sikring (Låst Margin): {f['variant']} (Odds {f['odds']:.2f})"
+                            f["chance"] = round(min(0.90, 0.88 / f["odds"]), 2)
+                        elif f["id"] == "midt":
+                            f["odds"] = round(max(1.35, kamp["odds"] * 1.02), 2)
+                            f["titel"] = f"⚽ AI Værdi-Boost (Låst Margin): {f['variant']} (Odds {f['odds']:.2f})"
+                            f["chance"] = round(min(0.70, 0.75 / f["odds"]), 2)
+                else:
                     for f in forslag:
                         if f["id"] == "lav":
                             f["odds"] = round(max(1.20, kamp["odds"] * 0.48), 2)
-                            f["titel"] = f"🛡️ AI Risiko-Sikring: {f['variant']} (Odds {f['odds']:.2f})"
-                            f["chance"] = round(min(0.85, 0.85 / f["odds"]), 2)
+                            f["titel"] = f"🛡️ AI Risiko-Sikring (Fri Værdi): {f['variant']} (Odds {f['odds']:.2f})"
+                            f["chance"] = round(min(0.95, 0.92 / f["odds"]), 2)
+                        elif f["id"] == "midt":
+                            f["odds"] = round(max(1.35, kamp["odds"] * 1.15), 2)
+                            f["titel"] = f"⚽ AI Værdi-Boost (Fri Værdi): {f['variant']} (Odds {f['odds']:.2f})"
+                            f["chance"] = round(min(0.60, 0.72 / f["odds"]), 2)
                 
                 valgmuligheder = [
                     f"Behold originalt valg: {kamp['originalt_valg']} (Odds {kamp['odds']:.2f})",
@@ -142,6 +157,7 @@ if uploadet_billede:
                             st.success(f"🎯 **Valgt:** {f['flammer']} | Chance: {int(f['chance']*100)}%")
                 st.markdown("`---------------------------------------------------------------------`")
         else:
+            endelige_valgte_spil =
             for kamp in data["kampe"]:
                 endelige_valgte_spil.append({
                     "hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"],
@@ -156,30 +172,10 @@ if uploadet_billede:
         reelt_samlet_odds = round(reelt_samlet_odds, 2)
         endelig_chance_procent = round(samlet_ny_vinderchance * 100, 1)
 
-        # 📋 SAMMENSAT KUPONSTAMME I FLOTTE INFOBOXE (LIGESOM BILLEDE 3)
+        # 📋 SAMMENSAT KUPONSTAMME I FLOTTE INFOBOXE
         st.subheader("📋 Din sammensatte AI Kuponstamme")
         for i, spil in enumerate(endelige_valgte_spil):
             st.info(
                 f"⚽ **Kamp {i+1}: {spil['hold']}**\n\n"
                 f"➔ **Valgt spil:** {spil['variant']}\n\n"
                 f"📊 **Odds:** {spil['odds']:.2f} | **Vinderchance:** {int(spil['chance']*100)}% | "
-                f"**Rating:** {spil['flammer']} | {spil['stjerner']}"
-            )
-        
-        st.write("---")
-        st.subheader("📊 VS-Sammenligning: Original vs. AI-Optimeret")
-        
-        st.table({
-            "Kupon-type": ["Original Kupon", "Din Aktuelle AI-Kupon"],
-            "Samlet Odds": [f"{orig_samlet_odds:.2f}", f"{reelt_samlet_odds:.2f}"],
-            "Vinderchance (%)": [f"{max(0.1, orig_samlet_chance_procent):.1f}%", f"{min(99.9, max(0.1, endelig_chance_procent)):.1f}%"]
-        })
-
-        if st.button("💾 LÅS OG GEM DEN DYNAMISKE KUPON", type="primary", key="btn_gem_dynamisk_låst"):
-            gem_kupon_i_historik(
-                [spil["variant"] for spil in endelige_valgte_spil],
-                [spil["hold"] for spil in endelige_valgte_spil],
-                reelt_samlet_odds, reelt_samlet_odds * 0.96, reelt_samlet_odds * 0.93,
-                "Bet365 (Live Interaktiv Pro-Scan)", 5
-            )
-            st.success("✅ Din færdige kuponstamme er låst og gemt i din SQLite historik!")
