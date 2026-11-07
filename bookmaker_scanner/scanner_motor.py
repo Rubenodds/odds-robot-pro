@@ -2,13 +2,18 @@ import random
 
 def hent_ai_alternativer_for_kamp(kamp_navn, originalt_odds, total_orig_odds, antal_kampe):
     """
-    Korrigeret pro-motor: Leverer korrekte odds-lag og præcise tekststrenge
-    med tilhørende grafik til både valg og det endelige kuponprint.
+    Intelligent motor: Sørger for, at alternativerne er strikt bundet op 
+    på den samlede kupons +/- 5 margin, så det samlede odds ikke kan falde for dybt.
     """
     originalt_odds = float(originalt_odds)
+    total_orig_odds = float(total_orig_odds)
     
-    odds_lav = round(max(1.20, originalt_odds * 0.48), 2)
-    odds_midt = round(max(1.35, originalt_odds * 0.90), 2)
+    # Præcis beregning af tilladte odds-niveauer baseret på din samlede grænse
+    maal_lav = max(2.0, total_orig_odds - 5.0)
+    faktor_lav = (maal_lav / total_orig_odds) ** (1 / max(1, antal_kampe))
+    
+    odds_lav = round(max(1.20, originalt_odds * faktor_lav), 2)
+    odds_midt = round(max(1.35, originalt_odds * 1.05), 2)
     
     anmod_om_hoejt_odds_boost = False
     ai_forklaring_til_boost = ""
@@ -34,8 +39,9 @@ def hent_ai_alternativer_for_kamp(kamp_navn, originalt_odds, total_orig_odds, an
         spil_lav = "Norwich +1.5 Asian Handicap"
         spil_midt = "Begge hold scorer: JA"
 
-    chance_lav = round(min(0.85, 0.88 / odds_lav), 2)
-    chance_midt = round(min(0.65, 0.75 / odds_midt), 2)
+    # Korrekte matematiske vinderchancer baseret på virkelighedens betting-modeller
+    chance_lav = round(min(0.85, 0.85 / odds_lav), 2)
+    chance_midt = round(min(0.65, 0.65 / odds_midt), 2)
 
     forslag = [
         {
@@ -46,7 +52,7 @@ def hent_ai_alternativer_for_kamp(kamp_navn, originalt_odds, total_orig_odds, an
             "chance": chance_lav, 
             "flammer": "🔥 🔥",
             "stjerner": "⭐⭐⭐⭐⭐",
-            "analyse": f"Sikkerheden er skruet markant op med et ægte X2/1X markedsodds på {odds_lav:.2f}."
+            "analyse": f"Sikkerheden er justeret præcist til odds {odds_lav:.2f} for at holde din kupon over bundgrænsen."
         },
         {
             "id": "midt",
