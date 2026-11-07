@@ -11,7 +11,7 @@ st.write("Skræddersy din kuponstamme live med AI-forslag eller dine egne manuel
 if "scannet_data" not in st.session_state:
     st.session_state["scannet_data"] = None
 
-uploadet_billede = st.file_uploader("Upload dit kupon-screenshot:", type=["png", "jpg", "jpeg"], key="kupon_uploader_v9")
+uploadet_billede = st.file_uploader("Upload dit kupon-screenshot:", type=["png", "jpg", "jpeg"], key="kupon_uploader_v10")
 
 if uploadet_billede:
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN / NULSTIL"):
@@ -27,7 +27,6 @@ if uploadet_billede:
         data = st.session_state["scannet_data"]
         antal_kampe = len(data["kampe"])
         
-        # Sikring mod gamle session data
         for k in data["kampe"]:
             if k["chance"] > 1.0:
                 k["chance"] = round(k["chance"] / 100, 2)
@@ -48,7 +47,7 @@ if uploadet_billede:
         
         st.write("---")
 
-        # ----------------- PANEL 2: STRATEGI & INTERAKTIV MOTOR -----------------
+        # ----------------- PANEL 2: INTERAKTIV GRÆNSEFLADE -----------------
         st.subheader("⚡ AI Multi-Balancering & Markedsalternativer")
         
         ai_strategi = st.selectbox(
@@ -68,7 +67,7 @@ if uploadet_billede:
 
         if vis_alternativer:
             for kamp in data["kampe"]:
-                _, _, vil_booste, forklaring_tekst = hent_ai_alternativer_for_kamp(kamp_navn=kamp["hold"], originalt_odds=kamp["odds"], total_orig_odds=orig_samlet_odds, antal_kampe=antal_kampe)
+                _, _, vil_booste, forklaring_tekst = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 if vil_booste:
                     st.warning(forklaring_tekst)
                     tillad_ekstra_boost = st.checkbox("🔓 Giv robotten lov til at sprænge odds-laget for denne guldklump", value=False, key="tillad_boost_check")
@@ -86,6 +85,7 @@ if uploadet_billede:
                         if f["id"] == "lav":
                             f["odds"] = round(max(1.20, kamp["odds"] * 0.48), 2)
                             f["titel"] = f"🛡️ AI Risiko-Sikring: {f['variant']} (Odds {f['odds']:.2f})"
+                            f["chance"] = round(min(0.85, 0.85 / f["odds"]), 2)
                 
                 valgmuligheder = [
                     f"Behold originalt valg: {kamp['originalt_valg']} (Odds {kamp['odds']:.2f})",
@@ -112,7 +112,7 @@ if uploadet_billede:
                     
                     endelige_valgte_spil.append({
                         "hold": kamp["hold"], "variant": f"⌨️ {manuelt_spil}", "odds": manuelt_odds,
-                        "chance": estimeret_chance, "flammer": "🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐ (Bruger-Valg)"
+                        "chance": estimeret_chance, "flammer": "🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐"
                     })
                     samlet_ny_vinderchance *= estimeret_chance
                     st.info(f"✍️ **Manuelt spil registreret:** {manuelt_spil} til odds `{manuelt_odds:.2f}`")
@@ -142,7 +142,6 @@ if uploadet_billede:
                             st.success(f"🎯 **Valgt:** {f['flammer']} | Chance: {int(f['chance']*100)}%")
                 st.markdown("`---------------------------------------------------------------------`")
         else:
-            endelige_valgte_spil = []
             for kamp in data["kampe"]:
                 endelige_valgte_spil.append({
                     "hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"],
@@ -157,20 +156,16 @@ if uploadet_billede:
         reelt_samlet_odds = round(reelt_samlet_odds, 2)
         endelig_chance_procent = round(samlet_ny_vinderchance * 100, 1)
 
-        # 📋 KUPONPRINT
+        # 📋 SAMMENSAT KUPONSTAMME I FLOTTE INFOBOXE (LIGESOM BILLEDE 3)
         st.subheader("📋 Din sammensatte AI Kuponstamme")
-        kupon_tekst_blok = ""
         for i, spil in enumerate(endelige_valgte_spil):
-            kupon_tekst_blok += f"Kamp {i+1}: {spil['hold']}\n"
-            kupon_tekst_blok += f"↳ Spil: {spil['variant']}\n"
-            kupon_tekst_blok += f"↳ Odds: {spil['odds']:.2f} | Chance: {int(spil['chance']*100)}% | {spil['flammer']} | {spil['stjerner']}\n"
-            kupon_tekst_blok += f"{'-'*50}\n"
+            st.info(
+                f"⚽ **Kamp {i+1}: {spil['hold']}**\n\n"
+                f"➔ **Valgt spil:** {spil['variant']}\n\n"
+                f"📊 **Odds:** {spil['odds']:.2f} | **Vinderchance:** {int(spil['chance']*100)}% | "
+                f"**Rating:** {spil['flammer']} | {spil['stjerner']}"
+            )
         
-        kupon_tekst_blok += f"💵 SAMLET ODDS: {reelt_samlet_odds:.2f}\n"
-        kupon_tekst_blok += f"🔮 SAMLET AI VINDERCHANCE: {min(99.9, max(0.1, endelig_chance_procent)):.1f}%"
-        
-        st.code(kupon_tekst_blok, language="text")
-
         st.write("---")
         st.subheader("📊 VS-Sammenligning: Original vs. AI-Optimeret")
         
@@ -187,3 +182,4 @@ if uploadet_billede:
                 reelt_samlet_odds, reelt_samlet_odds * 0.96, reelt_samlet_odds * 0.93,
                 "Bet365 (Live Interaktiv Pro-Scan)", 5
             )
+            st.success("✅ Din færdige kuponstamme er låst og gemt i din SQLite historik!")
