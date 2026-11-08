@@ -2,37 +2,29 @@ import streamlit as st
 from PIL import Image
 import datetime
 from historik.gem_data import gem_kupon_i_historik
-from bookmaker_scanner.scanner_motor import hent_ai_alternativer_for_kamp
+from bookmaker_scanner.scanner_motor import hent_ai_alternativer_for_kamp, scan_billede_til_kupon_data
 
-st.set_page_config(page_title="AI Billed-Scanner & Kupon-Optimering", page_icon="📸", layout="centered")
+st.set_page_config(page_title="AI Universel Billed-Scanner & Optimering", page_icon="📸", layout="centered")
 
-st.title("📸 AI Billed-Scanner & Kupon-Optimering")
-st.write("Skræddersy din kuponstamme live med AI-forslag eller dine egne manuelle pro-spil.")
+st.title("📸 AI Universel Billed-Scanner & Optimering")
+st.write("Skræddersy din kuponstamme live uanset spiludbyder (Bet365, Unibet, Oddset, Betinia m.fl.).")
 
-# Initialiserer en urokkelig hukommelse i session_state
 if "scannet_data" not in st.session_state:
     st.session_state["scannet_data"] = None
 
 uploadet_billede = st.file_uploader("Upload dit kupon-screenshot:", type=["png", "jpg", "jpeg"], key="kupon_uploader_v10")
 
-# AUTOMATION: Når billedet uploades, parser og låser vi dine ÆGTE kupondata permanent fast!
+# SIKKER AGNOSTISK DETEKTION: Kalder den universelle scanningsmotor live på dit billede
 if uploadet_billede:
-    # Hvis data ikke allerede er indlæst, eller der trykkes scan, indlæses dine sande hold fra dit screenshot!
-    if st.session_state["scannet_data"] is None or st.button("🔄 SCAN / OPDATER SCREENSHOT DATA"):
-        st.session_state["scannet_data"] = {
-            "kampe": [
-                {"hold": "Chelsea vs. Sunderland", "originalt_valg": "Fuldtid - Resultat: Chelsea vinder", "odds": 2.25, "chance": 0.45},
-                {"hold": "Aston Villa vs. Man Utd", "originalt_valg": "Fuldtid - Resultat: Aston Villa vinder", "odds": 3.00, "chance": 0.33},
-                {"hold": "Celta Vigo vs. Levante", "originalt_valg": "Fuldtid - Resultat: Celta Vigo vinder", "odds": 1.80, "chance": 0.55},
-                {"hold": "Atletico Madrid vs. Barcelona", "originalt_valg": "Byg Væddemål: Barcelona vinder & Begge hold scorer", "odds": 2.87, "chance": 0.35}
-            ]
-        }
+    if st.session_state["scannet_data"] is None or st.button("🔄 SCAN SCREENSHOT NU"):
+        billede = Image.open(uploadet_billede)
+        # Aktiverer den universelle scanner-motor, der læser uafhængigt af bookmaker-brand
+        st.session_state["scannet_data"] = scan_billede_til_kupon_data(billede)
 
 if st.session_state["scannet_data"] is not None:
     data = st.session_state["scannet_data"]
     antal_kampe = len(data["kampe"])
     
-    # Beregner samlede odds helt præcist ud fra listens dynamiske længde
     orig_samlet_odds = 1.0
     orig_samlet_chance = 1.0
     for k in data["kampe"]:
@@ -42,7 +34,7 @@ if st.session_state["scannet_data"] is not None:
     orig_samlet_odds = round(orig_samlet_odds, 2)
     orig_samlet_chance_procent = round(orig_samlet_chance * 100, 1)
 
-    st.subheader("📋 Din originale kuponstamme (Scannet fra Screenshot)")
+    st.subheader("📋 Din originale kuponstamme (Registreret dynamisk)")
     for k in data["kampe"]:
         st.info(f"⚽ **{k['hold']}**\n\n**Dit valg:** {k['originalt_valg']} — **Odds: {k['odds']:.2f}** | Vinderchance: `{int(k['chance']*100)}%`")
     
@@ -58,7 +50,7 @@ if st.session_state["scannet_data"] is not None:
         st.write("💡 *Vælg marked eller tast dit eget spil ind for hver kamp:*")
         for i, kamp in enumerate(data["kampe"]):
             st.markdown(f"### ⚽ {kamp['hold']}")
-            forslag, _, _, _ = hent_ai_alternativer_for_camp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
+            forslag, _, _, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
             
             valgmuligheder = [
                 f"Behold originalt valg: {kamp['originalt_valg']} (Odds {kamp['odds']:.2f})",
@@ -97,16 +89,14 @@ if st.session_state["scannet_data"] is not None:
     ny_samlet_odds = 1.0
     maksimale_stjerner = 1
     
-    # Genererer din flotte in-play kuponvisning
     for spil in endelige_valgte_spil:
         ny_samlet_odds *= spil["odds"]
-        # Håndterer stjerner uanset om det er int eller str
         stjerne_antal = len(spil["stjerner"]) if isinstance(spil["stjerner"], str) else int(spil["stjerner"])
         if stjerne_antal > maksimale_stjerner:
             maksimale_stjerner = stjerne_antal
         
         with st.expander(f"⚽ {spil['hold']} — Odds {spil['odds']:.2f}", expanded=True):
-            st.write(f"**Valgt in-play væddemål:** {spil['variant']}")
+            st.write(f"**Valgt væddemål:** {spil['variant']}")
             st.write(f"**AI Vurdering & Risiko:** {spil['flammer'] if isinstance(spil['flammer'], str) else '🔥 🔥'}")
     
     ny_samlet_odds = round(ny_samlet_odds, 2)
@@ -119,8 +109,8 @@ if st.session_state["scannet_data"] is not None:
     with col_res2:
         st.metric("Ny Vinderchance", f"{ny_samlet_chance_procent}%", delta=f"{round(ny_samlet_chance_procent - orig_samlet_chance_procent, 1)}%")
 
-    # PERMANENT LÅS: Gemmer og låser kuponen urokkeligt fast i din SQLite-historik
-    if st.button("💾 GEM SKUDSKKER KUPON I SQLITE-HISTORIK", use_container_width=True):
+    # Gemmer kuponen fejlfrit under universelt spil-side tag i SQLite
+    if st.button("💾 GEM KUPON I SQLITE-HISTORIK", use_container_width=True):
         ligaer_liste = [s["hold"] for s in endelige_valgte_spil]
         forslag_liste = [f"[{s['hold']}]: {s['variant']}" for s in endelige_valgte_spil]
         bookmakere_dict = {"🤖 AI-Scanner": f"{ny_samlet_odds:.2f}"}
@@ -129,11 +119,11 @@ if st.session_state["scannet_data"] is not None:
             ligaer_liste=ligaer_liste,
             forslag_liste=forslag_liste,
             bookmakere_dict=bookmakere_dict,
-            side="📸 Billed-Scanner (Bet365 Live)",
+            side="📸 Universel Billed-Scanner",
             stjerner=maksimale_stjerner
         )
         
         if succes:
-            st.success("✅ Den ægte kuponstamme er låst og gemt i SQLite! Dataene overlever nu alle Reboots.")
+            st.success("✅ Kuponen er gemt stabilt i databasen og vil indgå i din hitrate-statistik!")
         else:
             st.error("❌ Fejl: Kunne ikke gemme kuponen i databasen.")
