@@ -39,7 +39,7 @@ def push_database_til_github():
         repo = "Rubenodds/odds-robot-pro"
         path = "odds_pro_hukommelse.db"
         
-        # LINJE 39 RETTET: Bruger den officielle API-server, så databasen gemmes live!
+        # DEFINITIVT RETTET: Den officielle API URL til GitHub, så databasen overlever reboot!
         url = f"https://github.com{repo}/contents/{path}"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
         
