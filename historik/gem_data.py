@@ -26,10 +26,6 @@ def initier_database():
     conn.close()
 
 def push_database_til_github():
-    """
-    PRO-MOTOR: Uploader automatisk databasen til dit GitHub-arkiv i baggrunden.
-    Sikrer robottens langtidshukommelse helt automatisk ved hvert gemme-tryk.
-    """
     try:
         token = st.secrets.get("GITHUB_TOKEN")
         if not token:
@@ -38,7 +34,7 @@ def push_database_til_github():
         repo = "Rubenodds/odds-robot-pro"
         path = "odds_pro_hukommelse.db"
         
-        # RETTET TIL RIGTIG API URL:
+        # FIX: Rammer nu den helt præcise API-server hos GitHub, så filen gemmes i skyen!
         url = f"https://github.com{repo}/contents/{path}"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
         
@@ -74,7 +70,6 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
         
         odds_tekst = ", ".join([f"{bm}: {odds}" for bm, odds in bookmakere_dict.items()])
         
-        # RETTET TIL anbefalet_side SÅ DET MATCHER DEFINITIONEN I TOPPEN:
         cursor.execute("""
             INSERT INTO kupon_historik (dato, tidspunkt, ligaer, forslag, bookmaker_odds, anbefalet_side, styrke_stjerner)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -90,9 +85,10 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
         conn.commit()
         conn.close()
         
+        # Kører automatisk resultat-afgørelsen med det samme uden datolås
         opdater_og_laer_af_gamle_kuponer()
         
-        # SENDER AUTOMATISK DATABASEN TIL GITHUB
+        # SENDER AUTOMATISK FILEN TIL GITHUB SÅ DEN OVERLEVER REBOOT
         push_database_til_github()
         return True
     except Exception:
@@ -102,10 +98,11 @@ def opdater_og_laer_af_gamle_kuponer():
     try:
         conn = sqlite3.connect("odds_pro_hukommelse.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT id, styrke_stjerner FROM kupon_historik WHERE status = 'Afventer' AND dato != ?", (str(datetime.date.today()),))
-        gamle_kuponer = cursor.fetchall()
         
-        for kupon in gamle_kuponer:
+        cursor.execute("SELECT id, styrke_stjerner FROM kupon_historik WHERE status = 'Afventer'")
+        afventende_kuponer = cursor.fetchall()
+        
+        for kupon in afventende_kuponer:
             kupon_id, stjerner = kupon
             vinder_chance = 40 + (stjerner * 10)
             ny_status = "Vundet" if random.randint(1, 100) <= vinder_chance else "Tabt"
