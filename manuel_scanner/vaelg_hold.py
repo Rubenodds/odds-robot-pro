@@ -19,11 +19,21 @@ def vis_manuel_kamp_scanner(alle_kampe, valgte_markeder, mål_odds):
     else:
         tids_timer = 24.0
 
-    # Filtrerer automatisk alle tilgængelige kampe i tidsrammen
-    fra_valgte_ligaer = [
-        k for k in alle_kampe 
-        if "chk_" + k["liga"] in st.session_state and st.session_state["chk_" + k["liga"]]
-    ]
+    # LØSNING PÅ KEYERROR: Gør opslag fuldstændig ufølsomt over for store/små bogstaver samt databaserækker
+    fra_valgte_ligaer = []
+    for k in alle_kampe:
+        liga_navn = None
+        if isinstance(k, dict):
+            # Tjekker alle tænkelige variationer af navnet, så den aldrig fejler
+            liga_navn = k.get("liga") or k.get("Liga") or k.get("turnering") or k.get("competition")
+        elif isinstance(k, (tuple, list)) and len(k) > 0:
+            # Hvis kampen returneres som en rå database-række, tager vi det første element
+            liga_navn = str(k[0])
+            
+        if liga_navn:
+            session_key = "chk_" + str(liga_navn)
+            if session_key in st.session_state and st.session_state[session_key]:
+                fra_valgte_ligaer.append(k)
     
     if not fra_valgte_ligaer:
         fra_valgte_ligaer = alle_kampe
@@ -47,14 +57,19 @@ def vis_manuel_kamp_scanner(alle_kampe, valgte_markeder, mål_odds):
                     gemme_forslag = list()
                     
                     for idx_k, k in enumerate(resultat["kampe"]):
-                        st.write(f"🏟️ **KAMP {idx_k+1}: [{k['liga']}] {k['hj']} vs. {k['ud']}**")
+                        # Fejlsikret udtræk til visningen af liga-navnet inde i loopet
+                        aktuel_liga = "Ukendt Liga"
+                        if isinstance(k, dict):
+                            aktuel_liga = k.get("liga") or k.get("Liga") or k.get("turnering") or "Ukendt Liga"
+                        
+                        st.write(f"🏟️ **KAMP {idx_k+1}: [{aktuel_liga}] {k.get('hj', 'Hjemme')} vs. {k.get('ud', 'Ude')}**")
                         st.write("🧱 *AI Fundet Værdispil:*")
-                        for kombi_tekst in k["kombinationer"]:
+                        for kombi_tekst in k.get("kombinationer", []):
                             st.write(f" ➔ {kombi_tekst}")
-                            gemme_forslag.append(f"[{k['hj']}-{k['ud']}]: {kombi_tekst}")
-                        st.write(f"💵 **Kamp-odds:** Bet365: **{k['b365']:.2f}** | Unibet: **{k['uni']:.2f}** | Oddset: **{k['oddset']:.2f}**")
+                            gemme_forslag.append(f"[{k.get('hj', 'Hjemme')}-{k.get('ud', 'Ude')}]: {kombi_tekst}")
+                        st.write(f"💵 **Kamp-odds:** Bet365: **{k.get('b365', 0.0):.2f}** | Unibet: **{k.get('uni', 0.0):.2f}** | Oddset: **{k.get('oddset', 0.0):.2f}**")
                         st.write("---")
-                        gemme_ligaer.append(k["liga"])
+                        gemme_ligaer.append(aktuel_liga)
                     
                     # BEREGNER REEL %-CHANCE OG HENTER FLAMMERNE FEJLFRIT IND UDEN INDEX-FEJL
                     beregnet_chance = max(2, min(80, int((1 / resultat['bedste_odds']) * 100 * 1.25)))
@@ -63,12 +78,23 @@ def vis_manuel_kamp_scanner(alle_kampe, valgte_markeder, mål_odds):
                     
                     st.success(f"🔥 **BEDSTE BOOKMAKER FUNDET: {resultat['bedste_side']}!**")
                     st.write(f"📈 **Samlet odds for de scannede fund: {resultat['bedste_odds']:.2f}**")
-                    st.write(f"ℹ️ *Sammenligning:* Bet365: {resultat['samlet_b365']:.2f} | Unibet: {resultat['samlet_unibet']:.2f} | Oddset: {resultat['samlet_oddset']:.2f}")
+                    st.write(f"ℹ️ *Sammenligning:* Bet365: {resultat.get('samlet_b365', 0.0):.2f} | Unibet: {resultat.get('samlet_unibet', 0.0):.2f} | Oddset: {resultat.get('samlet_oddset', 0.0):.2f}")
                     
                     # FEJLFRI VISNING: %-sandsynlighed, stjerner og risikoflammer side om side
                     st.write(f"🎯 **Statistisk vinderchance beregnet af AI:** `{beregnet_chance}%`")
                     st.write(f"⚠️ **Risikoprofil:** {'🔥' * risiko_flammer} ({risiko_flammer}/5)")
                     st.write(f"🎯 **AI Værdi-vurdering:** {'⭐' * resultat['styrke']} ({resultat['styrke']}/5 stjerner)")
                     
-                    gem_data.gem_kupon_i_historik(gemme_ligaer, gemme_forslag, resultat["samlet_b365"], resultat["samlet_unibet"], resultat["samlet_oddset"], resultat["bedste_side"], resultat["styrke"])
+                    # Kalder din gem_data.py med alle de nødvendige parametre
+                    gem_data.gem_kupon_i_historik(
+                        ligaer_liste=gemme_ligaer, 
+                        forslag_liste=gemme_forslag, 
+                        bookmakere_dict={
+                            "Bet365": resultat.get('samlet_b365', 0.0),
+                            "Unibet": resultat.get('samlet_unibet', 0.0),
+                            "Oddset": resultat.get('samlet_oddset', 0.0)
+                        },
+                        side="🎯 Manuel Scanner", 
+                        stjerner=resultat['styrke']
+                    )
                     st.info("🧠 Scanning gemt og låst i AI-historikken!")
