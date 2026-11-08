@@ -175,7 +175,6 @@ if uploadet_billede:
         ny_samlet_odds = round(ny_samlet_odds, 2)
         ny_samlet_chance_procent = round(samlet_ny_vinderchance * 100, 1)
 
-        # Helt ren HTML-opbygning uden nogen form for mærkelige afbrydelser
         kupon_html = (
             "<div style='background-color: #1e1e24; padding: 20px; border-radius: 12px; border: 2px solid #3a3a43; color: #ffffff; font-family: monospace;'>"
             "<h4 style='text-align: center; color: #00ffcc; margin-top: 0; margin-bottom: 10px;'>⚡ ODDS-ROBOT-PRO KUPON ⚡</h4>"
@@ -186,3 +185,4 @@ if uploadet_billede:
             kupon_html += (
                 f"<div style='margin-bottom: 15px; border-bottom: 1px solid #2a2a33; padding-bottom: 10px;'>"
                 f"<span style='color: #ffcc00; font-weight: bold;'>⚽ {spil['hold']}</span><br>"
+                f"<span style='color: #dddddd;'>Spil: {spil['variant']}</span><br>"
