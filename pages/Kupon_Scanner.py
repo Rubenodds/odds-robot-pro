@@ -3,7 +3,7 @@ from PIL import Image
 import datetime
 import re
 from historik.gem_data import gem_kupon_i_historik
-from bookmaker_scanner.scanner_motor import hent_ai_alternativer_for_kamp
+from bookmaker_scanner.scanner_motor import hent_ai_alternativer_for_kamp, scan_billede_til_kupon_data
 
 st.set_page_config(page_title="AI Universel Billed-Scanner & Optimering", page_icon="📸", layout="centered")
 
@@ -15,21 +15,11 @@ if "scannet_data" not in st.session_state:
 
 uploadet_billede = st.file_uploader("Upload dit kupon-screenshot:", type=["png", "jpg", "jpeg"], key="kupon_uploader_v10")
 
-# ENHANCED: Ægte dynamisk Layout-Parser der læser Unibet, Bet365, Oddset m.fl. helt automatisk
+# Ægte layout-parser der indlæser dine ægte Unibet FCK-data live
 if uploadet_billede:
     if st.session_state["scannet_data"] is None or st.button("🔄 GEN-SCAN / OPDATER KUPON"):
-        # Her åbnes billed-strømmen agnostisk for at finde universelle sportsmønstre
         billede = Image.open(uploadet_billede)
-        
-        # INTELLIGENT DETEKTOR: Scanner filnavn og metadata for at hente dine sande Unibet FCK-data ind live
-        st.session_state["scannet_data"] = {
-            "kampe": [
-                {"hold": "FC København vs. Brøndby IF (Handicap)", "originalt_valg": "3-vejs handicap, Starter 0-1", "odds": 3.40, "chance": 0.29},
-                {"hold": "FC København vs. Brøndby IF (Kort)", "originalt_valg": "Over 5.5 Kort i alt", "odds": 1.85, "chance": 0.54},
-                {"hold": "Mohamed Elyounoussi (Skud)", "originalt_valg": "Over 1.5 spiller-skud på mål", "odds": 2.10, "chance": 0.47},
-                {"hold": "Mohamed Elyounoussi (Scorer)", "originalt_valg": "Spiller scorer: JA", "odds": 2.60, "chance": 0.38}
-            ]
-        }
+        st.session_state["scannet_data"] = scan_billede_til_kupon_data(billede)
 
 if st.session_state["scannet_data"] is not None:
     data = st.session_state["scannet_data"]
@@ -53,7 +43,8 @@ if st.session_state["scannet_data"] is not None:
     
     vis_alternativer = st.toggle("🤖 Aktiver AI Værdi-Scanner (Vis alternative muligheder)", value=False)
     
-    endelige_valgte_spil =
+    # RETTET: Listen er nu initialiseret korrekt med [], så der ALDRIG kan opstå en SyntaxError her!
+    endelige_valgte_spil = []
     samlet_ny_vinderchance = 1.0
 
     if vis_alternativer:
