@@ -41,7 +41,7 @@ if uploadet_billede:
         orig_samlet_odds = round(orig_samlet_odds, 2)
         orig_samlet_chance_procent = round(orig_samlet_chance * 100, 1)
 
-        # ----------------- PANEL 1: DIN ORIGINALE KUPONSTAMME -----------------
+        # ----------------- PANEL 1: ORIGINALE KUPONSTAMME -----------------
         st.subheader("📋 Din originale kuponstamme (Scannet)")
         for k in data["kampe"]:
             st.info(f"⚽ **{k['hold']}**\n\n**Dit valg:** {k['originalt_valg']} — **Odds: {k['odds']:.2f}** | Vinderchance: `{int(k['chance']*100)}%` | 🔥 🔥 | ⭐⭐⭐")
@@ -176,12 +176,12 @@ if uploadet_billede:
         ny_samlet_odds = round(ny_samlet_odds, 2)
         ny_samlet_chance_procent = round(samlet_ny_vinderchance * 100, 1)
 
+        # Mørkt, elegant kupon-look via markdown og HTML
         kupon_html = f"""
         <div style="background-color: #1e1e24; padding: 20px; border-radius: 12px; border: 2px solid #3a3a43; color: #ffffff; font-family: monospace;">
             <h4 style="text-align: center; color: #00ffcc; margin-top: 0;">⚡ ODDS-ROBOT-PRO KUPON ⚡</h4>
             <hr style="border-top: 1px dashed #555;">
         """
-        
         for spil in endelige_valgte_spil:
             kupon_html += f"""
             <div style="margin-bottom: 15px;">
