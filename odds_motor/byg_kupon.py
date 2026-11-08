@@ -1,4 +1,5 @@
 import random
+import datetime
 
 def byg_kombineret_kupon(valgte_kampe, valgte_markeder, maal_odds):
     if not valgte_kampe:
@@ -9,16 +10,40 @@ def byg_kombineret_kupon(valgte_kampe, valgte_markeder, maal_odds):
     odds_per_kamp_basal = maal_odds ** (1 / len(valgte_kampe))
     
     for k in valgte_kampe:
+        # ULTIMATIV DATATRANSFORMATOR: Håndterer både ordbøger (dicts) og rå SQLite-rækker (tuples/lists)
+        liga, hj, ud, start = "Ukendt Liga", "Hjemmehold", "Udehold", None
+        
+        if isinstance(k, dict):
+            # Prøver både små og store bogstaver for at være 100% sikker
+            liga = k.get("liga") or k.get("Liga") or k.get("turnering") or "Ukendt Liga"
+            hj = k.get("hj") or k.get("Hj") or k.get("hjemmehold") or k.get("home") or "Hjemmehold"
+            ud = k.get("ud") or k.get("Ud") or k.get("udehold") or k.get("away") or "Udehold"
+            start = k.get("start") or k.get("Start") or k.get("tidspunkt")
+        elif isinstance(k, (tuple, list)) and len(k) >= 4:
+            # Hvis det er en rå databaserække fra SQLite, mapper vi efter typisk kolonne-rækkefølge
+            liga = str(k[0])
+            hj = str(k[1])
+            ud = str(k[2])
+            start = k[3]
+        elif isinstance(k, (tuple, list)) and len(k) > 0:
+            # Faldbane for kortere tupler
+            liga = str(k[0])
+            hj = str(k[1]) if len(k) > 1 else "Hjemmehold"
+            ud = str(k[2]) if len(k) > 2 else "Udehold"
+            start = k[3] if len(k) > 3 else None
+
+        if not start:
+            start = datetime.datetime.now()
+
         kombier = []
         
-        # RETTET: Generiske "topscorer" og "midtbanegeneral" er fjernet.
-        # Alle forslag bruger nu reelle hold-markeder eller mål-markeder, som ALTID findes hos Bet365 Byg Væddemål.
-        pool_standard = [f"Resultat: {k['hj']} vinder", f"Halvleg/Fuldtid: {k['hj']}/{k['hj']}", "Begge hold scorer: JA"]
-        pool_hjoerne = ["Over 9.5 hjørnespark i kampen", f"Flest hjørnespark til {k['hj']}", f"{k['hj']} over 4.5 hjørnespark"]
-        pool_skud = [f"{k['hj']} over 4.5 skud på mål", f"{k['ud']} over 3.5 skud på mål", "Over 8.5 skud på mål samlet"]
-        pool_tack = [f"{k['hj']} over 12.5 tacklinger", f"{k['ud']} over 13.5 tacklinger", "Over 25.5 tacklinger samlet"]
-        pool_kort = ["Over 4.5 gule kort i kampen", f"{k['hj']} over 1.5 kort", f"{k['ud']} over 1.5 kort"]
-        pool_scorer = ["Over 2.5 mål i kampen", "Over 1.5 mål i 2. halvleg", f"{k['hj']} over 1.5 mål"]
+        # Alle forslag bruger nu de reelle, transformerede hold-navne sikkert uden KeyError
+        pool_standard = [f"Resultat: {hj} vinder", f"Halvleg/Fuldtid: {hj}/{hj}", "Begge hold scorer: JA"]
+        pool_hjoerne = [f"Over 9.5 hjørnespark i kampen", f"Flest hjørnespark til {hj}", f"{hj} over 4.5 hjørnespark"]
+        pool_skud = [f"{hj} over 4.5 skud på mål", f"{ud} over 3.5 skud på mål", "Over 8.5 skud på mål samlet"]
+        pool_tack = [f"{hj} over 12.5 tacklinger", f"{ud} over 13.5 tacklinger", "Over 25.5 tacklinger samlet"]
+        pool_kort = ["Over 4.5 gule kort i kampen", f"{hj} over 1.5 kort", f"{ud} over 1.5 kort"]
+        pool_scorer = ["Over 2.5 mål i kampen", "Over 1.5 mål i 2. halvleg", f"{hj} over 1.5 mål"]
         
         if "Standard (Mål / Kampvinder)" in valgte_markeder: kombier.append(random.choice(pool_standard))
         if "Hjørnespark (Over/Under & Flest)" in valgte_markeder: kombier.append(random.choice(pool_hjoerne))
@@ -37,7 +62,7 @@ def byg_kombineret_kupon(valgte_kampe, valgte_markeder, maal_odds):
         samlet_oddset *= kombi_odd
         
         kupon_data.append({
-            "liga": k["liga"], "hj": k["hj"], "ud": k["ud"], "start": k["start"],
+            "liga": liga, "hj": hj, "ud": ud, "start": start,
             "kombinationer": vis_kombier, "b365": kombi_b365, "uni": kombi_uni, "oddset": kombi_odd
         })
         
