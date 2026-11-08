@@ -52,10 +52,7 @@ if uploadet_billede:
         
         ai_strategi = st.selectbox(
             "Vælg robottens arbejdsværktøj:",
-            [
-                "Låst Margin-Sikring (Hold samlet odds strikt inden for +/- 5)",
-                "Fri AI Værdi-Optimering (Robotten vælger frit de bedste odds ud fra markedet)"
-            ],
+            ["Låst Margin-Sikring (Hold samlet odds strikt inden for +/- 5)", "Fri AI Værdi-Optimering (Robotten vælger frit de bedste odds ud fra markedet)"],
             key="valg_af_ai_strategi"
         )
         
@@ -79,7 +76,6 @@ if uploadet_billede:
                 st.markdown(f"### ⚽ {kamp['hold']}")
                 forslag, mangler_muligheder, vil_booste, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 
-                # Beregn dynamiske alternativer baseret på valgt strategi
                 if "Låst Margin-Sikring" in ai_strategi:
                     for f in forslag:
                         if f["id"] == "lav":
@@ -101,7 +97,6 @@ if uploadet_billede:
                             f["titel"] = f"⚽ AI Værdi-Boost (Fri Værdi): {f['variant']}"
                             f["chance"] = round(min(0.60, 0.72 / f["odds"]), 2)
                 
-                # Opbyg valgmuligheder med den nye visuelle %-vinderchance i listen
                 valgmuligheder = [
                     f"Behold originalt valg: {kamp['originalt_valg']} (Odds {kamp['odds']:.2f}) [Chance: {int(kamp['chance']*100)}%]",
                     "⌨️ Tast selv mit eget valg for denne kamp..."
@@ -109,8 +104,7 @@ if uploadet_billede:
                 
                 if vil_booste and tillad_ekstra_boost:
                     odds_boosted = round(kamp["odds"] * 1.6, 2)
-                    chance_boosted = 0.45
-                    valgmuligheder.insert(1, f"🚀 AI VALUE-BOOST: Over 4.5 kort i kampen (Odds {odds_boosted:.2f}) [Chance: {int(chance_boosted*100)}%]")
+                    valgmuligheder.insert(1, f"🚀 AI VALUE-BOOST: Over 4.5 kort i kampen (Odds {odds_boosted:.2f}) [Chance: 45%]")
                 
                 for f in forslag:
                     valgmuligheder.append(f"{f['titel']} (Odds {f['odds']:.2f}) [Chance: {int(f['chance']*100)}%]")
@@ -125,27 +119,15 @@ if uploadet_billede:
                         manuelt_odds = st.number_input("Indtast markedets odds:", min_value=1.01, max_value=500.0, value=2.00, step=0.05, key=f"man_odds_{i}")
                     
                     estimeret_chance = round(min(0.90, 0.85 / manuelt_odds), 2)
-                    endelige_valgte_spil.append({
-                        "hold": kamp["hold"], "variant": f"⌨️ {manuelt_spil}", "odds": manuelt_odds,
-                        "chance": estimeret_chance, "flammer": "🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐"
-                    })
+                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": f"⌨️ {manuelt_spil}", "odds": manuelt_odds, "chance": estimeret_chance, "flammer": "🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐"})
                     samlet_ny_vinderchance *= estimeret_chance
-                    
                 elif "Behold originalt" in valgt_marked:
-                    endelige_valgte_spil.append({
-                        "hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"],
-                        "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": "⭐⭐⭐"
-                    })
+                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"], "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": "⭐⭐⭐"})
                     samlet_ny_vinderchance *= kamp["chance"]
-                    
                 elif "🚀 AI VALUE-BOOST" in valgt_marked:
                     odds_boosted = round(kamp["odds"] * 1.6, 2)
-                    endelige_valgte_spil.append({
-                        "hold": kamp["hold"], "variant": "🚀 Over 4.5 kort i kampen (Value-Boost)", "odds": odds_boosted,
-                        "chance": 0.45, "flammer": "🔥 🔥 🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐⭐"
-                    })
+                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": "🚀 Over 4.5 kort i kampen (Value-Boost)", "odds": odds_boosted, "chance": 0.45, "flammer": "🔥 🔥 🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐⭐"})
                     samlet_ny_vinderchance *= 0.45
-                    st.success("🔥 Valgt: Value-Boost aktiveret!")
                 else:
                     valgt_f = None
                     for f in forslag:
@@ -153,17 +135,11 @@ if uploadet_billede:
                             valgt_f = f
                             break
                     if valgt_f:
-                        endelige_valgte_spil.append({
-                            "hold": kamp["hold"], "variant": valgt_f["variant"], "odds": valgt_f["odds"],
-                            "chance": valgt_f["chance"], "flammer": "🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐"
-                        })
+                        endelige_valgte_spil.append({"hold": kamp["hold"], "variant": valgt_f["variant"], "odds": valgt_f["odds"], "chance": valgt_f["chance"], "flammer": "🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐"})
                         samlet_ny_vinderchance *= valgt_f["chance"]
         else:
             for kamp in data["kampe"]:
-                endelige_valgte_spil.append({
-                    "hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"],
-                    "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": "⭐⭐⭐"
-                })
+                endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"], "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": "⭐⭐⭐"})
             samlet_ny_vinderchance = orig_samlet_chance
 
         # ----------------- PANEL 3: DEN MØRKE KUPONSTAMME -----------------
@@ -184,4 +160,15 @@ if uploadet_billede:
                 st.markdown(f"• Odds: `{spil['odds']:.2f}` | Chance: `{int(spil['chance']*100)}%` | {spil['flammer']} {spil['stjerner']}")
                 st.write("")
             st.divider()
+            
+            # Her samles hele bunden bundsolidt, så sammenligningen og gem-knappen altid tegnes perfekt!
             st.write(f"📊 **Originalt Odds:** {orig_samlet_odds:.2f}")
+            st.write(f"🚀 **Nyt Samlet Odds:** {ny_samlet_odds:.2f}")
+            st.write(f"📈 **Estimeret Systemchance:** {ny_samlet_chance_procent}%")
+
+        st.write("")
+        indsats = st.number_input("Indtast indsats (DKK):", min_value=10, max_value=10000, value=100, step=10, key="indsats_valg")
+
+        if st.button("💾 GEM KUPON I SQLITE-HISTORIK", type="primary", use_container_width=True):
+            success = gem_kupon_i_historik(endelige_valgte_spil, ny_samlet_odds, indsats, ny_samlet_chance_procent)
+            if success:
