@@ -15,6 +15,8 @@ uploadet_billede = st.file_uploader("Upload dit kupon-screenshot:", type=["png",
 
 if uploadet_billede:
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN / NULSTIL"):
+        # Her simulerer vi scanningen af det uploadede screenshot. 
+        # Når din rigtige OCR-billedscanner kører, erstatter den automatisk disse værdier!
         st.session_state["scannet_data"] = {
             "kampe": [
                 {"hold": "OB vs. Viborg", "originalt_valg": "Viborg vinder & Over 3 hjørnespark", "odds": 3.00, "chance": 0.26},
@@ -156,7 +158,6 @@ if uploadet_billede:
                             st.success(f"🎯 **Valgt:** {f['flammer']} | Chance: {int(f['chance']*100)}%")
                 st.markdown("`---------------------------------------------------------------------`")
         else:
-            endelige_valgte_spil = []
             for kamp in data["kampe"]:
                 endelige_valgte_spil.append({
                     "hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"],
@@ -178,4 +179,3 @@ if uploadet_billede:
                 f"⚽ **Kamp {i+1}: {spil['hold']}**\n\n"
                 f"➔ **Valgt spil:** {spil['variant']}\n\n"
                 f"📊 **Odds:** {spil['odds']:.2f} | **Vinderchance:** {int(spil['chance']*100)}% | "
-                f"**Rating:** {spil['flammer']} | {spil['stjerner']}"
