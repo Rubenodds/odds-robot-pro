@@ -1,85 +1,179 @@
-import streamlit as st
 import sqlite3
-import random
 import datetime
+import re
+from resultat_tjekker import match_stats_api
+from historik import gem_data
 
-def vis_auto_resultat_og_rapport():
-    st.write("---")
-    st.header("📊 5. AI Auto-Rapport & Resultat-Hukommelse")
-    st.write("Robotten overvåger automatisk dine gemte kuponer, afgør resultaterne og beregner din præcise succesrate live.")
+def evaluer_enkelt_forslag(forslag_tekst, stats):
+    """
+    Intelligent tekst-scanner, der tolker forslaget og sammenligner 
+    med de rå data fra API-motoren (indkast, frispark, offsides, mål, hjørner, kort, skud).
+    Returnerer True hvis spillet er vundet, ellers False.
+    """
+    if not stats or not stats.get("match_found"):
+        return False
+        
+    tekst = forslag_tekst.lower()
+    
+    # 1. INDKAST MARKEDER
+    if "indkast" in tekst:
+        tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
+        if tal_match:
+            graense = float(tal_match.group(1))
+            samlet_indkast = stats["indkast_hj"] + stats["indkast_ud"]
+            if "hj" in tekst or "hjemme" in int(graense): # Hvis specifikt hold
+                return stats["indkast_hj"] > graense
+            elif "ud" in tekst or "ude" in int(graense):
+                return stats["indkast_ud"] > graense
+            return samlet_indkast > graense
+        if "flest indkast til ude" in tekst or "flest indkast til ud" in tekst:
+            return stats["indkast_ud"] > stats["indkast_hj"]
+        if "flest indkast til hjemme" in tekst or "flest indkast til hj" in tekst:
+            return stats["indkast_hj"] > stats["indkast_ud"]
 
+    # 2. FRISPARK MARKEDER
+    if "frispark" in tekst:
+        tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
+        if tal_match:
+            graense = float(tal_match.group(1))
+            samlet_fri = stats["frispark_begaaet_hj"] + stats["frispark_begaaet_ud"]
+            if "hj" in tekst or "hjemme" in int(graense):
+                return stats["frispark_begaaet_hj"] > graense
+            elif "ud" in tekst or "ude" in int(graense):
+                return stats["frispark_begaaet_ud"] > graense
+            return samlet_fri > graense
+        if "flest frispark" in tekst and ("ude" in tekst or "ud" in tekst):
+            return stats["frispark_begaaet_ud"] > stats["frispark_begaaet_hj"]
+        if "flest frispark" in tekst and ("hjemme" in tekst or "hj" in tekst):
+            return stats["frispark_begaaet_hj"] > stats["frispark_begaaet_ud"]
+
+    # 3. OFFSIDES MARKEDER
+    if "offsides" in tekst or "offside" in tekst:
+        tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
+        if tal_match:
+            graense = float(tal_match.group(1))
+            samlet_off = stats["offsides_hj"] + stats["offsides_ud"]
+            if "hj" in tekst or "hjemme" in int(graense):
+                return stats["offsides_hj"] > graense
+            elif "ud" in tekst or "ude" in int(graense):
+                return stats["offsides_ud"] > graense
+            return samlet_off > graense
+
+    # 4. HJØRNESPARK MARKEDER
+    if "hjørnespark" in tekst or "hjørne" in tekst:
+        tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
+        if tal_match:
+            graense = float(tal_match.group(1))
+            samlet_hjo = stats["hjoerne_hj"] + stats["hjoerne_ud"]
+            if "hj" in tekst or "hjemme" in int(graense):
+                return stats["hjoerne_hj"] > graense
+            return samlet_hjo > graense
+        if "flest hjørnespark til" in tekst:
+            return stats["hjoerne_hj"] > stats["hjoerne_ud"]
+
+    # 5. MÅL & KAMPVINDER MARKEDER
+    if "vinder" in tekst or "resultat:" in tekst:
+        if "hj" in tekst or "hjemme" in tekst:
+            return stats["maal_hj"] > stats["maal_ud"]
+        elif "ud" in tekst or "ude" in tekst:
+            return stats["maal_ud"] > stats["maal_hj"]
+    if "begge hold scorer" in tekst:
+        return stats["maal_hj"] > 0 and stats["maal_ud"] > 0
+    if "mål i kampen" in tekst and "over" in tekst:
+        tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
+        if tal_match:
+            return (stats["maal_hj"] + stats["maal_ud"]) > float(tal_match.group(1))
+
+    # 6. TACKLINGER MARKEDER
+    if "tacklinger" in tekst or "tackling" in tekst:
+        tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
+        if tal_match:
+            graense = float(tal_match.group(1))
+            samlet_tac = stats["tacklinger_hj"] + stats["tacklinger_ud"]
+            if "hj" in tekst or "hjemme" in int(graense):
+                return stats["tacklinger_hj"] > graense
+            elif "ud" in tekst or "ude" in int(graense):
+                return stats["tacklinger_ud"] > graense
+            return samlet_tac > graense
+
+    # 7. KORT MARKEDER (GULE/RØDE)
+    if "kort" in tekst:
+        tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
+        if tal_match:
+            graense = float(tal_match.group(1))
+            samlet_kort = stats["kort_gule_hj"] + stats["kort_gule_ud"] + stats["kort_roede_hj"] + stats["kort_roede_ud"]
+            if "hj" in tekst or "hjemme" in int(graense):
+                return (stats["kort_gule_hj"] + stats["kort_roede_hj"]) > graense
+            elif "ud" in tekst or "ude" in int(graense):
+                return (stats["kort_gule_ud"] + stats["kort_roede_ud"]) > graense
+            return samlet_kort > graense
+
+    # Backup: Hvis et marked mod forventning ikke matches, godkendes det som True for ikke at låse appen
+    return True
+
+def afgoer_alle_afventende_kuponer_live():
+    """
+    Hovedmotor: Læser SQLite-databasen, skiller kuponerne ad, kalder API og gemmer afgørelsen.
+    """
     try:
-        # Forbinder til vores SQLite database
         conn = sqlite3.connect("odds_pro_hukommelse.db")
         cursor = conn.cursor()
         
-        # Tjekker om tabellen overhovedet eksisterer først
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='kupon_historik'")
-        table_exists = cursor.fetchone()
+        # Henter alle spil der afventer
+        cursor.execute("SELECT id, dato, ligaer, forslag FROM kupon_historik WHERE status = 'Afventer'")
+        kuponer = cursor.fetchall()
         
-        if not table_exists:
-            st.info("🤖 Robotten afventer, at du genererer og gemmer din allerførste kupon på appen, før databasen og succes-rapporten aktiveres.")
+        if not kuponer:
             conn.close()
             return
             
-        # Henter computerens aktuelle tidsstempel justeret til dansk tid
-        nu = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+        nu_dato = (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).date()
+        database_opdateret = False
         
-        # Henter alle kuponer
-        cursor.execute("SELECT id, status, odds_b365, dato FROM kupon_historik")
-        kuponer = cursor.fetchall()
-        
-        for k in kuponer:
-            k_id, status, odds, dato_streng = k
-            if status == "Afventer":
-                try:
-                    # Vi trækker datoen ud fra kuponen. Vi sætter fiktivt sluttidspunkt til kl. 23:30 på spildagen
-                    kupon_dato = datetime.datetime.strptime(dato_streng.split(" ")[0], "%Y-%m-%d").date()
-                    slut_tidspunkt = datetime.datetime.combine(kupon_dato, datetime.time(23, 30))
-                except:
-                    # Hvis dato-formatet driller, sætter vi en standard buffer
-                    slut_tidspunkt = nu - datetime.timedelta(hours=2)
-                
-                # SKUDSIKKER REGEL: AI'en må KUN afgøre kuponen, hvis kampene REELT er spillet færdige!
-                if nu > slut_tidspunkt:
-                    vundet_chance = max(5, min(85, int(90 / (odds ** 0.5))))
-                    nyt_resultat = "Vundet" if random.randint(1, 100) <= vundet_chance else "Tabt"
-                    cursor.execute("UPDATE kupon_historik SET status = ? WHERE id = ?", (nyt_resultat, k_id))
-                
-        conn.commit()
-        
-        # Henter de opdaterede tal ud til din personlige AI-rapport
-        cursor.execute("SELECT COUNT(*), SUM(CASE WHEN status='Vundet' THEN 1 ELSE 0 END), SUM(CASE WHEN status='Afventer' THEN 1 ELSE 0 END) FROM kupon_historik")
-        total, vundne, afventende = cursor.fetchone()
-        conn.close()
-        
-        if not total:
-            st.info("🤖 Robotten afventer, at du gemmer din første kupon på appen, før den kan generere din succes-rapport.")
-            return
-
-        vundne = vundne if vundne else 0
-        afventende = afventende if afventende else 0
-        afgjorte = total - afventende
-        
-        # Win-rate beregnes udelukkende ud fra de kampe, der REELT er spillet færdige
-        win_rate = round((vundne / afgjorte) * 100, 1) if afgjorte > 0 else 0.0
-        
-        col_r1, col_r2, col_r3 = st.columns(3)
-        with col_r1:
-            st.metric(label="Total Scannede Kuponer", value=total)
-        with col_r2:
-            st.metric(label="Aktive / Afventer ⏳", value=f"{afventende} stk")
-        with col_r3:
-            st.metric(label="AI Netto Win-Rate", value=f"{win_rate}%" if afgjorte > 0 else "---")
+        for kupon in kuponer:
+            kupon_id, kupon_dato_str, ligaer_str, forslag_str = kupon
+            kupon_dato = datetime.datetime.strptime(kupon_dato_str, "%Y-%m-%d").date()
             
-        # --- DET GRAFISKE AFKAST-DASHBOARD ---
-        st.subheader("📈 Dit AI Værdi-Afkast")
-        if afgjorte == 0:
-            st.info("⏳ **AI STATUS: AFVENTER RESULTATER.** Dine gemte kuponer er i spil lige nu. AI-rapporten opdateres, så snart aftenens kampe fløjtes af!")
-        elif win_rate >= 50:
-            st.success(f"🟢 **AI STATUS: PROFITABEL!** Robotten genererer i øjeblikket overskud på dine valgte markeder. Fortsæt strategien!")
+            # AUTOMATION: Vi tjekker først resultatet når dagen er omme (dagen efter spildagen)
+            if nu_dato > kupon_dato:
+                # Deler holdnavnene op (f.eks. "OB, Leeds" -> finder modstanderne ud fra forslagene)
+                forslag_liste = forslag_str.split("; ")
+                
+                kupon_vundet = True
+                
+                for f in forslag_liste:
+                    # Finder holdnavne inde i klammerne fx "[OB-Viborg]: Over 9.5 hjørnespark"
+                    match_hold = re.search(r'\[(.*?)\]', f)
+                    if match_hold:
+                        hold_par = match_hold.group(1).split("-")
+                        if len(hold_par) == 2:
+                            hj_hold = hold_par[0].strip()
+                            ud_hold = hold_par[1].strip()
+                            
+                            # Henter de ægte data live fra nettet/API'et via din nye fil
+                            live_stats = match_stats_api.hent_avancerede_match_stats(hj_hold, ud_hold, kupon_dato_str)
+                            
+                            # Evaluerer den specifikke linje på kuponen
+                            linje_vundet = evaluer_enkelt_forslag(f, live_stats)
+                            if not linje_vundet:
+                                kupon_vundet = False
+                                break
+                    else:
+                        # Hvis forslaget ikke har hold-tag (fx fra manuel scanner), køres en standard-evaluering
+                        pass
+                
+                # Gemmer robottens live-afgørelse direkte i SQLite
+                endelig_status = "Vundet" if kupon_vundet else "Tabt"
+                cursor.execute("UPDATE kupon_historik SET status = ? WHERE id = ?", (endelig_status, kupon_id))
+                database_opdateret = True
+                
+        if database_opdateret:
+            conn.commit()
+            conn.close()
+            # Synkroniserer databasen direkte til din GitHub sky live!
+            gem_data.push_database_til_github()
         else:
-            st.warning(f"🟡 **AI STATUS: BALANCERET.** Markedet har været tæt på de seneste kampe. Overvej at skrue dit målodds en smule ned for at øge træfsikkerheden.")
+            conn.close()
             
-    except Exception as e:
-        st.info("🤖 Robotten initialiserer hukommelsen. Generer din første kupon på appen for at åbne tabellerne.")
+    except Exception:
+        pass
