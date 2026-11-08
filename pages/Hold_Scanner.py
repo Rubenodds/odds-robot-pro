@@ -30,8 +30,27 @@ else: tids_timer = 48.0
 nu = dansk_tid.hent_dansk_klokkeslaet()
 alle_kampe = hent_kampe.hent_aegte_kampe_fra_nettet()
 
-# TIMEFILTER: Finder præcis hvilke turneringer der har kampe i den valgte periode
-tilgaengelige_ligaer = sorted(list(set([k["liga"] for k in alle_kampe if ((k["start"] - nu).total_seconds() / 3600) <= tids_timer])))
+# TIMEFILTER RETTET: Intelligent parsing af rå rækker og ordbøger, så k["liga"] ikke fejler
+tilgaengelige_ligaer_set = set()
+for k in alle_kampe:
+    k_liga = "Ukendt Liga"
+    k_start = nu
+    
+    if isinstance(k, dict):
+        k_liga = k.get("liga") or k.get("Liga") or k.get("turnering") or "Ukendt Liga"
+        k_start = k.get("start") or k.get("Start") or nu
+    elif isinstance(k, (tuple, list)) and len(k) >= 4:
+        k_liga = str(k[0])
+        k_start = k[3] if isinstance(k[3], datetime.datetime) else nu
+        
+    try:
+        timer_til_kamp = (k_start - nu).total_seconds() / 3600
+        if timer_til_kamp <= tids_timer:
+            tilgaengelige_ligaer_set.add(k_liga)
+    except Exception:
+        pass
+
+tilgaengelige_ligaer = sorted(list(tilgaengelige_ligaer_set))
 
 # ----------------- PANEL 2: DYNAMISKE LIGAER -----------------
 st.header("⚽ 2. Vælg Aktive Turneringer")
@@ -51,11 +70,24 @@ else:
             
     valgte_ligaer = [navn for navn, valgt in liga_afkrydsning.items() if valgt]
 
-# KAMPFILTER: Finder alle kampe der matcher BÅDE turneringer og tidsinterval
-aktive_kampe_i_periode = [
-    k for k in alle_kampe 
-    if k["liga"] in valgte_ligaer and ((k["start"] - nu).total_seconds() / 3600) <= tids_timer
-]
+# KAMPFILTER RETTET: Sikrer mod KeyError og filtrerer data fejlfrit
+aktive_kampe_i_periode = []
+for k in alle_kampe:
+    k_liga = "Ukendt Liga"
+    k_start = nu
+    if isinstance(k, dict):
+        k_liga = k.get("liga") or k.get("Liga") or k.get("turnering") or "Ukendt Liga"
+        k_start = k.get("start") or k.get("Start") or nu
+    elif isinstance(k, (tuple, list)) and len(k) >= 4:
+        k_liga = str(k[0])
+        k_start = k[3] if isinstance(k[3], datetime.datetime) else nu
+        
+    try:
+        timer_til_kamp = (k_start - nu).total_seconds() / 3600
+        if k_liga in valgte_ligaer and timer_til_kamp <= tids_timer:
+            aktive_kampe_i_periode.append(k)
+    except Exception:
+        pass
 
 # ----------------- DYNAMISK SØGNING BLANDT HOLD -----------------
 st.header("🎯 3. Vælg dine favorit-hold")
@@ -70,17 +102,29 @@ else:
 
     valgte_nu = st.session_state["mine_valgte_hold"]
     
-    # Skudsikker regel: Find modstandere og udeluk overlap
+    # Skudsikker regel: Find modstandere og udeluk overlap på tværs af formater
     blokerede_hold = set()
+    aktive_hold_set = set()
+    
     for k in aktive_kampe_i_periode:
-        if k["hj"] in valgte_nu or k["ud"] in valgte_nu:
-            blokerede_hold.add(k["hj"])
-            blokerede_hold.add(k["ud"])
+        k_hj, k_ud = "Hjemmehold", "Udehold"
+        if isinstance(k, dict):
+            k_hj = k.get("hj") or k.get("hjemmehold") or "Hjemmehold"
+            k_ud = k.get("ud") or k.get("udehold") or "Udehold"
+        elif isinstance(k, (tuple, list)) and len(k) >= 3:
+            k_hj = str(k[1])
+            k_ud = str(k[2])
+            
+        if k_hj in valgte_nu or k_ud in valgte_nu:
+            blokerede_hold.add(k_hj)
+            blokerede_hold.add(k_ud)
+            
+        if k_hj not in blokerede_hold or k_hj in valgte_nu:
+            aktive_hold_set.add(k_hj)
+        if k_ud not in blokerede_hold or k_ud in valgte_nu:
+            aktive_hold_set.add(k_ud)
 
-    aktive_hold_liste = sorted(list(set(
-        [k["hj"] for k in aktive_kampe_i_periode if k["hj"] not in blokerede_hold or k["hj"] in valgte_nu] + 
-        [k["ud"] for k in aktive_kampe_i_periode if k["ud"] not in blokerede_hold or k["ud"] in valgte_nu]
-    )))
+    aktive_hold_liste = sorted(list(aktive_hold_set))
 
     valg_opdateret = st.multiselect(
         f"Søg frit blandt alle {len(aktive_hold_liste)} hold i de valgte turneringer:",
@@ -101,7 +145,19 @@ if st.button("🔍 SCAN SPECIAL-MARKEDER PÅ MINE HOLD", type="primary", key="bt
     if "mine_valgte_hold" not in st.session_state or not st.session_state["mine_valgte_hold"]:
         st.error("Vælg venligst mindst ét hold i søgefeltet først!")
     else:
-        kampe_til_analyse = [k for k in aktive_kampe_i_periode if k["hj"] in st.session_state["mine_valgte_hold"] or k["ud"] in st.session_state["mine_valgte_hold"]]
+        # Filtrerer kampe til analyse baseret på hold-navne
+        kampe_til_analyse = []
+        for k in aktive_kampe_i_periode:
+            k_hj, k_ud = "Hjemmehold", "Udehold"
+            if isinstance(k, dict):
+                k_hj = k.get("hj") or k.get("hjemmehold") or "Hjemmehold"
+                k_ud = k.get("ud") or k.get("udehold") or "Udehold"
+            elif isinstance(k, (tuple, list)) and len(k) >= 3:
+                k_hj = str(k[1])
+                k_ud = str(k[2])
+                
+            if k_hj in st.session_state["mine_valgte_hold"] or k_ud in st.session_state["mine_valgte_hold"]:
+                kampe_til_analyse.append(k)
         
         if not kampe_til_analyse:
             st.warning("De valgte hold matcher ikke det aktuelle program.")
@@ -117,15 +173,20 @@ if st.button("🔍 SCAN SPECIAL-MARKEDER PÅ MINE HOLD", type="primary", key="bt
                 gemme_forslag = list()
                 
                 for idx_k, k in enumerate(resultat["kampe"]):
-                    timer_rest = (k["start"] - nu).total_seconds() / 3600
-                    st.write(f"🏟️ **KAMP {idx_k+1}: [{k['liga']}] {k['hj']} vs. {k['ud']}** (Start om {timer_rest:.1f} timer)")
+                    # LINJE 57 RETTET: Sikker datakonvertering til visningen af klokkeslæt
+                    k_start = k.get("start") if isinstance(k, dict) else nu
+                    if not isinstance(k_start, datetime.datetime):
+                        k_start = nu
+                    timer_rest = (k_start - nu).total_seconds() / 3600
+                    
+                    st.write(f"🏟️ **KAMP {idx_k+1}: [{k.get('liga', 'Liga')}] {k.get('hj', 'Hjemme')} vs. {k.get('ud', 'Ude')}** (Start om {timer_rest:.1f} timer)")
                     st.write("🧱 *Funderet Byg Væddemål på denne kamp:*")
-                    for kombi_tekst in k["kombinationer"]:
+                    for kombi_tekst in k.get("kombinationer", []):
                         st.write(f" ➔ {kombi_tekst}")
-                        gemme_forslag.append(f"[{k['hj']}-{k['ud']}]: {kombi_tekst}")
-                    st.write(f"💵 **Kamp-odds:** Bet365: **{k['b365']:.2f}** | Unibet: **{k['uni']:.2f}** | Oddset: **{k['oddset']:.2f}**")
+                        gemme_forslag.append(f"[{k.get('hj', 'Hjemme')}-{k.get('ud', 'Ude')}]: {kombi_tekst}")
+                    st.write(f"💵 **Kamp-odds:** Bet365: **{k.get('b365', 0.0):.2f}** | Unibet: **{k.get('uni', 0.0):.2f}** | Oddset: **{k.get('oddset', 0.0):.2f}**")
                     st.write("---")
-                    gemme_ligaer.append(k["liga"])
+                    gemme_ligaer.append(k.get('liga', 'Liga'))
                 
                 # BEREGNER REEL %-CHANCE OG HENTER FLAMMERNE TILBAGE
                 beregnet_chance = max(2, min(80, int((1 / resultat['bedste_odds']) * 100 * 1.25)))
@@ -134,12 +195,23 @@ if st.button("🔍 SCAN SPECIAL-MARKEDER PÅ MINE HOLD", type="primary", key="bt
                 
                 st.success(f"🔥 **BEDSTE BOOKMAKER FOR DINE FAVORITTER: {resultat['bedste_side']}!**")
                 st.write(f"📈 **Samlet odds for dine valg hos {resultat['bedste_side']}: {resultat['bedste_odds']:.2f}**")
-                st.write(f"ℹ️ *Sammenligning:* Bet365: {resultat['samlet_b365']:.2f} | Unibet: {resultat['samlet_unibet']:.2f} | Oddset: {resultat['samlet_oddset']:.2f}")
+                st.write(f"ℹ️ *Sammenligning:* Bet365: {resultat.get('samlet_b365', 0.0):.2f} | Unibet: {resultat.get('samlet_unibet', 0.0):.2f} | Oddset: {resultat.get('samlet_oddset', 0.0):.2f}")
                 
                 # INTEGRERET: %-sandsynlighed, stjerner og risikoflammer side om side
                 st.write(f"🎯 **Statistisk vinderchance beregnet af AI:** `{beregnet_chance}%`")
                 st.write(f"⚠️ **Risikoprofil:** {'🔥' * risiko_flammer} ({risiko_flammer}/5)")
                 st.write(f"🎯 **AI Værdi-vurdering:** {'⭐' * resultat['styrke']} ({resultat['styrke']}/5 stjerner)")
                 
-                gem_data.gem_kupon_i_historik(gemme_ligaer, gemme_forslag, resultat["samlet_b365"], resultat["samlet_unibet"], resultat["samlet_oddset"], resultat["bedste_side"], resultat["styrke"])
+                # Koblet til den nye gem_data historik
+                gem_data.gem_kupon_i_historik(
+                    ligaer_liste=gemme_ligaer, 
+                    forslag_liste=gemme_forslag, 
+                    bookmakere_dict={
+                        "Bet365": resultat.get('samlet_b365', 0.0),
+                        "Unibet": resultat.get('samlet_unibet', 0.0),
+                        "Oddset": resultat.get('samlet_oddset', 0.0)
+                    },
+                    side="🎯 Hold Scanner", 
+                    stjerner=resultat['styrke']
+                )
                 st.info("🧠 Favorit-kupon gemt i AI-historikken!")
