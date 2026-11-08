@@ -123,7 +123,7 @@ if uploadet_billede:
                 else:
                     valgt_f = next((f for f in forslag if f["titel"] in valgt_marked), None)
                     if valgt_f:
-                        endelige_valgte_spil.append({"hold": kamp["hold"], "variant": valgt_f["variant"], "odds": valgt_f["odds"], "chance": valgt_f["chance"], "flammer": "🔥 🔥 🔥", "stjerner": 4})
+                        endelige_valgte_spil.append({"hold": valgt_f["hold"] if "hold" in valgt_f else kamp["hold"], "variant": valgt_f["variant"], "odds": valgt_f["odds"], "chance": valgt_f["chance"], "flammer": "🔥 🔥 🔥", "stjerner": 4})
                         samlet_ny_vinderchance *= valgt_f["chance"]
         else:
             for kamp in data["kampe"]:
@@ -132,31 +132,38 @@ if uploadet_billede:
 
         st.write("---")
         st.subheader("🎯 Den optimerede kuponstamme")
+        
         ny_samlet_odds = 1.0
+        maksimale_stjerner = 1
+        
+        # Bygger og tegner den mørke kuponstamme
         for spil in endelige_valgte_spil:
             ny_samlet_odds *= spil["odds"]
+            if spil["stjerner"] > maksimale_stjerner:
+                maksimale_stjerner = spil["stjerner"]
+            
+            with st.container():
+                st.markdown(
+                    f"""
+                    <div style="background-color: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid #3b82f6;">
+                        <span style="color: #94a3b8; font-size: 0.9em;">⚽ {spil['hold']}</span><br>
+                        <b style="color: #f8fafc; font-size: 1.1em;">{spil['variant']}</b><br>
+                        <span style="color: #3b82f6; font-weight: bold;">Odds: {spil['odds']:.2f}</span> | 
+                        <span style="color: #10b981;">{spil['flammer']}</span>
+                    </div>
+                    """, 
+                    unsafe_allowed_html=True
+                )
+        
         ny_samlet_odds = round(ny_samlet_odds, 2)
         ny_samlet_chance_procent = round(samlet_ny_vinderchance * 100, 1)
+        
+        col_res1, col_res2 = st.columns(2)
+        with col_res1:
+            st.metric("Nyt Samlet Odds", f"{ny_samlet_odds:.2f}", delta=round(ny_samlet_odds - orig_samlet_odds, 2))
+        with col_res2:
+            st.metric("Ny Vinderchance", f"{ny_samlet_chance_procent}%", delta=f"{round(ny_samlet_chance_procent - orig_samlet_chance_procent, 1)}%")
 
-        st.metric("📈 Samlet Nyt Markeds-Odds:", f"{ny_samlet_odds:.2f}")
-        st.metric("🔥 Ny AI Vinderchance:", f"{ny_samlet_chance_procent}%")
-
-        ligaer_liste = [spil["hold"] for spil in endelige_valgte_spil]
-        forslag_liste = [spil["variant"] for spil in endelige_valgte_spil]
-        gns_stjerner = int(sum([spil.get("stjerner", 3) for spil in endelige_valgte_spil]) / len(endelige_valgte_spil))
-        bookmakere_dict = {"🤖 AI-Scanner": f"{ny_samlet_odds:.2f}"}
-
-        st.write("---")
-        if st.button("💾 Gem Kupon i Robotten", key="gem_kupon_final_btn"):
-            succes = gem_kupon_i_historik(
-                ligaer_liste=ligaer_liste,
-                forslag_liste=forslag_liste,
-                bookmakere_dict=bookmakere_dict,
-                side=ai_strategi,
-                stjerner=gns_stjerner
-            )
-            if succes:
-                st.success("🔥 Kupon lagret solidt i din SQLite-hukommelse og uploadet til GitHub!")
-                st.rerun()
-            else:
-                st.error("Kunne ikke gemme kuponen. Tjek din database-forbindelse.")
+        # Gem-knap koblet direkte til din SQLite-historik
+        if st.button("💾 GEM KUPON I SQLITE-HISTORIK", use_container_width=True):
+            ligaer_liste = [s["hold"] for s in endelige_valgte_spil]
