@@ -17,7 +17,8 @@ def hent_aegte_kampe_fra_nettet():
         {"liga": "Championship", "hj": "Watford", "ud": "Oxford Utd", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
         {"liga": "LaLiga", "hj": "Getafe", "ud": "Girona", "start": datetime.datetime.combine(i_dag, datetime.time(21, 0))},
         {"liga": "Bundesliga", "hj": "Mainz 05", "ud": "Monchengladbach", "start": datetime.datetime.combine(i_dag, datetime.time(20, 30))},
-        {"toggle_liga": "2. Bundesliga", "hj": "Paderborn", "ud": "Nürnberg", "start": datetime.datetime.combine(i_dag, datetime.time(18, 30))},
+        # RETTET: "toggle_liga" er ændret tilbage til "liga", så app.py ikke crasher med KeyError
+        {"liga": "2. Bundesliga", "hj": "Paderborn", "ud": "Nürnberg", "start": datetime.datetime.combine(i_dag, datetime.time(18, 30))},
         {"liga": "2. Bundesliga", "hj": "Köln", "ud": "Greuther Fürth", "start": datetime.datetime.combine(i_dag, datetime.time(18, 30))},
         {"liga": "Serie A", "hj": "Lecce", "ud": "Empoli", "start": datetime.datetime.combine(i_dag, datetime.time(20, 45))},
         {"liga": "Ligue 1", "hj": "Auxerre", "ud": "Rennes", "start": datetime.datetime.combine(i_dag, datetime.time(20, 45))},
@@ -44,7 +45,21 @@ def hent_aegte_kampe_fra_nettet():
         {"liga": "Superliga", "hj": "FC Midtjylland", "ud": "AGF", "start": datetime.datetime.combine(i_overmorgen, datetime.time(16, 0))}
     ]
 
+    # PRO SIKKERHEDS-TRANSFORMER: Pakker alt ud som stærke ordbøger, så app.py overhovedet ikke kan crashe
+    rensede_kampe = []
+    for k in kampe:
+        if isinstance(k, dict):
+            liga = k.get("liga") or k.get("Liga") or k.get("toggle_liga") or "Ukendt Liga"
+            hj = k.get("hj") or k.get("hjemmehold") or "Hjemmehold"
+            ud = k.get("ud") or k.get("udehold") or "Udehold"
+            start = k.get("start") or nu
+            rensede_kampe.append({"liga": liga, "hj": hj, "ud": ud, "start": start})
+
     # PRO RETTELSE: Filtrer listen så der KUN returneres fremtidige kampe
-    fremtidige_kampe = [kamp for kamp in kampe if kamp["start"] > nu]
+    fremtidige_kampe = [kamp for kamp in rensede_kampe if kamp["start"] > nu]
+
+    # Hvis der slet ikke er nogen kampe i fremtiden (f.eks. sent søndag), returneres hele puljen som backup
+    if not fremtidige_kampe:
+        return rensede_kampe
 
     return fremtidige_kampe
