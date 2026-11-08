@@ -31,13 +31,8 @@ if uploadet_billede:
             if k["chance"] > 1.0:
                 k["chance"] = round(k["chance"] / 100, 2)
 
-        orig_samlet_odds = 1.0
-        orig_samlet_chance = 1.0
-        for k in data["kampe"]:
-            orig_samlet_odds *= k["odds"]
-            orig_samlet_chance *= k["chance"]
-        
-        orig_samlet_odds = round(orig_samlet_odds, 2)
+        orig_samlet_odds = round(data["kampe"][0]["odds"] * data["kampe"][1]["odds"] * data["kampe"][2]["odds"], 2)
+        orig_samlet_chance = data["kampe"][0]["chance"] * data["kampe"][1]["chance"] * data["kampe"][2]["chance"]
         orig_samlet_chance_procent = round(orig_samlet_chance * 100, 1)
 
         st.subheader("📋 Din originale kuponstamme (Scannet)")
@@ -133,7 +128,6 @@ if uploadet_billede:
                 endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"], "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": 3})
             samlet_ny_vinderchance = orig_samlet_chance
 
-        # ----------------- PANEL 3: KUPONSTAMME -----------------
         st.write("---")
         st.subheader("🎯 Den optimerede kuponstamme")
         ny_samlet_odds = 1.0
@@ -157,14 +151,8 @@ if uploadet_billede:
             ligaer_liste = [spil["hold"] for spil in endelige_valgte_spil]
             forslag_liste = [spil["variant"] for spil in endelige_valgte_spil]
             gennemsnit_stjerner = int(sum([spil["stjerner"] for spil in endelige_valgte_spil]) / len(endelige_valgte_spil))
-            
-            # HER ER MOTOREN DYNAMISK: Alle bookmakere (selv nye) tilføjes her automatisk live!
-            bookmakere_dict = {
-                "Bet365": ny_samlet_odds,
-                "Unibet": round(ny_samlet_odds * 0.98, 2),
-                "Oddset": round(ny_samlet_odds * 0.96, 2)
-                # Hvis der kommer en ny i fremtiden, skriver du bare: "NyeBookmaker": odds, herunder!
-            }
-            anbefalet_side = "Bet365"
-            
-            if gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, anbefalet_side, gennemsnit_stjerner):
+            bookmakere_dict = {"Bet365": ny_samlet_odds, "Unibet": round(ny_samlet_odds * 0.98, 2), "Oddset": round(ny_samlet_odds * 0.96, 2)}
+            if gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, "Bet365", gennemsnit_stjerner):
+                st.success("✅ Hukommelse opdateret! Dynamisk bookmaker-data gemt i SQLite.")
+            else:
+                st.error("❌ Kunne ikke gemme kuponen i databasen.")
