@@ -17,7 +17,7 @@ def initier_database():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS kupon_historik (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            dato TEXT,              -- Spilledatoen for kuponen
+            dato TEXT,
             tidspunkt TEXT,
             ligaer TEXT,
             forslag TEXT,
@@ -36,28 +36,18 @@ def push_database_til_github():
         token = st.secrets.get("GITHUB_TOKEN")
         if not token:
             return False
-            
         repo = "Rubenodds/odds-robot-pro"
         path = "odds_pro_hukommelse.db"
-        
-        # Officiel GitHub API URL
         url = f"https://github.com{repo}/contents/{path}"
-        headers = {
-            "Authorization": f"token {token}", 
-            "Accept": "application/vnd.github.v3+json"
-        }
-        
+        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
         if not os.path.exists(path):
             return False
-            
         with open(path, "rb") as f:
             content = base64.b64encode(f.read()).decode("utf-8")
-            
         sha = None
         r = requests.get(url, headers=headers)
         if r.status_code == 200:
             sha = r.json().get("sha")
-            
         data = {
             "message": f"🤖 AI-Hukommelse Synkroniseret: {hent_dansk_tid().strftime('%d/%m-%Y %H:%M')}",
             "content": content,
@@ -65,14 +55,13 @@ def push_database_til_github():
         }
         if sha:
             data["sha"] = sha
-            
         res = requests.put(url, json=data, headers=headers)
         return res.status_code in [200, 201]
     except Exception:
         return False
 
-def gem_kupon_i_historik(spille_dato_str, ligaer_liste, forslag_liste, bookmakere_dict, side, stjerner):
-    """Gemmer kuponen. Hvis datoen er i fortiden, afgøres den automatisk."""
+def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stjerner, spille_dato_str=None):
+    """Gemmer kuponen. Hvis en spilledato sendes med (f.eks. i går) tjekkes den, ellers bruges i dag."""
     try:
         initier_database()
         conn = sqlite3.connect("odds_pro_hukommelse.db")
@@ -81,11 +70,16 @@ def gem_kupon_i_historik(spille_dato_str, ligaer_liste, forslag_liste, bookmaker
         odds_tekst = ", ".join([f"{bm}: {odds}" for bm, odds in bookmakere_dict.items()])
         idag_dansk = hent_dansk_tid().date()
         
-        try:
-            spille_dato = datetime.datetime.strptime(spille_dato_str, "%Y-%m-%d").date()
-        except ValueError:
+        # Hvis der ikke er sendt en dato med fra scanneren, bruger vi dags dato
+        if spille_dato_str is None:
             spille_dato = idag_dansk
-            
+        else:
+            try:
+                spille_dato = datetime.datetime.strptime(spille_dato_str, "%Y-%m-%d").date()
+            except ValueError:
+                spille_dato = idag_dansk
+                
+        # Hvis kuponen er fra i går eller tidligere, afgør den automatisk med det samme
         if spille_dato < idag_dansk:
             vinder_chance = 40 + (int(stjerner) * 10)
             start_status = "🟢 Vundet" if random.randint(1, 100) <= vinder_chance else "🔴 Tabt"
@@ -127,7 +121,7 @@ def hent_alle_kuponer():
         return []
 
 def tjek_og_afgoer_udloebne_kuponer():
-    """Køres ved genstart. Finder udløbne kuponer og afgør dem."""
+    """Køres ved genstart. Finder gamle, uafgjorte kuponer og afgør dem automatisk."""
     try:
         conn = sqlite3.connect("odds_pro_hukommelse.db")
         cursor = conn.cursor()
