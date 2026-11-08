@@ -178,3 +178,5 @@ if uploadet_billede:
                 f"⚽ **Kamp {i+1}: {spil['hold']}**\n\n"
                 f"➔ **Valgt spil:** {spil['variant']}\n\n"
                 f"📊 **Odds:** {spil['odds']:.2f} | **Vinderchance:** {int(spil['chance']*100)}% | "
+                f"**Rating:** {spil['flammer']} | {spil['stjerner']}"
+
