@@ -77,7 +77,6 @@ if uploadet_billede:
             
             for i, kamp in enumerate(data["kampe"]):
                 st.markdown(f"### ⚽ {kamp['hold']}")
-                
                 forslag, mangler_muligheder, vil_booste, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 
                 if "Låst Margin-Sikring" in ai_strategi:
@@ -143,8 +142,7 @@ if uploadet_billede:
                         "chance": 0.45, "flammer": "🔥 🔥 🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐⭐"
                     })
                     samlet_ny_vinderchance *= 0.45
-                    st.success("🔥 Valgt: Value-Boost aktiveret på kortmarkedet!")
-                    
+                    st.success("🔥 Valgt: Value-Boost aktiveret!")
                 else:
                     valgt_f = None
                     for f in forslag:
@@ -175,14 +173,18 @@ if uploadet_billede:
         ny_samlet_odds = round(ny_samlet_odds, 2)
         ny_samlet_chance_procent = round(samlet_ny_vinderchance * 100, 1)
 
-        kupon_html = (
-            "<div style='background-color: #1e1e24; padding: 20px; border-radius: 12px; border: 2px solid #3a3a43; color: #ffffff; font-family: monospace;'>"
-            "<h4 style='text-align: center; color: #00ffcc; margin-top: 0; margin-bottom: 10px;'>⚡ ODDS-ROBOT-PRO KUPON ⚡</h4>"
-            "<hr style='border-top: 1px dashed #555; margin-bottom: 15px;'>"
-        )
-        
-        for spil in endelige_valgte_spil:
-            kupon_html += (
-                f"<div style='margin-bottom: 15px; border-bottom: 1px solid #2a2a33; padding-bottom: 10px;'>"
-                f"<span style='color: #ffcc00; font-weight: bold;'>⚽ {spil['hold']}</span><br>"
-                f"<span style='color: #dddddd;'>Spil: {spil['variant']}</span><br>"
+        # Bygget 100% stabilt med indbyggede Streamlit-komponenter for at undgå klipning
+        with st.container(border=True):
+            st.markdown("### ⚡ ODDS-ROBOT-PRO KUPONSTAMME ⚡")
+            for spil in endelige_valgte_spil:
+                st.markdown(f"**⚽ {spil['hold']}**")
+                st.markdown(f"• Spil: `{spil['variant']}`")
+                st.markdown(f"• Odds: `{spil['odds']:.2f}` | {spil['flammer']} {spil['stjerner']}")
+                st.write("")
+            st.divider()
+            st.write(f"📊 **Originalt Odds:** {orig_samlet_odds:.2f}")
+            st.write(f"🚀 **Nyt Samlet Odds:** {ny_samlet_odds:.2f}")
+            st.write(f"📈 **Estimeret Systemchance:** {ny_samlet_chance_procent}%")
+
+        # Indsats og lagring
+        st.write("")
