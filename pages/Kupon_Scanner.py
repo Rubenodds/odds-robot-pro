@@ -40,14 +40,11 @@ if uploadet_billede:
         orig_samlet_odds = round(orig_samlet_odds, 2)
         orig_samlet_chance_procent = round(orig_samlet_chance * 100, 1)
 
-        # ----------------- PANEL 1: DIN ORIGINALE KUPONSTAMME -----------------
         st.subheader("📋 Din originale kuponstamme (Scannet)")
         for k in data["kampe"]:
-            st.info(f"⚽ **{k['hold']}**\n\n**Dit valg:** {k['originalt_valg']} — **Odds: {k['odds']:.2f}** | Vinderchance: `{int(k['chance']*100)}%` | 🔥 🔥 | ⭐⭐⭐")
+            st.info(f"⚽ **{k['hold']}**\n\n**Dit valg:** {k['originalt_valg']} — **Odds: {k['odds']:.2f}** | Vinderchance: `{int(k['chance']*100)}%`")
         
         st.write("---")
-
-        # ----------------- PANEL 2: INTERAKTIV GRÆNSEFLADE -----------------
         st.subheader("⚡ AI Multi-Balancering & Markedsalternativer")
         
         ai_strategi = st.selectbox(
@@ -68,13 +65,12 @@ if uploadet_billede:
                 if vil_booste:
                     st.warning(forklaring_tekst)
                     tillad_ekstra_boost = st.checkbox("🔓 Giv robotten lov til at sprænge odds-laget for denne guldklump", value=False, key="tillad_boost_check")
-                    st.write("---")
 
             st.write("💡 *Vælg marked eller tast dit eget spil ind for hver kamp:*")
             
             for i, kamp in enumerate(data["kampe"]):
                 st.markdown(f"### ⚽ {kamp['hold']}")
-                forslag, mangler_muligheder, vil_booste, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
+                forslag, _, vil_booste, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 
                 if "Låst Margin-Sikring" in ai_strategi:
                     for f in forslag:
@@ -109,7 +105,7 @@ if uploadet_billede:
                 for f in forslag:
                     valgmuligheder.append(f"{f['titel']} (Odds {f['odds']:.2f}) [Chance: {int(f['chance']*100)}%]")
                 
-                valgt_marked = st.radio(f"Vælg marked for {kamp['hold']}:", valgmuligheder, key=f"pro_valg_{i}", label_visibility="collapsed")
+                valgt_marked = st.radio(f"Marked {i}:", valgmuligheder, key=f"pro_valg_{i}", label_visibility="collapsed")
                 
                 if "⌨️ Tast selv" in valgt_marked:
                     col_t1, col_t2 = st.columns(2)
@@ -117,7 +113,6 @@ if uploadet_billede:
                         manuelt_spil = st.text_input("Hvad spiller du på kampen?", value="Over 9.5 hjørnespark", key=f"man_navn_{i}")
                     with col_t2:
                         manuelt_odds = st.number_input("Indtast markedets odds:", min_value=1.01, max_value=500.0, value=2.00, step=0.05, key=f"man_odds_{i}")
-                    
                     estimeret_chance = round(min(0.90, 0.85 / manuelt_odds), 2)
                     endelige_valgte_spil.append({"hold": kamp["hold"], "variant": f"⌨️ {manuelt_spil}", "odds": manuelt_odds, "chance": estimeret_chance, "flammer": "🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐"})
                     samlet_ny_vinderchance *= estimeret_chance
@@ -129,11 +124,7 @@ if uploadet_billede:
                     endelige_valgte_spil.append({"hold": kamp["hold"], "variant": "🚀 Over 4.5 kort i kampen (Value-Boost)", "odds": odds_boosted, "chance": 0.45, "flammer": "🔥 🔥 🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐⭐"})
                     samlet_ny_vinderchance *= 0.45
                 else:
-                    valgt_f = None
-                    for f in forslag:
-                        if f["titel"] in valgt_marked:
-                            valgt_f = f
-                            break
+                    valgt_f = next((f for f in forslag if f["titel"] in valgt_marked), None)
                     if valgt_f:
                         endelige_valgte_spil.append({"hold": kamp["hold"], "variant": valgt_f["variant"], "odds": valgt_f["odds"], "chance": valgt_f["chance"], "flammer": "🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐"})
                         samlet_ny_vinderchance *= valgt_f["chance"]
@@ -142,10 +133,8 @@ if uploadet_billede:
                 endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"], "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": "⭐⭐⭐"})
             samlet_ny_vinderchance = orig_samlet_chance
 
-        # ----------------- PANEL 3: DEN MØRKE KUPONSTAMME -----------------
         st.write("---")
         st.subheader("🎯 Den optimerede kuponstamme")
-        
         ny_samlet_odds = 1.0
         for spil in endelige_valgte_spil:
             ny_samlet_odds *= spil["odds"]
@@ -155,20 +144,16 @@ if uploadet_billede:
         with st.container(border=True):
             st.markdown("### ⚡ ODDS-ROBOT-PRO KUPONSTAMME ⚡")
             for spil in endelige_valgte_spil:
-                st.markdown(f"**⚽ {spil['hold']}**")
-                st.markdown(f"• Spil: `{spil['variant']}`")
-                st.markdown(f"• Odds: `{spil['odds']:.2f}` | Chance: `{int(spil['chance']*100)}%` | {spil['flammer']} {spil['stjerner']}")
-                st.write("")
+                st.markdown(f"**⚽ {spil['hold']}**\n• Spil: `{spil['variant']}`\n• Odds: `{spil['odds']:.2f}` | Chance: `{int(spil['chance']*100)}%` | {spil['flammer']} {spil['stjerner']}")
             st.divider()
-            
-            # Her samles hele bunden bundsolidt, så sammenligningen og gem-knappen altid tegnes perfekt!
             st.write(f"📊 **Originalt Odds:** {orig_samlet_odds:.2f}")
             st.write(f"🚀 **Nyt Samlet Odds:** {ny_samlet_odds:.2f}")
             st.write(f"📈 **Estimeret Systemchance:** {ny_samlet_chance_procent}%")
 
-        st.write("")
         indsats = st.number_input("Indtast indsats (DKK):", min_value=10, max_value=10000, value=100, step=10, key="indsats_valg")
-
+        
         if st.button("💾 GEM KUPON I SQLITE-HISTORIK", type="primary", use_container_width=True):
-            success = gem_kupon_i_historik(endelige_valgte_spil, ny_samlet_odds, indsats, ny_samlet_chance_procent)
-            if success:
+            if gem_kupon_i_historik(endelige_valgte_spil, ny_samlet_odds, indsats, ny_samlet_chance_procent):
+                st.success("✅ Hukommelse opdateret! Kuponen er gemt i SQLite-databasen til live læring.")
+            else:
+                st.error("❌ Kunne ikke gemme kuponen.")
