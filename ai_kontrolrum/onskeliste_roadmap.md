@@ -1,20 +1,20 @@
 # 🗺️ Odds-Robot-Pro: Dynamisk Ønskeliste & Roadmap
 
-## 🔴 AKUTTE FEJLRETNINGER & REBOOT-SIKRING (Skal fikses NU)
-- **🛑 STOP DATATAB VED REBOOT (Højeste Prioritet):** Appen må under INGEN omstændigheder glemme data, historik eller indstillinger, når Streamlit genstarter eller rebooter. API-integrationen, databasetokenet og SQLite-hukommelsen SKAL gøres 100% permanente og modstandsdygtige over for genstarter, så vi altid bevarer vores stabile udgangspunkt.
-- **Fiks `TypeError` i `app.py` (Linje 134):** `gem_data.gem_kupon_i_historik` crasher på None-type/forkert format under lagring. Skal kodes robust i undermodulet uden at røre app.py.
-- **Rigtig billed-håndtering og korrekte odds i Kupon-Scanner:** Få rettet OCR/parsing på råteksten fra det reelle uploadede screenshot (fx Viborg, Tottenham, Norwich). Robotten skal læse de faktiske tal og rette oddsene til de RIGTIGE odds i stedet for at falde tilbage på et cachet test-eksempel.
-- **Fjern "spøgelses-markeder" i Hold-Scanner:** Databasetabellerne spytter forvirrende AI-hallucinationer ud (Billede 2,3,4). Input-kasserne SKAL starte 100% blanke.
+## 🔴 AKUTTE FEJLRETNINGER & REBOOT-SIKRING (Skal fikses NU - Trin for trin)
+1. **🔒 REDNING AF API & DATABASE-TOKEN (Absolut første skridt):** Det tidligere oprettede API-token og database-integration skal lokaliseres, rettes og aktiveres. Appen må under INGEN omstændigheder miste historik eller nulstille databasen ved reboot/genstart. 
+2. **🔎 100% SYSTEM-AUDIT (Gøres umiddelbart efter database-fix):** Når data-lagringen er 100% stabil ved genstart, SKAL vi stoppe op. Vi skal tjekke og verificere HELE appens indhold skridt for skridt ( Hold-Scanner, Kupon-Scanner, tidsstyring og ligaer), før der overhovedet må bygges nye funktioner.
+3. **📸 Billed-håndtering & Odds-parsing i Kupon-Scanner:** Få rettet OCR på screenshots (fx Viborg, Tottenham, Norwich), så den læser de reelle tal og retter til de rigtige odds i stedet for at bruge et cachet test-eksempel.
+4. **🧹 Ryd op i Hold-Scanner:** Input-kasserne skal starte 100% blanke uden forvirrende AI-hallucinationer (spøgelses-markeder).
 
 ## 🧠 UROKKELIGE SYSTEM-MÅL (Missionen & Den Selvlærende Hjerne)
 - **Universal Bookmaker-Agnostik (Krav 6):** Ingen hardkodede navne på spilsider. Alt skal parses via dynamisk mønstergenkendelse.
 - **Den Ultimative Spil-Hjerne (Selvlærende data):** Robotten skal akkumulere og blive klogere på ALT, der kan bettes på: Resultater, offsides, målspark, kort, hjørnespark osv. Alt skal lagres struktureret for at bygge maksimale værdi-kuponer.
-- **System-Audit:** Når genstart-sikringen og scanneren virker, skal HELE appens eksisterende indhold tjekkes og verificeres skridt for skridt, før der bygges nye funktioner. Hver succesfuld milepæl fastlåses med en permanent "udgangspunkt-notits" i denne log.
+- **Permanent Fastlåsning:** Hver gang en milepæl virker efter hensigten, skrives en permanent "udgangspunkt-notits" i bunden af historikken, så vi altid kan rulle tilbage til en stabil version.
 
 ## 📊 ØKONOMI & STATISTIK (Kommende Mappe)
 - **Hitrate & Årsregnskab Modul:** Ny isoleret mappe koblet direkte med hitrate (%).
-- **Automatisk Indsats-Logik:** Hvis scanneren IKKE kan se eller læse indsatsbeløbet på kuponen, skal robotten automatisk regne med en standardindsats på 100 kr. Hvis beløbet ER synligt, skal den registrere og bruge det specifikke beløb.
-- **Tidssynkroniseret Regnskab:** Regnskabet skal køre år for år (f.eks. nyt regnskab starter for 2026, 2027 osv.), samtidig med at der føres en overordnet, akkumuleret TOTAL-SUM på tværs af alle år, som lægges sammen live.
+- **Automatisk Indsats-Logik:** Standardindsats på 100 kr., hvis beløbet ikke kan læses på kuponen. Hvis beløbet ER synligt, skal det specifikke beløb trækkes fra/lægges til.
+- **Tidssynkroniseret Regnskab:** Årsregnskab (2026, 2027 osv.) kombineret med en overordnet, akkumuleret TOTAL-SUM på tværs af alle år.
 
 ---
 
@@ -26,3 +26,5 @@
     *   *Resultat:* AI Master-Reboot panelet i `ai_kontrolrum/system_regler.py` er opdateret, så fremtidige AI-modeller tvinges til at læse denne ønskeliste og udfordre koden proaktivt.
 *   **Kl. 23:02 - Etablering af Fysisk Log-Hukommelse (`onskeliste_roadmap.md`):**
     *   *Hvad blev gjort:* Oprettet denne roadmap-fil i `ai_kontrolrum/` indeholdende de rå og urokkelige ønsker om total-dataopsamling, nul datatab ved reboots og det avancerede årsregnskab.
+*   **Kl. 23:25 - Fastlåsning af Rækkefølge (Trin 1: Database-fix, Trin 2: Fuld System-Audit):**
+    *   *Hvad blev gjort:* Tilføjet den absolutte betingelse om, at database-API'en skal virke først, og at intet nyt må kodes, før hele appen er testet igennem skridt for skridt.
