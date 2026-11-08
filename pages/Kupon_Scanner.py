@@ -15,8 +15,7 @@ uploadet_billede = st.file_uploader("Upload dit kupon-screenshot:", type=["png",
 
 if uploadet_billede:
     if st.session_state["scannet_data"] is None or st.button("🔄 SCAN / NULSTIL"):
-        # Her simulerer vi scanningen af det uploadede screenshot. 
-        # Når din rigtige OCR-billedscanner kører, erstatter den automatisk disse værdier!
+        # Simuleret scanning af kupon
         st.session_state["scannet_data"] = {
             "kampe": [
                 {"hold": "OB vs. Viborg", "originalt_valg": "Viborg vinder & Over 3 hjørnespark", "odds": 3.00, "chance": 0.26},
@@ -86,21 +85,21 @@ if uploadet_billede:
                     for f in forslag:
                         if f["id"] == "lav":
                             f["odds"] = round(max(1.20, kamp["odds"] * 0.75), 2)
-                            f["titel"] = f"🛡️ AI Risiko-Sikring (Låst Margin): {f['variant']} (Odds {f['odds']:.2f})"
+                            f["titel"] = f"🛡️ AI Risiko-Sikring (Låst Margin): {f['variant']}"
                             f["chance"] = round(min(0.90, 0.88 / f["odds"]), 2)
                         elif f["id"] == "midt":
                             f["odds"] = round(max(1.35, kamp["odds"] * 1.02), 2)
-                            f["titel"] = f"⚽ AI Værdi-Boost (Låst Margin): {f['variant']} (Odds {f['odds']:.2f})"
+                            f["titel"] = f"⚽ AI Værdi-Boost (Låst Margin): {f['variant']}"
                             f["chance"] = round(min(0.70, 0.75 / f["odds"]), 2)
                 else:
                     for f in forslag:
                         if f["id"] == "lav":
                             f["odds"] = round(max(1.20, kamp["odds"] * 0.48), 2)
-                            f["titel"] = f"🛡️ AI Risiko-Sikring (Fri Værdi): {f['variant']} (Odds {f['odds']:.2f})"
+                            f["titel"] = f"🛡️ AI Risiko-Sikring (Fri Værdi): {f['variant']}"
                             f["chance"] = round(min(0.95, 0.92 / f["odds"]), 2)
                         elif f["id"] == "midt":
                             f["odds"] = round(max(1.35, kamp["odds"] * 1.15), 2)
-                            f["titel"] = f"⚽ AI Værdi-Boost (Fri Værdi): {f['variant']} (Odds {f['odds']:.2f})"
+                            f["titel"] = f"⚽ AI Værdi-Boost (Fri Værdi): {f['variant']}"
                             f["chance"] = round(min(0.60, 0.72 / f["odds"]), 2)
                 
                 valgmuligheder = [
@@ -110,7 +109,7 @@ if uploadet_billede:
                 
                 if vil_booste and tillad_ekstra_boost:
                     odds_boosted = round(kamp["odds"] * 1.6, 2)
-                    valgmuligheder.insert(1, f"🚀 AI VALUE-BOOST: Over 4.5 kort i kampen (Odds {odds_boosted})")
+                    valgmuligheder.insert(1, f"🚀 AI VALUE-BOOST: Over 4.5 kort i kampen (Odds {odds_boosted:.2f})")
                 
                 for f in forslag:
                     valgmuligheder.append(f"{f['titel']} (Odds {f['odds']:.2f})")
@@ -120,62 +119,71 @@ if uploadet_billede:
                 if "⌨️ Tast selv" in valgt_marked:
                     col_t1, col_t2 = st.columns(2)
                     with col_t1:
-                        manuelt_spil = st.text_input("Hvad spiller du på kampen? (Tastatur-søgning)", value="F.eks. Over 9.5 hjørnespark", key=f"man_navn_{i}")
+                        manuelt_spil = st.text_input("Hvad spiller du på kampen? (Tastatur-søgning)", value="Over 9.5 hjørnespark", key=f"man_navn_{i}")
                     with col_t2:
                         manuelt_odds = st.number_input("Indtast markedets odds:", min_value=1.01, max_value=500.0, value=2.00, step=0.05, key=f"man_odds_{i}")
                     
                     estimeret_chance = round(min(0.90, 0.85 / manuelt_odds), 2)
-                    
                     endelige_valgte_spil.append({
                         "hold": kamp["hold"], "variant": f"⌨️ {manuelt_spil}", "odds": manuelt_odds,
                         "chance": estimeret_chance, "flammer": "🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐"
                     })
                     samlet_ny_vinderchance *= estimeret_chance
-                    st.info(f"✍️ **Manuelt spil registreret:** {manuelt_spil} til odds `{manuelt_odds:.2f}`")
                     
                 elif "Behold originalt" in valgt_marked:
                     endelige_valgte_spil.append({
                         "hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"],
-                        "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": "⭐⭐⭐⭐"
+                        "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": "⭐⭐⭐"
                     })
                     samlet_ny_vinderchance *= kamp["chance"]
+                    
                 elif "🚀 AI VALUE-BOOST" in valgt_marked:
                     odds_boosted = round(kamp["odds"] * 1.6, 2)
                     endelige_valgte_spil.append({
-                        "hold": kamp["hold"], "variant": "Over 4.5 kort i kampen (Value-Boost)", "odds": odds_boosted,
+                        "hold": kamp["hold"], "variant": "🚀 Over 4.5 kort i kampen (Value-Boost)", "odds": odds_boosted,
                         "chance": 0.45, "flammer": "🔥 🔥 🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐⭐"
                     })
                     samlet_ny_vinderchance *= 0.45
                     st.success("🔥 **Valgt:** Value-Boost aktiveret på kortmarkedet!")
+                    
                 else:
+                    valgt_f = None
                     for f in forslag:
                         if f["titel"] in valgt_marked:
-                            endelige_valgte_spil.append({
-                                "hold": kamp["hold"], "variant": f["variant"], "odds": f["odds"],
-                                "chance": f["chance"], "flammer": f["flammer"], "stjerner": f["stjerner"]
-                            })
-                            samlet_ny_vinderchance *= f["chance"]
-                            st.success(f"🎯 **Valgt:** {f['flammer']} | Chance: {int(f['chance']*100)}%")
-                st.markdown("`---------------------------------------------------------------------`")
+                            valgt_f = f
+                            break
+                    if valgt_f:
+                        endelige_valgte_spil.append({
+                            "hold": kamp["hold"], "variant": valgt_f["variant"], "odds": valgt_f["odds"],
+                            "chance": valgt_f["chance"], "flammer": "🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐"
+                        })
+                        samlet_ny_vinderchance *= valgt_f["chance"]
         else:
             for kamp in data["kampe"]:
                 endelige_valgte_spil.append({
                     "hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"],
-                    "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": "⭐⭐⭐⭐"
+                    "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": "⭐⭐⭐"
                 })
             samlet_ny_vinderchance = orig_samlet_chance
 
-        # ----------------- LIVE KUPONPRINT & SAMMENLIGNING -----------------
-        reelt_samlet_odds = 1.0
+        # ----------------- PANEL 3: DEN MØRKE KUPONSTAMME -----------------
+        st.write("---")
+        st.subheader("🎯 Den optimerede kuponstamme")
+        
+        ny_samlet_odds = 1.0
         for spil in endelige_valgte_spil:
-            reelt_samlet_odds *= spil["odds"]
-        reelt_samlet_odds = round(reelt_samlet_odds, 2)
-        endelig_chance_procent = round(samlet_ny_vinderchance * 100, 1)
+            ny_samlet_odds *= spil["odds"]
+        ny_samlet_odds = round(ny_samlet_odds, 2)
+        ny_samlet_chance_procent = round(samlet_ny_vinderchance * 100, 1)
 
-        # 📋 SAMMENSAT KUPONSTAMME I FLOTTE INFOBOXE
-        st.subheader("📋 Din sammensatte AI Kuponstamme")
-        for i, spil in enumerate(endelige_valgte_spil):
-            st.info(
-                f"⚽ **Kamp {i+1}: {spil['hold']}**\n\n"
-                f"➔ **Valgt spil:** {spil['variant']}\n\n"
-                f"📊 **Odds:** {spil['odds']:.2f} | **Vinderchance:** {int(spil['chance']*100)}% | "
+        kupon_html = f"""
+        <div style="background-color: #1e1e24; padding: 20px; border-radius: 12px; border: 2px solid #3a3a43; color: #ffffff; font-family: monospace;">
+            <h4 style="text-align: center; color: #00ffcc; margin-top: 0;">⚡ ODDS-ROBOT-PRO KUPON ⚡</h4>
+            <hr style="border-top: 1px dashed #555;">
+        """
+        
+        for spil in endelige_valgte_spil:
+            kupon_html += f"""
+            <div style="margin-bottom: 15px;">
+                <span style="color: #ffcc00; font-weight: bold;">⚽ {spil['hold']}</span><br>
+                <span style="color: #dddddd;">Spil: {spil['variant']}</span><br>
