@@ -31,7 +31,6 @@ if uploadet_billede:
             if k["chance"] > 1.0:
                 k["chance"] = round(k["chance"] / 100, 2)
 
-        # BEVARET: Dine listensøgninger mod ordbøger
         orig_samlet_odds = round(data["kampe"][0]["odds"] * data["kampe"][1]["odds"] * data["kampe"][2]["odds"], 2)
         orig_samlet_chance = data["kampe"][0]["chance"] * data["kampe"][1]["chance"] * data["kampe"][2]["chance"]
         orig_samlet_chance_procent = round(orig_samlet_chance * 100, 1)
@@ -135,7 +134,6 @@ if uploadet_billede:
         ny_samlet_odds = 1.0
         maksimale_stjerner = 1
         
-        # SAMLET FLAWLESS HTML GENERATOR
         for spil in endelige_valgte_spil:
             ny_samlet_odds *= spil["odds"]
             if spil["stjerner"] > maksimale_stjerner:
@@ -162,7 +160,6 @@ if uploadet_billede:
         with col_res2:
             st.metric("Ny Vinderchance", f"{ny_samlet_chance_procent}%", delta=f"{round(ny_samlet_chance_procent - orig_samlet_chance_procent, 1)}%")
 
-        # UBREDT OG SAMLET GEMME-FUNKTION
         if st.button("💾 GEM KUPON I SQLITE-HISTORIK", use_container_width=True):
             ligaer_liste = [s["hold"] for s in endelige_valgte_spil]
             forslag_liste = [s["variant"] for s in endelige_valgte_spil]
@@ -170,3 +167,6 @@ if uploadet_billede:
             
             succes = gem_kupon_i_historik(
                 ligaer_liste=ligaer_liste,
+                forslag_liste=forslag_liste,
+                bookmakere_dict=bookmakere_dict,
+                side="📸 Billed-Scanner",
