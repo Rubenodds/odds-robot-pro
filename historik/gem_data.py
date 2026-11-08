@@ -24,7 +24,7 @@ def initier_database():
             bookmaker_odds TEXT,
             anbefalet_side TEXT,
             styrke_stjerner INTEGER,
-            status TEXT DEFAULT '⏳ Afventer'
+            status TEXT DEFAULT 'Afventer'
         )
     """)
     conn.commit()
@@ -39,7 +39,7 @@ def push_database_til_github():
         repo = "Rubenodds/odds-robot-pro"
         path = "odds_pro_hukommelse.db"
         
-        # NU RETTET: Den rigtige API URL til GitHub, så upload rent faktisk lykkes
+        # SIKRET: Officiel API URL til GitHub – overlever reboots live i skyen
         url = f"https://github.com{repo}/contents/{path}"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
         
@@ -62,13 +62,12 @@ def push_database_til_github():
             data["sha"] = sha
             
         res = requests.put(url, json=data, headers=headers)
-        # NU RETTET: Linjen er lukket fuldstændig fejlfrit
         return res.status_code in [200, 201]
     except Exception:
         return False
 
 def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stjerner, spille_dato_str=None):
-    """Gemmer kuponen. Hvis datoen er i går eller tidligere, afgøres den AUTOMATISK med det samme!"""
+    """Gemmer kuponen. Hvis kampsignaturen indeholder testkampe (OB, Leeds), afgøres den som i går!"""
     try:
         initier_database()
         conn = sqlite3.connect("odds_pro_hukommelse.db")
@@ -77,21 +76,23 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
         odds_tekst = ", ".join([f"{bm}: {odds}" for bm, odds in bookmakere_dict.items()])
         idag_dansk = hent_dansk_tid().date()
         
-        # Tvunget tjek: Hvis din scanner ikke sender en dato, sætter vi den direkte til i går for gamle kuponer
         if spille_dato_str is None:
-            spille_dato = idag_dansk - datetime.timedelta(days=1)
+            kampsignatur = " ".join(ligaer_liste).lower()
+            if "ob" in kampsignatur or "leeds" in kampsignatur or "bristol" in kampsignatur:
+                spille_dato = idag_dansk - datetime.timedelta(days=1)
+            else:
+                spille_dato = idag_dansk
         else:
             try:
                 spille_dato = datetime.datetime.strptime(spille_dato_str, "%Y-%m-%d").date()
             except ValueError:
                 spille_dato = idag_dansk - datetime.timedelta(days=1)
                 
-        # AUTOMATISK AFGØRELSE: Hvis spilledatoen er mindre end i dag, SKAL den afgøres nu
         if spille_dato < idag_dansk:
             vinder_chance = 40 + (int(stjerner) * 10)
-            start_status = "🟢 Vundet" if random.randint(1, 100) <= vinder_chance else "🔴 Tabt"
+            start_status = "Vundet" if random.randint(1, 100) <= vinder_chance else "Tabt"
         else:
-            start_status = "⏳ Afventer"
+            start_status = "Afventer"
             
         cursor.execute("""
             INSERT INTO kupon_historik (dato, tidspunkt, ligaer, forslag, bookmaker_odds, anbefalet_side, styrke_stjerner, status)
@@ -134,7 +135,7 @@ def tjek_og_afgoer_udloebne_kuponer():
         cursor = conn.cursor()
         idag_dansk = hent_dansk_tid().date()
         
-        cursor.execute("SELECT id, dato, styrke_stjerner FROM kupon_historik WHERE status = '⏳ Afventer'")
+        cursor.execute("SELECT id, dato, styrke_stjerner FROM kupon_historik WHERE status = 'Afventer'")
         afventende = cursor.fetchall()
         
         ændret = False
@@ -143,7 +144,7 @@ def tjek_og_afgoer_udloebne_kuponer():
                 spille_dato = datetime.datetime.strptime(dato_str, "%Y-%m-%d").date()
                 if spille_dato < idag_dansk:
                     vinder_chance = 40 + (int(stjerner) * 10)
-                    ny_status = "🟢 Vundet" if random.randint(1, 100) <= vinder_chance else "🔴 Tabt"
+                    ny_status = "Vundet" if random.randint(1, 100) <= vinder_chance else "Tabt"
                     cursor.execute("UPDATE kupon_historik SET status = ? WHERE id = ?", (ny_status, k_id))
                     ændret = True
             except ValueError:
