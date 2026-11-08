@@ -5,54 +5,53 @@ from resultat_tjekker import opdater_historik
 st.set_page_config(page_title="AI Kupon-Historik & Statistik", page_icon="📈", layout="centered")
 
 st.title("📈 AI Kupon-Historik & Statistik")
-st.write("Her kan du se alle dine gemte AI-kuponer og følge robottens langsigtede succesrate.")
+st.write("Her kan du se alle dine gemte AI-kuponer og følge robottens live-succesrate.")
 
-# --- AUTOMATION: KØRER DIT AUTOMATISKE DEEP-STATS API-TJEK I BAGGRUNDEN VED SIDE-INDLÆSNING ---
-opdater_historik.afgoer_alle_afventende_kuponer_live()
-
-# --- BEVARER 100%: TRÆKKER AUTOMATISK DIN AUTO-RAPPORT IND I TOPPEN ---
-opdater_historik.vis_auto_resultat_og_rapport()
+# --- AUTOMATION: KØRER AUTOMATISK DET NYE LIVE API-TJEK I BAGGRUNDEN VED INDLÆSNING ---
+try:
+    opdater_historik.afgoer_alle_afventende_kuponer_live()
+except Exception:
+    pass
 
 st.write("---")
-st.subheader("📋 Liste over dine gemte AI Kuponer")
+st.subheader("📋 Liste over dine scannede & live-fundne kuponer")
 
-# Henter den fulde liste ud af SQLite-databasen ud fra den nye dynamiske struktur
 try:
     conn = sqlite3.connect("odds_pro_hukommelse.db")
     cursor = conn.cursor()
-    
-    # Henter de korrekte kolonner (inklusive den nye bookmaker_odds og styrke_stjerner)
     cursor.execute("SELECT dato, ligaer, forslag, bookmaker_odds, anbefalet_side, status, styrke_stjerner FROM kupon_historik ORDER BY id DESC")
     rækker = cursor.fetchall()
     conn.close()
     
     if not rækker:
-        st.info("Ingen gemte kuponer fundet i databasen endnu. Generer en kupon på appen for at starte historikken!")
+        st.info("Ingen gemte kuponer fundet endnu. Scan et screenshot eller kør Hold-Scanneren for at starte!")
     else:
         for r in rækker:
             dato, ligaer, forslag, bookmaker_odds, side, status, stjerner = r
             
-            # Flot farvekode baseret på kampens status
             if status == "Vundet": status_visning = "🟢 Vundet"
             elif status == "Tabt": status_visning = "🔴 Tabt"
             else: status_visning = "⏳ Afventer"
             
-            # Viser kuponen i en flot expander med stjerner direkte i titlen
             stjerner_visning = "⭐" * int(stjerner) if stjerner else ""
-            with st.expander(f"📅 {dato} - {status_visning} {stjerner_visning}"):
-                st.write(f"🏆 **Anbefalet bookmaker:** {side}")
-                st.write(f"📊 **Odds på tværs af markedet:** `{bookmaker_odds}`")
+            
+            # PRO SIKKER VISNING: Trækker de samlede odds sikkert ud til overskriften
+            odds_visning = "Dynamisk"
+            if bookmaker_odds:
+                odds_visning = bookmaker_odds.split(': ')[-1] if ':' in bookmaker_odds else bookmaker_odds
+                
+            with st.expander(f"📅 {dato} — {status_visning} | Odds: {odds_visning} {stjerner_visning}"):
+                st.write(f"🏆 **Anbefalet bookmaker-platform:** {side}")
+                st.write(f"📊 **Registrerede odds på tværs af markedet:** `{bookmaker_odds}`")
                 st.write("---")
                 
-                # Splitter dine kampe og forslag op, så they står parvis snorlige under hinanden
-                kampe_liste = ligaer.split(", ")
-                forslag_liste = forslag.split("; ")
+                # SIKKER SPLIT: Sørger for at specialmarkederne printes fejlfrit ud linje for linje
+                forslag_liste = forslag.split("; ") if forslag else []
+                st.write("⚽ **Dine placerede spil & specialmarkeder:**")
                 
-                st.write("⚽ **Dine aktive kampe & spil:**")
-                for i in range(len(kampe_liste)):
-                    kamp_navn = kampe_liste[i] if i < len(kampe_liste) else "Ukendt kamp"
-                    spil_navn = forslag_liste[i] if i < len(forslag_liste) else "Ukendt spil"
-                    st.markdown(f"**{kamp_navn}** ➔ `{spil_navn}`")
+                for spil in forslag_liste:
+                    if spil.strip():
+                        st.markdown(f"➔ `{spil.strip()}`")
 
 except Exception as e:
-    st.info("🧠 Hukommelsen initialiseres. Generer din første kupon på appen for at aktivere databasetabellerne.")
+    st.info("🧠 Hukommelsen initialiseres. Gem en kupon for at aktivere statistikken.")
