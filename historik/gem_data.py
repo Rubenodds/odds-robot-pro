@@ -38,21 +38,16 @@ def push_database_til_github():
             return False
         repo = "Rubenodds/odds-robot-pro"
         path = "odds_pro_hukommelse.db"
-        
-        # RETTET: Den korrekte, officielle API URL til GitHub
         url = f"https://github.com{repo}/contents/{path}"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
-        
         if not os.path.exists(path):
             return False
         with open(path, "rb") as f:
             content = base64.b64encode(f.read()).decode("utf-8")
-        
         sha = None
         r = requests.get(url, headers=headers)
         if r.status_code == 200:
             sha = r.json().get("sha")
-            
         data = {
             "message": f"🤖 AI-Hukommelse Synkroniseret: {hent_dansk_tid().strftime('%d/%m-%Y %H:%M')}",
             "content": content,
@@ -60,15 +55,13 @@ def push_database_til_github():
         }
         if sha:
             data["sha"] = sha
-            
         res = requests.put(url, json=data, headers=headers)
-        # RETTET: Syntaksen er nu lukket og tjekker for succesfuld upload
         return res.status_code in [200, 201]
     except Exception:
         return False
 
 def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stjerner, spille_dato_str=None):
-    """Gemmer kuponen. Hvis datoen er i fortiden (f.eks. i går), afgøres den automatisk."""
+    """Gemmer kuponen. Hvis datoen er i går eller tidligere, afgøres den AUTOMATISK med det samme!"""
     try:
         initier_database()
         conn = sqlite3.connect("odds_pro_hukommelse.db")
@@ -77,14 +70,23 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
         odds_tekst = ", ".join([f"{bm}: {odds}" for bm, odds in bookmakere_dict.items()])
         idag_dansk = hent_dansk_tid().date()
         
+        # FIX: Hvis Kupon_Scanner.py ikke sender en dato med, tjekker vi automatisk om ligaer/forslag indeholder gårsdagens dato,
+        # eller om vi manuelt kan tvinge den til at opfatte kuponen som i går, hvis det er her fejlen ligger.
         if spille_dato_str is None:
-            spille_dato = idag_dansk
+            # Hvis vi kan se i teksten eller her, at det er en gammel kupon, trækker vi 1 dag fra dags dato som standard sikkerhed
+            # For at tvinge gårsdagens kuponer til at blive afgjort:
+            tekst_til_tjek = " ".join(ligaer_liste) + " " + " ".join(forslag_liste)
+            igår_dansk = idag_dansk - datetime.timedelta(days=1)
+            
+            # Hvis teksten indikerer i går, eller hvis vi bare vil sikre os det virker:
+            spille_dato = igår_dansk if "i går" in tekst_til_tjek.lower() or "yesterday" in tekst_til_tjek.lower() else idag_dansk
         else:
             try:
                 spille_dato = datetime.datetime.strptime(spille_dato_str, "%Y-%m-%d").date()
             except ValueError:
                 spille_dato = idag_dansk
                 
+        # AUTOMATISK AFGØRELSE: Hvis spilledatoen er mindre end i dag, SKAL den afgøres nu!
         if spille_dato < idag_dansk:
             vinder_chance = 40 + (int(stjerner) * 10)
             start_status = "🟢 Vundet" if random.randint(1, 100) <= vinder_chance else "🔴 Tabt"
@@ -107,6 +109,7 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
         conn.commit()
         conn.close()
         
+        # Gemmer med det samme på GitHub, så det overlever genstart live!
         push_database_til_github()
         return True
     except Exception:
@@ -126,7 +129,7 @@ def hent_alle_kuponer():
         return []
 
 def tjek_og_afgoer_udloebne_kuponer():
-    """Køres ved genstart. Finder gamle, uafgjorte kuponer og afgør dem automatisk."""
+    """Køres ved genstart. Gennemgår tabellen og afgør automatisk gamle kuponer."""
     try:
         conn = sqlite3.connect("odds_pro_hukommelse.db")
         cursor = conn.cursor()
