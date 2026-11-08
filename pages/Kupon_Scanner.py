@@ -136,23 +136,28 @@ if uploadet_billede:
         ny_samlet_odds = round(ny_samlet_odds, 2)
         ny_samlet_chance_procent = round(samlet_ny_vinderchance * 100, 1)
 
-        with st.container(border=True):
-            st.markdown("### ⚡ ODDS-ROBOT-PRO KUPONSTAMME ⚡")
-            for spil in endelige_valgte_spil:
-                st.markdown(f"**⚽ {spil['hold']}**\n• Spil: `{spil['variant']}`\n• Odds: `{spil['odds']:.2f}` | Chance: `{int(spil['chance']*100)}%` | {spil['flammer']}")
-            st.divider()
-            st.write(f"📊 **Originalt Odds:** {orig_samlet_odds:.2f}")
-            st.write(f"🚀 **Nyt Samlet Odds:** {ny_samlet_odds:.2f}")
-            st.write(f"📈 **Estimeret Systemchance:** {ny_samlet_chance_procent}%")
+        # Vis de samlede pro-data for den færdige kupon
+        st.metric("📈 Samlet Nyt Markeds-Odds:", f"{ny_samlet_odds:.2f}")
+        st.metric("🔥 Ny AI Vinderchance:", f"{ny_samlet_chance_procent}%")
 
-        indsats = st.number_input("Indtast indsats (DKK):", min_value=10, max_value=10000, value=100, step=10, key="indsats_valg")
-        
-        if st.button("💾 GEM KUPON I SQLITE-HISTORIK", type="primary", use_container_width=True):
-            ligaer_liste = [spil["hold"] for spil in endelige_valgte_spil]
-            forslag_liste = [spil["variant"] for spil in endelige_valgte_spil]
-            gennemsnit_stjerner = int(sum([spil["stjerner"] for spil in endelige_valgte_spil]) / len(endelige_valgte_spil))
-            bookmakere_dict = {"Bet365": ny_samlet_odds, "Unibet": round(ny_samlet_odds * 0.98, 2), "Oddset": round(ny_samlet_odds * 0.96, 2)}
-            if gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, "Bet365", gennemsnit_stjerner):
-                st.success("✅ Hukommelse opdateret! Dynamisk bookmaker-data gemt i SQLite.")
+        # Generer lister til databasen
+        ligaer_liste = [spil["hold"] for spil in endelige_valgte_spil]
+        forslag_liste = [spil["variant"] for spil in endelige_valgte_spil]
+        gns_stjerner = int(sum([spil.get("stjerner", 3) for spil in endelige_valgte_spil]) / len(endelige_valgte_spil))
+        bookmakere_dict = {"🤖 AI-Scanner": f"{ny_samlet_odds:.2f}"}
+
+        st.write("---")
+        # ÉN SIMPEL GEMME-KNAP: Robotten finder selv ud af fortidsdatoer og status helt automatisk
+        if st.button("💾 Gem Kupon i Robotten", key="gem_kupon_final_btn"):
+            succes = gem_kupon_i_historik(
+                ligaer_liste=ligaer_liste,
+                forslag_liste=forslag_liste,
+                bookmakere_dict=bookmakere_dict,
+                side=ai_strategi,
+                stjerner=gns_stjerner
+            )
+            if succes:
+                st.success("🔥 Kupon lagret solidt i din SQLite-hukommelse og uploadet til GitHub!")
+                st.rerun()
             else:
-                st.error("❌ Kunne ikke gemme kuponen i databasen.")
+                st.error("Kunne ikke gemme kuponen. Tjek din database-forbindelse eller st.secrets.")
