@@ -7,6 +7,9 @@ st.set_page_config(page_title="AI Kupon-Historik & Statistik", page_icon="📈",
 st.title("📈 AI Kupon-Historik & Statistik")
 st.write("Her kan du se alle dine gemte AI-kuponer og følge robottens langsigtede succesrate.")
 
+# --- AUTOMATION: KØRER DIT AUTOMATISKE DEEP-STATS API-TJEK I BAGGRUNDEN VED SIDE-INDLÆSNING ---
+opdater_historik.afgoer_alle_afventende_kuponer_live()
+
 # --- BEVARER 100%: TRÆKKER AUTOMATISK DIN AUTO-RAPPORT IND I TOPPEN ---
 opdater_historik.vis_auto_resultat_og_rapport()
 
@@ -41,7 +44,7 @@ try:
                 st.write(f"📊 **Odds på tværs af markedet:** `{bookmaker_odds}`")
                 st.write("---")
                 
-                # Splitter dine kampe og forslag op, så de står parvis snorlige under hinanden
+                # Splitter dine kampe og forslag op, så they står parvis snorlige under hinanden
                 kampe_liste = ligaer.split(", ")
                 forslag_liste = forslag.split("; ")
                 
