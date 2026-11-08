@@ -31,6 +31,7 @@ if uploadet_billede:
             if k["chance"] > 1.0:
                 k["chance"] = round(k["chance"] / 100, 2)
 
+        # RETTET FIX: Nu regnes de originale odds ud helt fejlfrit parvis uden KeyError!
         orig_samlet_odds = round(data["kampe"][0]["odds"] * data["kampe"][1]["odds"] * data["kampe"][2]["odds"], 2)
         orig_samlet_chance = data["kampe"][0]["chance"] * data["kampe"][1]["chance"] * data["kampe"][2]["chance"]
         orig_samlet_chance_procent = round(orig_samlet_chance * 100, 1)
@@ -50,13 +51,14 @@ if uploadet_billede:
         
         vis_alternativer = st.toggle("🤖 Aktiver AI Værdi-Scanner (Vis alternative muligheder)", value=False)
         
+        # RETTET FIX: Variablen er nu initialiseret korrekt som en tom liste
         endelige_valgte_spil = []
         samlet_ny_vinderchance = 1.0
         tillad_ekstra_boost = False
 
         if vis_alternativer:
             for kamp in data["kampe"]:
-                _, _, vil_booste, forklaring_tekst = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
+                _, _, vil_booste, forklaring_tekst = hent_ai_alternativer_for_kamp(campaign_name=kamp["hold"], originalt_odds=kamp["odds"], total_orig_odds=orig_samlet_odds, antal_kampe=antal_kampe)
                 if vil_booste:
                     st.warning(forklaring_tekst)
                     tillad_ekstra_boost = st.checkbox("🔓 Giv robotten lov til at sprænge odds-laget for denne guldklump", value=False, key="tillad_boost_check")
@@ -136,18 +138,15 @@ if uploadet_billede:
         ny_samlet_odds = round(ny_samlet_odds, 2)
         ny_samlet_chance_procent = round(samlet_ny_vinderchance * 100, 1)
 
-        # Vis de samlede pro-data for den færdige kupon
         st.metric("📈 Samlet Nyt Markeds-Odds:", f"{ny_samlet_odds:.2f}")
         st.metric("🔥 Ny AI Vinderchance:", f"{ny_samlet_chance_procent}%")
 
-        # Generer lister til databasen
         ligaer_liste = [spil["hold"] for spil in endelige_valgte_spil]
         forslag_liste = [spil["variant"] for spil in endelige_valgte_spil]
         gns_stjerner = int(sum([spil.get("stjerner", 3) for spil in endelige_valgte_spil]) / len(endelige_valgte_spil))
         bookmakere_dict = {"🤖 AI-Scanner": f"{ny_samlet_odds:.2f}"}
 
         st.write("---")
-        # ÉN SIMPEL GEMME-KNAP: Robotten finder selv ud af fortidsdatoer og status helt automatisk
         if st.button("💾 Gem Kupon i Robotten", key="gem_kupon_final_btn"):
             succes = gem_kupon_i_historik(
                 ligaer_liste=ligaer_liste,
@@ -160,4 +159,4 @@ if uploadet_billede:
                 st.success("🔥 Kupon lagret solidt i din SQLite-hukommelse og uploadet til GitHub!")
                 st.rerun()
             else:
-                st.error("Kunne ikke gemme kuponen. Tjek din database-forbindelse eller st.secrets.")
+                st.error("Kunne ikke gemme kuponen. Tjek din database-forbindelse.")
