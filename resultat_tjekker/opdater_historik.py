@@ -1,8 +1,17 @@
 import sqlite3
 import datetime
 import re
-# RETTET: Bruger nu en sikker relativ import til nabofilen i samme mappe
-from . import match_stats_api
+import sys
+import os
+
+# Sikrer at Python altid kan se mappen, uanset hvordan Streamlit kalder den
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    import match_stats_api
+except ImportError:
+    from resultat_tjekker import match_stats_api
+
 from historik import gem_data
 
 def evaluer_enkelt_forslag(forslag_tekst, stats):
@@ -21,43 +30,43 @@ def evaluer_enkelt_forslag(forslag_tekst, stats):
         tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
         if tal_match:
             graense = float(tal_match.group(1))
-            samlet_indkast = stats["indkast_hj"] + stats["indkast_ud"]
+            samlet_indkast = stats.get("indkast_hj", 0) + stats.get("indkast_ud", 0)
             if "hj" in tekst or "hjemme" in tekst:
-                return stats["indkast_hj"] > graense
+                return stats.get("indkast_hj", 0) > graense
             elif "ud" in tekst or "ude" in tekst:
-                return stats["indkast_ud"] > graense
+                return stats.get("indkast_ud", 0) > graense
             return samlet_indkast > graense
         if "flest indkast til ude" in tekst or "flest indkast til ud" in tekst:
-            return stats["indkast_ud"] > stats["indkast_hj"]
+            return stats.get("indkast_ud", 0) > stats.get("indkast_hj", 0)
         if "flest indkast til hjemme" in tekst or "flest indkast til hj" in tekst:
-            return stats["indkast_hj"] > stats["indkast_ud"]
+            return stats.get("indkast_hj", 0) > stats.get("indkast_ud", 0)
 
     # 2. FRISPARK MARKEDER
     if "frispark" in tekst:
         tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
         if tal_match:
             graense = float(tal_match.group(1))
-            samlet_fri = stats["frispark_begaaet_hj"] + stats["frispark_begaaet_ud"]
+            samlet_fri = stats.get("frispark_begaaet_hj", 0) + stats.get("frispark_begaaet_ud", 0)
             if "hj" in tekst or "hjemme" in tekst:
-                return stats["frispark_begaaet_hj"] > graense
+                return stats.get("frispark_begaaet_hj", 0) > graense
             elif "ud" in tekst or "ude" in tekst:
-                return stats["frispark_begaaet_ud"] > graense
+                return stats.get("frispark_begaaet_ud", 0) > graense
             return samlet_fri > graense
         if "flest frispark" in tekst and ("ude" in tekst or "ud" in tekst):
-            return stats["frispark_begaaet_ud"] > stats["frispark_begaaet_hj"]
+            return stats.get("frispark_begaaet_ud", 0) > stats.get("frispark_begaaet_hj", 0)
         if "flest frispark" in tekst and ("hjemme" in tekst or "hj" in tekst):
-            return stats["frispark_begaaet_hj"] > stats["frispark_begaaet_ud"]
+            return stats.get("frispark_begaaet_hj", 0) > stats.get("frispark_begaaet_ud", 0)
 
     # 3. OFFSIDES MARKEDER
     if "offsides" in tekst or "offside" in tekst:
         tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
         if tal_match:
             graense = float(tal_match.group(1))
-            samlet_off = stats["offsides_hj"] + stats["offsides_ud"]
+            samlet_off = stats.get("offsides_hj", 0) + stats.get("offsides_ud", 0)
             if "hj" in tekst or "hjemme" in tekst:
-                return stats["offsides_hj"] > graense
+                return stats.get("offsides_hj", 0) > graense
             elif "ud" in tekst or "ude" in tekst:
-                return stats["offsides_ud"] > graense
+                return stats.get("offsides_ud", 0) > graense
             return samlet_off > graense
 
     # 4. HJØRNESPARK MARKEDER
@@ -65,36 +74,36 @@ def evaluer_enkelt_forslag(forslag_tekst, stats):
         tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
         if tal_match:
             graense = float(tal_match.group(1))
-            samlet_hjo = stats["hjoerne_hj"] + stats["hjoerne_ud"]
+            samlet_hjo = stats.get("hjoerne_hj", 0) + stats.get("hjoerne_ud", 0)
             if "hj" in tekst or "hjemme" in tekst:
-                return stats["hjoerne_hj"] > graense
+                return stats.get("hjoerne_hj", 0) > graense
             return samlet_hjo > graense
         if "flest hjørnespark til" in tekst:
-            return stats["hjoerne_hj"] > stats["hjoerne_ud"]
+            return stats.get("hjoerne_hj", 0) > stats.get("hjoerne_ud", 0)
 
     # 5. MÅL & KAMPVINDER MARKEDER
     if "vinder" in tekst or "resultat:" in tekst:
         if "hj" in tekst or "hjemme" in tekst:
-            return stats["maal_hj"] > stats["maal_ud"]
+            return stats.get("maal_hj", 0) > stats.get("maal_ud", 0)
         elif "ud" in tekst or "ude" in tekst:
-            return stats["maal_ud"] > stats["maal_hj"]
+            return stats.get("maal_ud", 0) > stats.get("maal_hj", 0)
     if "begge hold scorer" in tekst:
-        return stats["maal_hj"] > 0 and stats["maal_ud"] > 0
+        return stats.get("maal_hj", 0) > 0 and stats.get("maal_ud", 0) > 0
     if "mål i kampen" in tekst and "over" in tekst:
         tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
         if tal_match:
-            return (stats["maal_hj"] + stats["maal_ud"]) > float(tal_match.group(1))
+            return (stats.get("maal_hj", 0) + stats.get("maal_ud", 0)) > float(tal_match.group(1))
 
     # 6. TACKLINGER MARKEDER
     if "tacklinger" in tekst or "tackling" in tekst:
         tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
         if tal_match:
             graense = float(tal_match.group(1))
-            samlet_tac = stats["tacklinger_hj"] + stats["tacklinger_ud"]
+            samlet_tac = stats.get("tacklinger_hj", 0) + stats.get("tacklinger_ud", 0)
             if "hj" in tekst or "hjemme" in tekst:
-                return stats["tacklinger_hj"] > graense
+                return stats.get("tacklinger_hj", 0) > graense
             elif "ud" in tekst or "ude" in tekst:
-                return stats["tacklinger_ud"] > graense
+                return stats.get("tacklinger_ud", 0) > graense
             return samlet_tac > graense
 
     # 7. KORT MARKEDER (GULE/RØDE)
@@ -102,11 +111,11 @@ def evaluer_enkelt_forslag(forslag_tekst, stats):
         tal_match = re.search(r'over\s+(\d+\.\d+|\d+)', tekst)
         if tal_match:
             graense = float(tal_match.group(1))
-            samlet_kort = stats["kort_gule_hj"] + stats["kort_gule_ud"] + stats["kort_roede_hj"] + stats["kort_roede_ud"]
+            samlet_kort = stats.get("kort_gule_hj", 0) + stats.get("kort_gule_ud", 0) + stats.get("kort_roede_hj", 0) + stats.get("kort_roede_ud", 0)
             if "hj" in tekst or "hjemme" in tekst:
-                return (stats["kort_gule_hj"] + stats["kort_roede_hj"]) > graense
+                return (stats.get("kort_gule_hj", 0) + stats.get("kort_roede_hj", 0)) > graense
             elif "ud" in tekst or "ude" in tekst:
-                return (stats["kort_gule_ud"] + stats["kort_roede_ud"]) > graense
+                return (stats.get("kort_gule_ud", 0) + stats.get("kort_roede_ud", 0)) > graense
             return samlet_kort > graense
 
     return True
@@ -142,7 +151,6 @@ def afgoer_alle_afventende_kuponer_live():
                     if match_hold:
                         hold_par = match_hold.group(1).split("-")
                         if len(hold_par) == 2:
-                            # RETTET: fjerner mellemrum helt korrekt via strip() på hvert element
                             hj_hold = hold_par[0].strip()
                             ud_hold = hold_par[1].strip()
                             
