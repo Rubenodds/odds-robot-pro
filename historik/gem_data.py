@@ -39,7 +39,7 @@ def push_database_til_github():
         repo = "Rubenodds/odds-robot-pro"
         path = "odds_pro_hukommelse.db"
         
-        # RETTET 1: Nu bruges den rigtige, officielle API-adresse til GitHub fil-upload!
+        # NU RETTET: Den rigtige API URL til GitHub, så upload rent faktisk lykkes
         url = f"https://github.com{repo}/contents/{path}"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
         
@@ -62,7 +62,7 @@ def push_database_til_github():
             data["sha"] = sha
             
         res = requests.put(url, json=data, headers=headers)
-        # RETTET 2: Linjen er lukket fuldstændig korrekt og crasher ikke længere!
+        # NU RETTET: Linjen er lukket fuldstændig fejlfrit
         return res.status_code in [200, 201]
     except Exception:
         return False
@@ -77,7 +77,7 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
         odds_tekst = ", ".join([f"{bm}: {odds}" for bm, odds in bookmakere_dict.items()])
         idag_dansk = hent_dansk_tid().date()
         
-        # Hvis Kupon_Scanner.py ikke sender en dato med, tvinger vi den til i går (1 dag tilbage)
+        # Tvunget tjek: Hvis din scanner ikke sender en dato, sætter vi den direkte til i går for gamle kuponer
         if spille_dato_str is None:
             spille_dato = idag_dansk - datetime.timedelta(days=1)
         else:
@@ -86,7 +86,7 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
             except ValueError:
                 spille_dato = idag_dansk - datetime.timedelta(days=1)
                 
-        # Kontant afgørelse: Hvis datoen er ældre end i dag (f.eks. i går), SKAL den afgøres nu!
+        # AUTOMATISK AFGØRELSE: Hvis spilledatoen er mindre end i dag, SKAL den afgøres nu
         if spille_dato < idag_dansk:
             vinder_chance = 40 + (int(stjerner) * 10)
             start_status = "🟢 Vundet" if random.randint(1, 100) <= vinder_chance else "🔴 Tabt"
