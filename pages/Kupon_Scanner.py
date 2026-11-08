@@ -31,7 +31,7 @@ if uploadet_billede:
             if k["chance"] > 1.0:
                 k["chance"] = round(k["chance"] / 100, 2)
 
-        # RETTET FIX: Nu regnes de originale odds ud helt fejlfrit parvis uden KeyError!
+        # LINJE 35 RETTET: Finder de præcise parvise værdier fra listen uden KeyError
         orig_samlet_odds = round(data["kampe"][0]["odds"] * data["kampe"][1]["odds"] * data["kampe"][2]["odds"], 2)
         orig_samlet_chance = data["kampe"][0]["chance"] * data["kampe"][1]["chance"] * data["kampe"][2]["chance"]
         orig_samlet_chance_procent = round(orig_samlet_chance * 100, 1)
@@ -51,14 +51,14 @@ if uploadet_billede:
         
         vis_alternativer = st.toggle("🤖 Aktiver AI Værdi-Scanner (Vis alternative muligheder)", value=False)
         
-        # RETTET FIX: Variablen er nu initialiseret korrekt som en tom liste
+        # LINJE 49 RETTET: Listen initialiseres korrekt som en tom liste
         endelige_valgte_spil = []
         samlet_ny_vinderchance = 1.0
         tillad_ekstra_boost = False
 
         if vis_alternativer:
             for kamp in data["kampe"]:
-                _, _, vil_booste, forklaring_tekst = hent_ai_alternativer_for_kamp(campaign_name=kamp["hold"], originalt_odds=kamp["odds"], total_orig_odds=orig_samlet_odds, antal_kampe=antal_kampe)
+                _, _, vil_booste, forklaring_tekst = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 if vil_booste:
                     st.warning(forklaring_tekst)
                     tillad_ekstra_boost = st.checkbox("🔓 Giv robotten lov til at sprænge odds-laget for denne guldklump", value=False, key="tillad_boost_check")
@@ -100,7 +100,7 @@ if uploadet_billede:
                     valgmuligheder.insert(1, f"🚀 AI VALUE-BOOST: Over 4.5 kort i kampen (Odds {odds_boosted:.2f}) [Chance: 45%]")
                 
                 for f in forslag:
-                    valgmuligheder.append(f"{f['titel']} (Odds {f['odds']:.2f}) [Chance: {int(f['chance']*100)}%]")
+                    valgmuligheder.append(f"{f['titel']} (Odds {f['odds']:.2f}) [Chance: {int(f['chance']*100)}% ]")
                 
                 valgt_marked = st.radio(f"Marked {i}:", valgmuligheder, key=f"pro_valg_{i}", label_visibility="collapsed")
                 
