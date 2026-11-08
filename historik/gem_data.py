@@ -61,7 +61,7 @@ def push_database_til_github():
         return False
 
 def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stjerner, spille_dato_str=None):
-    """Gemmer kuponen. Hvis en spilledato sendes med (f.eks. i går) tjekkes den, ellers bruges i dag."""
+    """Gemmer kuponen. Hvis datoen er i fortiden, afgøres den automatisk."""
     try:
         initier_database()
         conn = sqlite3.connect("odds_pro_hukommelse.db")
@@ -70,7 +70,6 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
         odds_tekst = ", ".join([f"{bm}: {odds}" for bm, odds in bookmakere_dict.items()])
         idag_dansk = hent_dansk_tid().date()
         
-        # Hvis der ikke er sendt en dato med fra scanneren, bruger vi dags dato
         if spille_dato_str is None:
             spille_dato = idag_dansk
         else:
@@ -79,7 +78,6 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
             except ValueError:
                 spille_dato = idag_dansk
                 
-        # Hvis kuponen er fra i går eller tidligere, afgør den automatisk med det samme
         if spille_dato < idag_dansk:
             vinder_chance = 40 + (int(stjerner) * 10)
             start_status = "🟢 Vundet" if random.randint(1, 100) <= vinder_chance else "🔴 Tabt"
