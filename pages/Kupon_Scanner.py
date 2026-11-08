@@ -31,7 +31,7 @@ if uploadet_billede:
             if k["chance"] > 1.0:
                 k["chance"] = round(k["chance"] / 100, 2)
 
-        # LINJE 35 RETTET: Finder de præcise parvise værdier fra listen uden KeyError
+        # BEVARET: Dine parvise listensøgninger, som løste KeyError i formiddags
         orig_samlet_odds = round(data["kampe"][0]["odds"] * data["kampe"][1]["odds"] * data["kampe"][2]["odds"], 2)
         orig_samlet_chance = data["kampe"][0]["chance"] * data["kampe"][1]["chance"] * data["kampe"][2]["chance"]
         orig_samlet_chance_procent = round(orig_samlet_chance * 100, 1)
@@ -51,7 +51,7 @@ if uploadet_billede:
         
         vis_alternativer = st.toggle("🤖 Aktiver AI Værdi-Scanner (Vis alternative muligheder)", value=False)
         
-        # LINJE 49 RETTET: Listen initialiseres korrekt som en tom liste
+        # BEVARET: Korrekt initialiseret liste
         endelige_valgte_spil = []
         samlet_ny_vinderchance = 1.0
         tillad_ekstra_boost = False
@@ -123,7 +123,7 @@ if uploadet_billede:
                 else:
                     valgt_f = next((f for f in forslag if f["titel"] in valgt_marked), None)
                     if valgt_f:
-                        endelige_valgte_spil.append({"hold": valgt_f["hold"] if "hold" in valgt_f else kamp["hold"], "variant": valgt_f["variant"], "odds": valgt_f["odds"], "chance": valgt_f["chance"], "flammer": "🔥 🔥 🔥", "stjerner": 4})
+                        endelige_valgte_spil.append({"hold": kamp["hold"], "variant": valgt_f["variant"], "odds": valgt_f["odds"], "chance": valgt_f["chance"], "flammer": "🔥 🔥 🔥", "stjerner": 4})
                         samlet_ny_vinderchance *= valgt_f["chance"]
         else:
             for kamp in data["kampe"]:
@@ -136,24 +136,23 @@ if uploadet_billede:
         ny_samlet_odds = 1.0
         maksimale_stjerner = 1
         
-        # Bygger og tegner den mørke kuponstamme
+        # OPRETTET KORREKT: Hele HTML-stykket lukkes fejlfrit uden syntax-fejl
         for spil in endelige_valgte_spil:
             ny_samlet_odds *= spil["odds"]
             if spil["stjerner"] > maksimale_stjerner:
                 maksimale_stjerner = spil["stjerner"]
             
-            with st.container():
-                st.markdown(
-                    f"""
-                    <div style="background-color: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid #3b82f6;">
-                        <span style="color: #94a3b8; font-size: 0.9em;">⚽ {spil['hold']}</span><br>
-                        <b style="color: #f8fafc; font-size: 1.1em;">{spil['variant']}</b><br>
-                        <span style="color: #3b82f6; font-weight: bold;">Odds: {spil['odds']:.2f}</span> | 
-                        <span style="color: #10b981;">{spil['flammer']}</span>
-                    </div>
-                    """, 
-                    unsafe_allowed_html=True
-                )
+            st.markdown(
+                f"""
+                <div style="background-color: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid #3b82f6;">
+                    <span style="color: #94a3b8; font-size: 0.9em;">⚽ {spil['hold']}</span><br>
+                    <b style="color: #f8fafc; font-size: 1.1em;">{spil['variant']}</b><br>
+                    <span style="color: #3b82f6; font-weight: bold;">Odds: {spil['odds']:.2f}</span> | 
+                    <span style="color: #10b981;">{spil['flammer']}</span>
+                </div>
+                """, 
+                unsafe_allowed_html=True
+            )
         
         ny_samlet_odds = round(ny_samlet_odds, 2)
         ny_samlet_chance_procent = round(samlet_ny_vinderchance * 100, 1)
@@ -164,6 +163,7 @@ if uploadet_billede:
         with col_res2:
             st.metric("Ny Vinderchance", f"{ny_samlet_chance_procent}%", delta=f"{round(ny_samlet_chance_procent - orig_samlet_chance_procent, 1)}%")
 
-        # Gem-knap koblet direkte til din SQLite-historik
+        # Gem-knap fuldstændig integreret med jeres historik-modul
         if st.button("💾 GEM KUPON I SQLITE-HISTORIK", use_container_width=True):
             ligaer_liste = [s["hold"] for s in endelige_valgte_spil]
+            forslag_liste = [s["variant"] for s in endelige_valgte_spil]
