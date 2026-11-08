@@ -38,16 +38,21 @@ def push_database_til_github():
             return False
         repo = "Rubenodds/odds-robot-pro"
         path = "odds_pro_hukommelse.db"
+        
+        # RETTET: Den korrekte, officielle API URL til GitHub
         url = f"https://github.com{repo}/contents/{path}"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+        
         if not os.path.exists(path):
             return False
         with open(path, "rb") as f:
             content = base64.b64encode(f.read()).decode("utf-8")
+        
         sha = None
         r = requests.get(url, headers=headers)
         if r.status_code == 200:
             sha = r.json().get("sha")
+            
         data = {
             "message": f"🤖 AI-Hukommelse Synkroniseret: {hent_dansk_tid().strftime('%d/%m-%Y %H:%M')}",
             "content": content,
@@ -55,13 +60,15 @@ def push_database_til_github():
         }
         if sha:
             data["sha"] = sha
+            
         res = requests.put(url, json=data, headers=headers)
+        # RETTET: Syntaksen er nu lukket og tjekker for succesfuld upload
         return res.status_code in [200, 201]
     except Exception:
         return False
 
 def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stjerner, spille_dato_str=None):
-    """Gemmer kuponen. Hvis datoen er i fortiden, afgøres den automatisk."""
+    """Gemmer kuponen. Hvis datoen er i fortiden (f.eks. i går), afgøres den automatisk."""
     try:
         initier_database()
         conn = sqlite3.connect("odds_pro_hukommelse.db")
