@@ -1,7 +1,6 @@
 import streamlit as st
 from PIL import Image
 from historik.gem_data import gem_kupon_i_historik
-from bookmaker_scanner.scanner_motor import hent_ai_alternativer_for_kamp
 
 st.set_page_config(page_title="AI Billed-Scanner & Kupon-Optimering", page_icon="📸", layout="centered")
 
@@ -25,7 +24,6 @@ if uploadet_billede:
 
     if st.session_state["scannet_data"] is not None:
         data = st.session_state["scannet_data"]
-        antal_kampe = len(data["kampe"])
         
         for k in data["kampe"]:
             if k["chance"] > 1.0:
@@ -42,17 +40,10 @@ if uploadet_billede:
         st.write("---")
         st.subheader("⚡ AI Multi-Balancering & Markedsalternativer")
         
-        ai_strategi = st.selectbox(
-            "Vælg robottens arbejdsværktøj:",
-            ["Låst Margin-Sikring (Hold samlet odds strikt inden for +/- 5)", "Fri AI Værdi-Optimering (Robotten vælger frit de bedste odds ud fra markedet)"],
-            key="valg_af_ai_strategi"
-        )
-        
         vis_alternativer = st.toggle("🤖 Aktiver AI Værdi-Scanner (Vis alternative muligheder)", value=False)
         
         endelige_valgte_spil = []
         samlet_ny_vinderchance = 1.0
-        tillad_ekstra_boost = False
 
         if vis_alternativer:
             st.write("💡 *Vælg marked eller tast dit eget spil ind for hver kamp:*")
@@ -87,26 +78,21 @@ if uploadet_billede:
         ny_samlet_odds = 1.0
         maksimale_stjerner = 1
         
+        # 100% FEJLFRI OG STABIL VISNING UDEN MARKDOWN SYNTAX-FEJL
         for spil in endelige_valgte_spil:
             ny_samlet_odds *= spil["odds"]
             if spil["stjerner"] > maksimale_stjerner:
                 maksimale_stjerner = spil["stjerner"]
             
-            st.markdown(
-                f"""
-                <div style="background-color: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid #3b82f6;">
-                    <span style="color: #94a3b8; font-size: 0.9em;">⚽ {spil['hold']}</span><br>
-                    <b style="color: #f8fafc; font-size: 1.1em;">{spil['variant']}</b><br>
-                    <span style="color: #3b82f6; font-weight: bold;">Odds: {spil['odds']:.2f}</span> | 
-                    <span style="color: #10b981;">{spil['flammer']}</span>
-                </div>
-                """, 
-                unsafe_allowed_html=True
-            )
+            # Bruger indbyggede komponenter som aldrig kan fejle i fortolkningen
+            with st.expander(f"⚽ {spil['hold']} — Odds {spil['odds']:.2f}", expanded=True):
+                st.write(f"**Valgt spil:** {spil['variant']}")
+                st.write(f"**AI Vurdering:** {spil['flammer']}")
         
         ny_samlet_odds = round(ny_samlet_odds, 2)
         ny_samlet_chance_procent = round(samlet_ny_vinderchance * 100, 1)
         
+        st.write("---")
         col_res1, col_res2 = st.columns(2)
         with col_res1:
             st.metric("Nyt Samlet Odds", f"{ny_samlet_odds:.2f}", delta=round(ny_samlet_odds - orig_samlet_odds, 2))
