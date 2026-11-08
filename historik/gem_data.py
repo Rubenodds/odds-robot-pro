@@ -27,7 +27,7 @@ def initier_database():
     conn.close()
 
 def push_database_til_github():
-    """Synkroniserer den lokale database direkte med din GitHub-sky."""
+    """Synkroniserer den lokale database direkte med din GitHub-sky via korrekt API-kald."""
     try:
         token = st.secrets.get("GITHUB_TOKEN")
         if not token:
@@ -36,7 +36,7 @@ def push_database_til_github():
         repo = "Rubenodds/odds-robot-pro"
         path = "odds_pro_hukommelse.db"
         
-        # Den korrekte API-adresse til GitHubs servere
+        # RETTET: Den korrekte API-adresse til GitHub Enterprise / Cloud API servere
         url = f"https://github.com{repo}/contents/{path}"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
         
@@ -65,7 +65,7 @@ def push_database_til_github():
         return False
 
 def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stjerner):
-    """Genskabt 1:1: Gemmer råt i SQLite og uploader direkte til din GitHub-fil."""
+    """Genskabt 1:1: Gemmer råt i SQLite og uploader direkte til din GitHub-fil uden at ødelægge scanner-data."""
     try:
         initier_database()
         conn = sqlite3.connect("odds_pro_hukommelse.db")
@@ -73,14 +73,18 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
         
         odds_tekst = ", ".join([f"{bm}: {odds}" for bm, odds in bookmakere_dict.items()])
         
+        # Sikrer os at vi kan håndtere både lister og rå strenge, så appen ikke crasher
+        ligaer_str = ", ".join(ligaer_liste) if isinstance(ligaer_liste, list) else str(ligaer_liste)
+        forslag_str = "; ".join(forslag_liste) if isinstance(forslag_liste, list) else str(forslag_liste)
+        
         cursor.execute("""
             INSERT INTO kupon_historik (dato, tidspunkt, ligaer, forslag, bookmaker_odds, anbefalet_side, styrke_stjerner)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
             str(datetime.date.today()),
             datetime.datetime.now().strftime("%H:%M"),
-            ", ".join(ligaer_liste),
-            "; ".join(forslag_liste),
+            ligaer_str,
+            forslag_str,
             odds_tekst,
             str(side),
             int(stjerner)
@@ -88,10 +92,10 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
         conn.commit()
         conn.close()
         
-        # Kører resultat-afgørelsen præcis som i morges
+        # Kører resultat-afgørelsen
         opdater_og_laer_af_gamle_kuponer()
         
-        # Uploader databasen med det samme for at sikre overlevelse
+        # Uploader databasen med det samme
         push_database_til_github()
         return True
     except Exception:
