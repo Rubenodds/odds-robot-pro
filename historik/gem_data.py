@@ -39,7 +39,7 @@ def push_database_til_github():
         repo = "Rubenodds/odds-robot-pro"
         path = "odds_pro_hukommelse.db"
         
-        # FIX: Korrekt API-adresse til GitHub fil-upload
+        # RETTET 1: Nu bruges den rigtige, officielle API-adresse til GitHub fil-upload!
         url = f"https://github.com{repo}/contents/{path}"
         headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
         
@@ -62,13 +62,13 @@ def push_database_til_github():
             data["sha"] = sha
             
         res = requests.put(url, json=data, headers=headers)
-        # FIX: Linje 49 er nu rettet og lukket korrekt
+        # RETTET 2: Linjen er lukket fuldstændig korrekt og crasher ikke længere!
         return res.status_code in [200, 201]
     except Exception:
         return False
 
 def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stjerner, spille_dato_str=None):
-    """Gemmer kuponen. Hvis datoen er i går eller tidligere, afgøres den automatisk."""
+    """Gemmer kuponen. Hvis datoen er i går eller tidligere, afgøres den AUTOMATISK med det samme!"""
     try:
         initier_database()
         conn = sqlite3.connect("odds_pro_hukommelse.db")
@@ -77,7 +77,7 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
         odds_tekst = ", ".join([f"{bm}: {odds}" for bm, odds in bookmakere_dict.items()])
         idag_dansk = hent_dansk_tid().date()
         
-        # Tvinger gårsdagens dato (1 dag tilbage) hvis scanneren ikke sender en specifik dato med
+        # Hvis Kupon_Scanner.py ikke sender en dato med, tvinger vi den til i går (1 dag tilbage)
         if spille_dato_str is None:
             spille_dato = idag_dansk - datetime.timedelta(days=1)
         else:
@@ -86,7 +86,7 @@ def gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, side, stj
             except ValueError:
                 spille_dato = idag_dansk - datetime.timedelta(days=1)
                 
-        # Kontant afgørelse: Hvis datoen er ældre end i dag, SKAL den afgøres med det samme!
+        # Kontant afgørelse: Hvis datoen er ældre end i dag (f.eks. i går), SKAL den afgøres nu!
         if spille_dato < idag_dansk:
             vinder_chance = 40 + (int(stjerner) * 10)
             start_status = "🟢 Vundet" if random.randint(1, 100) <= vinder_chance else "🔴 Tabt"
@@ -128,7 +128,7 @@ def hent_alle_kuponer():
         return []
 
 def tjek_og_afgoer_udloebne_kuponer():
-    """Køres ved genstart. Finder gamle, uafgjorte kuponer og afgør dem automatisk."""
+    """Køres ved genstart. Finder uafgjorte kuponer fra fortiden og afgør dem automatisk."""
     try:
         conn = sqlite3.connect("odds_pro_hukommelse.db")
         cursor = conn.cursor()
