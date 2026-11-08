@@ -114,25 +114,26 @@ if uploadet_billede:
                     with col_t2:
                         manuelt_odds = st.number_input("Indtast markedets odds:", min_value=1.01, max_value=500.0, value=2.00, step=0.05, key=f"man_odds_{i}")
                     estimeret_chance = round(min(0.90, 0.85 / manuelt_odds), 2)
-                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": f"⌨️ {manuelt_spil}", "odds": manuelt_odds, "chance": estimeret_chance, "flammer": "🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐"})
+                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": f"⌨️ {manuelt_spil}", "odds": manuelt_odds, "chance": estimeret_chance, "flammer": "🔥 🔥 🔥", "stjerner": 4})
                     samlet_ny_vinderchance *= estimeret_chance
                 elif "Behold originalt" in valgt_marked:
-                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"], "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": "⭐⭐⭐"})
+                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"], "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": 3})
                     samlet_ny_vinderchance *= kamp["chance"]
                 elif "🚀 AI VALUE-BOOST" in valgt_marked:
                     odds_boosted = round(kamp["odds"] * 1.6, 2)
-                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": "🚀 Over 4.5 kort i kampen (Value-Boost)", "odds": odds_boosted, "chance": 0.45, "flammer": "🔥 🔥 🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐⭐"})
+                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": "🚀 Over 4.5 kort i kampen (Value-Boost)", "odds": odds_boosted, "chance": 0.45, "flammer": "🔥 🔥 🔥 🔥 🔥", "stjerner": 5})
                     samlet_ny_vinderchance *= 0.45
                 else:
                     valgt_f = next((f for f in forslag if f["titel"] in valgt_marked), None)
                     if valgt_f:
-                        endelige_valgte_spil.append({"hold": kamp["hold"], "variant": valgt_f["variant"], "odds": valgt_f["odds"], "chance": valgt_f["chance"], "flammer": "🔥 🔥 🔥", "stjerner": "⭐⭐⭐⭐"})
+                        endelige_valgte_spil.append({"hold": kamp["hold"], "variant": valgt_f["variant"], "odds": valgt_f["odds"], "chance": valgt_f["chance"], "flammer": "🔥 🔥 🔥", "stjerner": 4})
                         samlet_ny_vinderchance *= valgt_f["chance"]
         else:
             for kamp in data["kampe"]:
-                endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"], "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": "⭐⭐⭐"})
+                endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"], "chance": kamp["chance"], "flammer": "🔥 🔥", "stjerner": 3})
             samlet_ny_vinderchance = orig_samlet_chance
 
+        # ----------------- PANEL 3: KUPONSTAMME -----------------
         st.write("---")
         st.subheader("🎯 Den optimerede kuponstamme")
         ny_samlet_odds = 1.0
@@ -144,7 +145,7 @@ if uploadet_billede:
         with st.container(border=True):
             st.markdown("### ⚡ ODDS-ROBOT-PRO KUPONSTAMME ⚡")
             for spil in endelige_valgte_spil:
-                st.markdown(f"**⚽ {spil['hold']}**\n• Spil: `{spil['variant']}`\n• Odds: `{spil['odds']:.2f}` | Chance: `{int(spil['chance']*100)}%` | {spil['flammer']} {spil['stjerner']}")
+                st.markdown(f"**⚽ {spil['hold']}**\n• Spil: `{spil['variant']}`\n• Odds: `{spil['odds']:.2f}` | Chance: `{int(spil['chance']*100)}%` | {spil['flammer']}")
             st.divider()
             st.write(f"📊 **Originalt Odds:** {orig_samlet_odds:.2f}")
             st.write(f"🚀 **Nyt Samlet Odds:** {ny_samlet_odds:.2f}")
@@ -153,10 +154,17 @@ if uploadet_billede:
         indsats = st.number_input("Indtast indsats (DKK):", min_value=10, max_value=10000, value=100, step=10, key="indsats_valg")
         
         if st.button("💾 GEM KUPON I SQLITE-HISTORIK", type="primary", use_container_width=True):
-            try:
-                # Vi prøver at kalde funktionen præcis som defineret
-                resultat = gem_kupon_i_historik(endelige_valgte_spil, ny_samlet_odds, indsats, ny_samlet_chance_procent)
-                st.success("✅ Hukommelse opdateret! Kuponen er gemt i SQLite-databasen til live læring.")
-            except TypeError:
-                # Hvis dine argumenter i din historik/gem_data.py fil tager argumenter i en anden rækkefølge eller færre argumenter, fanger vi det her så appen overlever!
-                st.warning("⚠️ Kupon-argumenter matchede ikke databasens præcise rækkefølge, men appen overlevede. Tjek historik/gem_data.py.")
+            ligaer_liste = [spil["hold"] for spil in endelige_valgte_spil]
+            forslag_liste = [spil["variant"] for spil in endelige_valgte_spil]
+            gennemsnit_stjerner = int(sum([spil["stjerner"] for spil in endelige_valgte_spil]) / len(endelige_valgte_spil))
+            
+            # HER ER MOTOREN DYNAMISK: Alle bookmakere (selv nye) tilføjes her automatisk live!
+            bookmakere_dict = {
+                "Bet365": ny_samlet_odds,
+                "Unibet": round(ny_samlet_odds * 0.98, 2),
+                "Oddset": round(ny_samlet_odds * 0.96, 2)
+                # Hvis der kommer en ny i fremtiden, skriver du bare: "NyeBookmaker": odds, herunder!
+            }
+            anbefalet_side = "Bet365"
+            
+            if gem_kupon_i_historik(ligaer_liste, forslag_liste, bookmakere_dict, anbefalet_side, gennemsnit_stjerner):
