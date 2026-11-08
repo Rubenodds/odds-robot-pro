@@ -79,6 +79,7 @@ if uploadet_billede:
                 st.markdown(f"### ⚽ {kamp['hold']}")
                 forslag, mangler_muligheder, vil_booste, _ = hent_ai_alternativer_for_kamp(kamp["hold"], kamp["odds"], orig_samlet_odds, antal_kampe)
                 
+                # Beregn dynamiske alternativer baseret på valgt strategi
                 if "Låst Margin-Sikring" in ai_strategi:
                     for f in forslag:
                         if f["id"] == "lav":
@@ -100,17 +101,19 @@ if uploadet_billede:
                             f["titel"] = f"⚽ AI Værdi-Boost (Fri Værdi): {f['variant']}"
                             f["chance"] = round(min(0.60, 0.72 / f["odds"]), 2)
                 
+                # Opbyg valgmuligheder med den nye visuelle %-vinderchance i listen
                 valgmuligheder = [
-                    f"Behold originalt valg: {kamp['originalt_valg']} (Odds {kamp['odds']:.2f})",
+                    f"Behold originalt valg: {kamp['originalt_valg']} (Odds {kamp['odds']:.2f}) [Chance: {int(kamp['chance']*100)}%]",
                     "⌨️ Tast selv mit eget valg for denne kamp..."
                 ]
                 
                 if vil_booste and tillad_ekstra_boost:
                     odds_boosted = round(kamp["odds"] * 1.6, 2)
-                    valgmuligheder.insert(1, f"🚀 AI VALUE-BOOST: Over 4.5 kort i kampen (Odds {odds_boosted:.2f})")
+                    chance_boosted = 0.45
+                    valgmuligheder.insert(1, f"🚀 AI VALUE-BOOST: Over 4.5 kort i kampen (Odds {odds_boosted:.2f}) [Chance: {int(chance_boosted*100)}%]")
                 
                 for f in forslag:
-                    valgmuligheder.append(f"{f['titel']} (Odds {f['odds']:.2f})")
+                    valgmuligheder.append(f"{f['titel']} (Odds {f['odds']:.2f}) [Chance: {int(f['chance']*100)}%]")
                 
                 valgt_marked = st.radio(f"Vælg marked for {kamp['hold']}:", valgmuligheder, key=f"pro_valg_{i}", label_visibility="collapsed")
                 
@@ -173,18 +176,12 @@ if uploadet_billede:
         ny_samlet_odds = round(ny_samlet_odds, 2)
         ny_samlet_chance_procent = round(samlet_ny_vinderchance * 100, 1)
 
-        # Bygget 100% stabilt med indbyggede Streamlit-komponenter for at undgå klipning
         with st.container(border=True):
             st.markdown("### ⚡ ODDS-ROBOT-PRO KUPONSTAMME ⚡")
             for spil in endelige_valgte_spil:
                 st.markdown(f"**⚽ {spil['hold']}**")
                 st.markdown(f"• Spil: `{spil['variant']}`")
-                st.markdown(f"• Odds: `{spil['odds']:.2f}` | {spil['flammer']} {spil['stjerner']}")
+                st.markdown(f"• Odds: `{spil['odds']:.2f}` | Chance: `{int(spil['chance']*100)}%` | {spil['flammer']} {spil['stjerner']}")
                 st.write("")
             st.divider()
             st.write(f"📊 **Originalt Odds:** {orig_samlet_odds:.2f}")
-            st.write(f"🚀 **Nyt Samlet Odds:** {ny_samlet_odds:.2f}")
-            st.write(f"📈 **Estimeret Systemchance:** {ny_samlet_chance_procent}%")
-
-        # Indsats og lagring
-        st.write("")
