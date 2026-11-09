@@ -3,6 +3,7 @@ import datetime
 import os
 import requests
 import base64
+import streamlit as st
 
 DB_FILE = "odds_pro_hukommelse.db"
 
@@ -23,18 +24,81 @@ def init_db():
     conn.commit()
     conn.close()
 
+def hent_github_config():
+    """ Henter dine krypterede data sikkert fra Streamlit Secrets """
+    try:
+        return (
+            st.secrets["github"]["token"],
+            st.secrets["github"]["username"],
+            st.secrets["github"]["repo"]
+        )
+    except Exception:
+        return None, None, None
+
+def gem_database_til_github_cloud():
+    """ Backup-motor der skyder din database direkte op på GitHub ved ændringer """
+    token, username, repo = hent_github_config()
+    if not token or not os.path.exists(DB_FILE):
+        return
+
+    url = f"https://github.com{username}/{repo}/contents/{DB_FILE}"
+    headers = {"Authorization": f"token {token}", "Accept": "application/json"}
+
+    try:
+        # Læs den lokale DB-fil og lav den til base64-streng
+        with open(DB_FILE, "rb") as f:
+            content = base64.b64encode(f.read()).decode("utf-8")
+
+        # Tjek om filen allerede ligger på GitHub for at få dens 'sha' ID
+        res = requests.get(url, headers=headers)
+        sha = res.json().get("sha") if res.status_code == 200 else None
+
+        data = {
+            "message": f"🤖 Odds-Robot-Pro: Automatisk database-backup [{datetime.datetime.utcnow() + datetime.timedelta(hours=1)}]",
+            "content": content,
+        }
+        if sha:
+            data["sha"] = sha
+
+        # Skyd filen op på GitHub
+        requests.put(url, headers=headers, json=data)
+    except Exception as e:
+        print(f"Cloud backup fejlede: {e}")
+
+def hent_database_fra_github_cloud():
+    """ Gendannelses-motor: Henter din database tilbage, hvis Streamlit har været genstartet """
+    token, username, repo = hent_github_config()
+    if not token:
+        return
+
+    url = f"https://github.com{username}/{repo}/contents/{DB_FILE}"
+    headers = {"Authorization": f"token {token}", "Accept": "application/json"}
+
+    try:
+        res = requests.get(url, headers=headers)
+        if res.status_code == 200:
+            file_data = res.json()
+            content = base64.b64decode(file_data["content"])
+            with open(DB_FILE, "wb") as f:
+                f.write(content)
+    except Exception as e:
+        print(f"Kunne ikke hente cloud-database ved opstart: {e}")
+
 def gem_kupon_i_historik(gemme_ligaer, gemme_forslag, samlet_billede_data):
     """
     Fikser fejlen på linje 134 i app.py. 
     Modtager data sikkert og logger kuponen som afventende uden at vælte appen.
     """
+    # Prøv altid at hente eksisterende data ned fra skyen først, hvis filen mangler lokalt
+    if not os.path.exists(DB_FILE):
+        hent_database_fra_github_cloud()
+        
     init_db()
     
     # Dansk tidsstyring (Krav 2)
     dansk_tid = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
     dato_str = dansk_tid.strftime("%Y-%m-%d %H:%M")
     
-    # Sikring mod None-værdier fra billedscanneren
     if samlet_billede_data is None:
         samlet_billede_data = "Intet eller uægte screenshot"
         
@@ -52,25 +116,15 @@ def gem_kupon_i_historik(gemme_ligaer, gemme_forslag, samlet_billede_data):
     finally:
         conn.close()
         
-    # Synkroniser databasen med skyen, så intet mistes ved reboot
+    # Synkroniser ændringen med skyen med det samme!
     gem_database_til_github_cloud()
 
-def afgoer_alle_afventendinge_kuponer_live():
-    """ Forbliver låst indtil reel validering sker (Krav 5) """
+def afgoer_alle_afventende_kuponer_live():
+    if not os.path.exists(DB_FILE):
+        hent_database_fra_github_cloud()
     init_db()
-    pass
 
 def vis_auto_resultat_og_rapport():
-    """ Viser rapporten i appen """
+    if not os.path.exists(DB_FILE):
+        hent_database_fra_github_cloud()
     init_db()
-    pass
-
-# --- REBOOT RECOVERY MOTOR (GITHUB CLOUD LAGRING) ---
-def gem_database_til_github_cloud():
-    """ Backup-motor der skyder din database direkte i skyen ved ændringer """
-    # Her kobler vi dit GitHub token på via Streamlit Secrets i næste skridt
-    pass
-
-def hent_database_fra_github_cloud():
-    """ Henter din database tilbage fra skyen, når Streamlit har været genstartet """
-    pass
