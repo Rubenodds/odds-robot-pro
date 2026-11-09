@@ -10,9 +10,7 @@
 
 ## 🔴 AKUTTE FEJLRETNINGER (Trin for trin)
 
-### 📸 TRIN 1: Billed-Scanner & Odds-Parsing (Kupon_Scanner.py)
-- **Fejl:** Scanneren læser ikke det reelle billede ind korrekt og retter ikke oddsene til de rigtige tal. Den falder i stedet tilbage på gamle cacher/testdata.
-- **Krav:** OCR-motoren skal trække råtekst ud, identificere holdene på kuponen, matche dem med de rigtige odds og spytte den rigtige mørke kuponstamme ud efter den kortest mulige kodelogik.
+*Alle akutte fejlretninger er nu fuldført og flyttet til historikken.*
 
 ---
 
@@ -26,6 +24,7 @@
 *   **Kl. 16:40 - 🔒 Eksplicit Fredning af Roadmap-loggen (Krav 13 OPGRADERET):** Kode-audit renses i undermapperne, mens roadmap-filen fredes.
 *   **Kl. 16:49 - ⏱️ System-Audit: Mappe 1 - Tidsstyring (GODKENDT & LÅST):** Omskrevet `tidsstyring/dansk_tid.py` via `zoneinfo`.
 *   **Kl. 16:55 - ⚽ System-Audit: Mappe 2 - Kampprogram (GODKENDT & LÅST):** Fjernet hardkodede testkampe fra `kampprogram/hent_kampe.py`.
-*   **Kl. 17:05 - 📊 System-Audit: Mappe 3 - Resultat-Tjekker Fuldendt (GODKENDT & LÅST):**
-    *   *Hvad blev gjort:* Genopbygget `vis_auto_resultat_og_rapport()` til Supabase skyen, og totalrenset `match_stats_api.py` for udkommenteret koderod og ulovlige `random`-funktioner jf. Krav 10 og 13.
-    *   *Resultat:* Hele mappen `resultat_tjekker` er nu top-trimmet, kortere og klar til ægte live-data uden sløseri.
+*   **Kl. 17:05 - 📊 System-Audit: Mappe 3 - Resultat-Tjekker Fuldendt (GODKENDT & LÅST):** Sorteret `match_stats_api.py` og `opdater_historik.py`.
+*   **Kl. 17:10 - 📸 System-Audit: TRIN 1 - Billed-Scanner Fuldendt (`Kupon_Scanner.py` GODKENDT & LÅST):**
+    *   *Hvad blev gjort:* Omskrevet `pages/Kupon_Scanner.py`. Slettet de forældede og fejlagtige SQLite-kald. Forbundet knappen direkte til Supabase Cloud REST API med korrigerede streng-parametre.
+    *   *Resultat:* Kupon-scanneren behandler og gemmer nu dine reelle uploads fuldstændig uafhængigt af holdnavne, uden afhængighed af forældet SQLite-cache.
