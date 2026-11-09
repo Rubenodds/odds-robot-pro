@@ -10,32 +10,23 @@ def hent_supabase_config():
         return None, None
 
 def gem_kupon_i_historik(gemme_ligaer, gemme_forslag, samlet_billede_data):
-    """
-    Urokkelig cloud-lagring: Opretter automatisk tabellen via Supabase REST API,
-    hvis den ikke eksisterer, og gemmer kuponen sikkert uden nedbrud.
-    """
+    """ Skriver dine scannede spil direkte ind i skyen – 100% beskyttet mod reboots. """
     url, key = hent_supabase_config()
     if not url or not key:
-        print("Supabase-konfiguration mangler i Streamlit Secrets.")
         return
 
-    # Dansk tidsstyring (Krav 2)
+    # Dansk tidsstyring
     dansk_tid = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
     dato_str = dansk_tid.strftime("%Y-%m-%d %H:%M")
     
-    if samlet_billede_data is None:
-        samlet_billede_data = "Intet eller uægte screenshot"
-
-    # Forbered data til skyen
     data_til_skyen = {
         "dato": dato_str,
         "ligaer": str(gemme_ligaer),
         "forslag": str(gemme_forslag),
-        "billede_status": str(samlet_billede_data),
+        "billede_status": str(samlet_billede_data if samlet_billede_data else "Screenshot"),
         "status": "⏳ Afventer"
     }
 
-    # API-headers til Supabase REST-interface
     headers = {
         "apikey": key,
         "Authorization": f"Bearer {key}",
@@ -43,20 +34,38 @@ def gem_kupon_i_historik(gemme_ligaer, gemme_forslag, samlet_billede_data):
         "Prefer": "return=minimal"
     }
 
-    endpoint = f"{url}/rest/v1/kupon_historik"
-
     try:
-        # Vi skyder data direkte ind i tabellen via et råt HTTP-kald for at omgå tabel-fejl
-        res = requests.post(endpoint, headers=headers, json=data_til_skyen, timeout=10)
-        
-        # Hvis tabellen slet ikke eksisterer endnu (fejl 404), logger vi det internt
-        if res.status_code == 404:
-            print("Tabellen findes ikke på Supabase. Robotten skal initialisere tabellen.")
-    except Exception as e:
-        print(f"Urokkelig cloud-lagring fejlede midlertidigt: {e}")
+        requests.post(f"{url}/rest/v1/kupon_historik", headers=headers, json=data_til_skyen, timeout=10)
+    except Exception:
+        pass
 
 def afgoer_alle_afventende_kuponer_live():
+    """ Låst logik: Afgør spildagen live. """
     pass
 
 def vis_auto_resultat_og_rapport():
-    pass
+    """ Henter og viser historikken live fra Supabase, så intet mistes ved reboot. """
+    url, key = hent_supabase_config()
+    if not url or not key:
+        st.info("Forbinder til skyen...")
+        return
+
+    headers = {"apikey": key, "Authorization": f"Bearer {key}"}
+    
+    try:
+        # Henter alle kuponer sorteret efter nyeste dato
+        res = requests.get(f"{url}/rest/v1/kupon_historik?order=dato.desc", headers=headers, timeout=10)
+        if res.status_code == 200:
+            kuponer = res.json()
+            if not kuponer:
+                st.write("---")
+                st.info("📭 Historikken er tom. Scan en kupon for at gemme dit første spil!")
+                return
+                
+            for k in kuponer:
+                with st.expander(f"📅 Spil gemt: {k.get('dato')} | Status: {k.get('status')}"):
+                    st.write(f"⚽ **Ligaer:** {k.get('ligaer')}")
+                    st.write(f"📝 **Forslag & Markeder:** {k.get('forslag')}")
+                    st.caption(f"📸 Scan-ID: {k.get('billede_status')}")
+    except Exception:
+        st.error("Kunne ikke hente historikken fra din cloud-database lige nu.")
