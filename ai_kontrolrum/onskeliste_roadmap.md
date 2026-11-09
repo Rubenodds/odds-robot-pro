@@ -3,7 +3,7 @@
 ## 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
 1. **app.py er 100% låst:** Ingen ændringer i hovedfilen. Alt kodes i undermapper.
 2. **Bookmaker-Agnostik:** Ingen hardkodede navne. Alt parses via mønstre.
-3. **Permanent Hukommelse:** Supabase Cloud is robottens eneste hjerne.
+3. **Permanent Hukommelse:** Supabase Cloud er robottens eneste hjerne.
 4. **Indsats-Logik:** Standardindsats på 100 kr., hvis beløbet ikke ses på kuponen.
 5. **Årsregnskab & Økonomi-Log:** Knivskarpt regnskab år for år + en permanent TOTAL-SUM.
 6. **Statistisk Total-Indsigt:** Opsamling og læring af holdopstillinger, offsides, målspark osv.
@@ -13,15 +13,16 @@
 ## ✅ UDFØRTE OPGAVER & HISTORIK
 
 ### 📅 Mandag d. 9. november 2026
-*   **Kl. 16:04 - API HTTP Rest-sikring implementeret i historikken:** Omskrevet `resultat_tjekker/opdater_historik.py` til rå HTTP POST-kald.
-*   **Kl. 16:29 - Eliminering af 'random' i beregningsmotoren (`byg_kupon.py` UDFØRT):** Implementeret en reel margin-neutraliseret odds-konverteringsalgoritme.
-*   **Kl. 16:34 - Lovfæstet Ufravigelig Matematisk Integritet (Krav 10 UDFØRT):** Forbud mod falske tilfældighedsgeneratorer tilføjet.
+*   **Kl. 16:04 - API HTTP Rest-sikring implementeret i historikken:** Omskrevet `resultat_tjekker/opdater_historik.py`.
+*   **Kl. 16:29 - Eliminering af 'random' i beregningsmotoren (`byg_kupon.py` UDFØRT):** Matematisk margin-neutraliseret algoritme.
+*   **Kl. 16:34 - Lovfæstet Ufravigelig Matematisk Integritet (Krav 10 UDFØRT):** Forbud mod falske tilfældighedsgeneratorer.
 *   **Kl. 16:36 - Fuldendelse af Master-Regler med Historisk Data-Import (Krav 12 UDFØRT):** Sikring af historisk data-kompatibilitet.
-*   **Kl. 16:40 - 🔒 Eksplicit Fredning af Roadmap-loggen (Krav 13 OPGRADERET):** Kode-audit renses i undermapperne, mens roadmap-filen fredes.
+*   **Kl. 16:40 - 🔒 Eksplicit Fredning af Roadmap-loggen (Krav 13 OPGRADERET):** Kode-audit renses i undermapperne.
 *   **Kl. 16:49 - ⏱️ System-Audit: Mappe 1 - Tidsstyring (GODKENDT & LÅST):** Omskrevet `tidsstyring/dansk_tid.py` via `zoneinfo`.
 *   **Kl. 16:55 - ⚽ System-Audit: Mappe 2 - Kampprogram (GODKENDT & LÅST):** Fjernet hardkodede testkampe fra `kampprogram/hent_kampe.py`.
 *   **Kl. 17:05 - 📊 System-Audit: Mappe 3 - Resultat-Tjekker Fuldendt (GODKENDT & LÅST):** Sorteret `match_stats_api.py` og `opdater_historik.py`.
 *   **Kl. 17:10 - 📸 System-Audit: TRIN 1 - Billed-Scanner Fuldendt (`Kupon_Scanner.py` GODKENDT & LÅST):** Forbundet direkte til Supabase REST API.
-*   **Kl. 17:15 - 🧹 Mappe-Audit: Mappe 5 - Totalsanering af Pages-mappen (UDFØRT & GODKENDT):**
-    *   *Hvad blev gjort:* jf. Krav 13 er de forældede og overflødige filer `5_AI_Kontrolrum.py` og `Kupon_Historik.py` blevet permanent slettet fra GitHub.
-    *   *Resultat:* Mappen er nu fuldstændig renset for gammel SQLite-koderod, hvilket forhindrer Streamlit i at lave dublerede spøgelsessider i din menu.
+*   **Kl. 17:15 - 🧹 Mappe-Audit: Mappe 5 - Totalsanering af Pages-mappen (UDFØRT & GODKENDT):** Slettet overflødige spøgelsesfiler i `pages/`.
+*   **Kl. 17:21 - 🗑️ Mappe-Audit: Mappe 6 - Komplet terminering af Historik-mappe (UDFØRT & GODKENDT):**
+    *   *Hvad blev gjort:* Både `gem_data.py` og den skjulte `__init__.py` er permanent slettet jf. Krav 13.
+    *   *Resultat:* Mappen `historik` er nu 100% fjernet fra kodebasen for at udelukke fil-konflikter.
