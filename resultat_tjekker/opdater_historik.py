@@ -41,15 +41,14 @@ def gem_database_til_github_cloud():
     if not token or not os.path.exists(DB_FILE):
         return
 
-    url = f"https://github.com{username}/{repo}/contents/{DB_FILE}"
+    # RETTET URL-ADRESSE TIL OFFICIAL API
+    url = f"https://api.github.com/repos/{username}/{repo}/contents/{DB_FILE}"
     headers = {"Authorization": f"token {token}", "Accept": "application/json"}
 
     try:
-        # Læs den lokale DB-fil og lav den til base64-streng
         with open(DB_FILE, "rb") as f:
             content = base64.b64encode(f.read()).decode("utf-8")
 
-        # Tjek om filen allerede ligger på GitHub for at få dens 'sha' ID
         res = requests.get(url, headers=headers)
         sha = res.json().get("sha") if res.status_code == 200 else None
 
@@ -60,7 +59,6 @@ def gem_database_til_github_cloud():
         if sha:
             data["sha"] = sha
 
-        # Skyd filen op på GitHub
         requests.put(url, headers=headers, json=data)
     except Exception as e:
         print(f"Cloud backup fejlede: {e}")
@@ -71,7 +69,8 @@ def hent_database_fra_github_cloud():
     if not token:
         return
 
-    url = f"https://github.com{username}/{repo}/contents/{DB_FILE}"
+    # RETTET URL-ADRESSE TIL OFFICIAL API
+    url = f"https://api.github.com/repos/{username}/{repo}/contents/{DB_FILE}"
     headers = {"Authorization": f"token {token}", "Accept": "application/json"}
 
     try:
@@ -85,17 +84,12 @@ def hent_database_fra_github_cloud():
         print(f"Kunne ikke hente cloud-database ved opstart: {e}")
 
 def gem_kupon_i_historik(gemme_ligaer, gemme_forslag, samlet_billede_data):
-    """
-    Fikser fejlen på linje 134 i app.py. 
-    Modtager data sikkert og logger kuponen som afventende uden at vælte appen.
-    """
-    # Prøv altid at hente eksisterende data ned fra skyen først, hvis filen mangler lokalt
+    """ Fikser fejlen på linje 134 i app.py og logger kuponen """
     if not os.path.exists(DB_FILE):
         hent_database_fra_github_cloud()
         
     init_db()
     
-    # Dansk tidsstyring (Krav 2)
     dansk_tid = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
     dato_str = dansk_tid.strftime("%Y-%m-%d %H:%M")
     
@@ -116,7 +110,6 @@ def gem_kupon_i_historik(gemme_ligaer, gemme_forslag, samlet_billede_data):
     finally:
         conn.close()
         
-    # Synkroniser ændringen med skyen med det samme!
     gem_database_til_github_cloud()
 
 def afgoer_alle_afventende_kuponer_live():
