@@ -3,14 +3,10 @@
 ## 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
 1. **app.py er 100% låst:** Ingen ændringer i hovedfilen. Alt kodes i undermapper.
 2. **Bookmaker-Agnostik:** Ingen hardkodede navne. Alt parses via mønstre.
-3. **Permanent Hukommelse:** Supabase Cloud er robottens eneste hjerne.
+3. **Permanent Hukommelse:** Supabase Cloud is robottens eneste hjerne.
 4. **Indsats-Logik:** Standardindsats på 100 kr., hvis beløbet ikke ses på kuponen.
 5. **Årsregnskab & Økonomi-Log:** Knivskarpt regnskab år for år + en permanent TOTAL-SUM.
 6. **Statistisk Total-Indsigt:** Opsamling og læring af holdopstillinger, offsides, målspark osv.
-
-## 🔴 AKUTTE FEJLRETNINGER (Trin for trin)
-
-*Alle akutte fejlretninger er nu fuldført og flyttet til historikken.*
 
 ---
 
@@ -25,6 +21,7 @@
 *   **Kl. 16:49 - ⏱️ System-Audit: Mappe 1 - Tidsstyring (GODKENDT & LÅST):** Omskrevet `tidsstyring/dansk_tid.py` via `zoneinfo`.
 *   **Kl. 16:55 - ⚽ System-Audit: Mappe 2 - Kampprogram (GODKENDT & LÅST):** Fjernet hardkodede testkampe fra `kampprogram/hent_kampe.py`.
 *   **Kl. 17:05 - 📊 System-Audit: Mappe 3 - Resultat-Tjekker Fuldendt (GODKENDT & LÅST):** Sorteret `match_stats_api.py` og `opdater_historik.py`.
-*   **Kl. 17:10 - 📸 System-Audit: TRIN 1 - Billed-Scanner Fuldendt (`Kupon_Scanner.py` GODKENDT & LÅST):**
-    *   *Hvad blev gjort:* Omskrevet `pages/Kupon_Scanner.py`. Slettet de forældede og fejlagtige SQLite-kald. Forbundet knappen direkte til Supabase Cloud REST API med korrigerede streng-parametre.
-    *   *Resultat:* Kupon-scanneren behandler og gemmer nu dine reelle uploads fuldstændig uafhængigt af holdnavne, uden afhængighed af forældet SQLite-cache.
+*   **Kl. 17:10 - 📸 System-Audit: TRIN 1 - Billed-Scanner Fuldendt (`Kupon_Scanner.py` GODKENDT & LÅST):** Forbundet direkte til Supabase REST API.
+*   **Kl. 17:15 - 🧹 Mappe-Audit: Mappe 5 - Totalsanering af Pages-mappen (UDFØRT & GODKENDT):**
+    *   *Hvad blev gjort:* jf. Krav 13 er de forældede og overflødige filer `5_AI_Kontrolrum.py` og `Kupon_Historik.py` blevet permanent slettet fra GitHub.
+    *   *Resultat:* Mappen er nu fuldstændig renset for gammel SQLite-koderod, hvilket forhindrer Streamlit i at lave dublerede spøgelsessider i din menu.
