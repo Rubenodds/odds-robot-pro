@@ -27,5 +27,7 @@
 *   **Kl. 16:29 - Eliminering af 'random' i beregningsmotoren (`byg_kupon.py` UDFØRT):** Implementeret en reel margin-neutraliseret odds-konverteringsalgoritme.
 *   **Kl. 16:34 - Lovfæstet Ufravigelig Matematisk Integritet (Krav 10 UDFØRT):** Forbud mod falske tilfældighedsgeneratorer tilføjet.
 *   **Kl. 16:36 - Fuldendelse af Master-Regler med Historisk Data-Import (Krav 12 UDFØRT):** Sikring af historisk data-kompatibilitet.
-*   **Kl. 16:40 - 🔒 Eksplicit Fredning af Roadmap-loggen (Krav 13 OPGRADERET):**
-    *   *Hvad blev gjort:* Krav 13 i `system_regler.py` er blevet skærpet yderligere, så koderod renses i undermapperne, mens `onskeliste_roadmap.md` erklæres 100% beskyttet mod sletning.
+*   **Kl. 16:40 - 🔒 Eksplicit Fredning af Roadmap-loggen (Krav 13 OPGRADERET):** Kode-audit renses i undermapperne, mens roadmap-filen fredes.
+*   **Kl. 16:49 - ⏱️ System-Audit: Mappe 1 - Tidsstyring (GODKENDT & LÅST):**
+    *   *Hvad blev gjort:* Omskrevet `tidsstyring/dansk_tid.py` til den mest simple single-line funktion ved brug af `zoneinfo`. Al hardkodet `+ timedelta(hours=1)` sløseri er elimineret.
+    *   *Resultat:* Robotten skifter nu fuldstændig automatisk og fejlfrit mellem dansk sommertid og vintertid i al fremtid.
