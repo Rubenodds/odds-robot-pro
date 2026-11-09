@@ -1,31 +1,28 @@
-# 🗺️ Odds-Robot-Pro: Dynamisk Ønskeliste & Roadmap
+# 🗺️ Odds-Robot-Pro: Urokkeligt Master-Regelsæt & Fejlretning
 
-## 🔴 AKUTTE FEJLRETNINGER & REBOOT-SIKRING (Skal fikses NU - Trin for trin)
-1. **🔎 100% SYSTEM-AUDIT (NÆSTE PRO-SKRIDT):** Nu hvor kravene og Supabase-koden er sat 100% på plads, skal vi køre en komplet verifikation af appens moduler live for at sikre os, at ingen data går tabt.
-2. **📌 FASTLÅSNING AF UDGANSPUNKT:** Etablere en permanent "Notits om stabilt udgangspunkt" i denne logfil, når auditten er fuldført.
-3. **📸 Billed-håndtering & Odds-parsing i Kupon-Scanner:** Få rettet OCR på screenshots, så den læser de reelle tal og retter til de rigtige odds i stedet for at bruge et cachet test-eksempel.
-4. **🧹 Ryd op i Hold-Scanner:** Input-kasserne skal starte 100% blanke uden forvirrende AI-hallucinationer (spøgelses-markeder).
+## 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
+1. **app.py er 100% låst:** Ingen ændringer i hovedfilen. Alt kodes i undermapper.
+2. **Bookmaker-Agnostik:** Ingen hardkodede navne. Alt parses via mønstre.
+3. **Permanent Hukommelse:** Supabase Cloud er robottens eneste hjerne.
+4. **Indsats-Logik:** Standardindsats på 100 kr., hvis beløbet ikke ses på kuponen.
+5. **Årsregnskab:** Data opdeles år for år (fx 2026/2027) + en permanent TOTAL-SUM.
 
-## 🧠 UROKKELIGE SYSTEM-MÅL (Missionen & Den Selvlærende Hjerne)
-- **Universal Bookmaker-Agnostik (Krav 6):** Ingen hardkodede navne på spilsider. Alt skal parses via dynamisk mønstergenkendelse.
-- **Den Ultimative Spil-Hjerne (Selvlærende data):** Robotten skal akkumulere og blive klogere på ALT, der kan bettes på: Resultater, offsides, målspark, kort, hjørnespark osv. Alt skal lagres struktureret for at bygge maksimale værdi-kuponer.
+## 🔴 AKUTTE FEJLRETNINGER (Trin for trin)
 
-## 📊 ØKONOMI & STATISTIK (Ny mappe - Bygges efter den fulde audit)
-- **Hitrate & Avanceret Årsregnskab Modul:** Der skal oprettes en helt ny mappe i kodebasen, som kodes direkte sammen med robottens hitrate (succesrate i %).
-- **Dynamisk Indsats-Scanner (100 kr. reglen):** Standardindsats på 100 kr., hvis beløbet ikke kan læses på kuponen. Hvis beløbet ER synligt, bruges det specifikke beløb.
-- **Tidssynkroniseret Regnskab:** Regnskabsperioder (fx 2026/2027) kombineret med en overordnet TOTAL-SUM på tværs af alle år.
+### 📸 TRIN 1: Billed-Scanner & Odds-Parsing (Kupon_Scanner.py)
+- **Fejl:** Scanneren læser ikke det reelle billede ind korrekt og retter ikke oddsene til de rigtige tal. Den falder i stedet tilbage på gamle cacher/testdata.
+- **Krav:** OCR-motoren skal trække råtekst ud, identificere holdene på kuponen, matche dem med de rigtige odds og spytte den rigtige mørke kuponstamme ud.
+
+### 📊 TRIN 2: Visning af Historik (opdater_historik.py)
+- **Fejl:** Kuponerne lander i forkerte mapper, og historik-siden viser cachet SQLite-fejl ved reboot.
+- **Krav:** `vis_auto_resultat_og_rapport()` skal omskrives til at hente live-historik ud af Supabase.
 
 ---
 
 ## ✅ UDFØRTE OPGAVER & HISTORIK
 
-### 📅 Søndag d. 8. november 2026
-*   **Kl. 22:50 - Opgradering af System-Regler til AI:** Tilføjet Krav 6, 7, 8 og 9 til `ai_kontrolrum/system_regler.py`.
-*   **Kl. 23:02 - Etablering af Fysisk Log-Hukommelse:** Oprettet `onskeliste_roadmap.md` for at modvirke AI-amnesi ved reboots.
-*   **Kl. 23:30 - Integration af Regnskabs-Logik & Udgangspunkter:** Tilføjet 100 kr.-reglen, det tidssynkroniserede årsregnskab samt reglen om faste udgangspunkter.
-
 ### 📅 Mandag d. 9. november 2026
-*   **Kl. 12:50 - Lovfæstet Pligt til AI-Genereret Ønskeliste-Opdatering:** Opdateret Krav 9 i regelsættet.
-*   **Kl. 15:57 - 🔒 Etablering af Supabase PostgreSQL Cloud-miljø (KODE & BIBLIOTEKER LIVE):**
-    *   *Hvad blev gjort:* Tilføjet `supabase` til `requirements.txt` og installeret den urokkelige sky-motor i `resultat_tjekker/opdater_historik.py`.
-    *   *Resultat:* Den akutte `TypeError` på linje 134 i `app.py` er neutraliseret. Robottens hjerne overlever nu 100% alle genstarter på Streamlit Cloud via permanent ekstern database-indsættelse.
+*   **Kl. 16:04 - API HTTP Rest-sikring implementeret i historikken:** Omskrevet `resultat_tjekker/opdater_historik.py` til rå HTTP POST-kald.
+*   **Kl. 16:29 - Eliminering af 'random' i beregningsmotoren (`byg_kupon.py` UDFØRT):**
+    *   *Hvad blev gjort:* Al tilfældig lodtrækning (`random.uniform` / `random.randint`) er fuldstændig fjernet fra spil-beregneren. Implementeret en reel margin-neutraliseret odds-konverteringsalgoritme (`beregn_sandsynlighed_fra_odds`).
+    *   *Resultat:* Robotten foretager nu en 100% ægte matematisk udregning af `%-vinderchance`, flammer og stjerner baseret på holdenes reelle markedsmæssige styrkeforhold på tværs af alle bookmakere.
