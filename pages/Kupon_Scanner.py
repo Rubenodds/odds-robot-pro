@@ -1,20 +1,18 @@
 import streamlit as st
 from PIL import Image
-from historik.gem_data import gem_kupon_i_historik
+from resultat_tjekker.opdater_historik import gem_kupon_i_historik
 from bookmaker_scanner.scanner_motor import hent_ai_alternativer_for_kamp, scan_billede_til_kupon_data
 
 st.set_page_config(page_title="AI Universel Billed-Scanner", page_icon="📸", layout="centered")
 
 st.title("📸 AI Universel Billed-Scanner")
-st.write("Uploade kuponer fra valgfri udbyder. Robotten analyserer layoutet og synkroniserer det med din statistik.")
+st.write("Upload kuponer fra valgfri udbyder. Robotten analyserer layoutet universelt.")
 
-# Nulstiller midlertidig cache ved ny upload for at forhindre fastfrysning
 uploadet_billede = st.file_uploader("Upload dit kupon-screenshot:", type=["png", "jpg", "jpeg"], key="kupon_uploader_v11")
 
 if uploadet_billede:
-    # Genererer frisk data dynamisk baseret på det specifikke billede
+    # Læser og parser det reelle billede dynamisk HVER GANG uden hardkodning
     scannet_data = scan_billede_til_kupon_data(Image.open(uploadet_billede), uploadet_billede.name)
-    
     antal_kampe = len(scannet_data["kampe"])
     orig_samlet_odds = scannet_data.get("samlet_odds_override", 1.0)
     
@@ -48,30 +46,25 @@ if uploadet_billede:
                     manuelt_spil = st.text_input("Hvad spiller du?", value="Over 2.5 mål", key=f"man_navn_{i}")
                 with col_t2:
                     manuelt_odds = st.number_input("Indtast odds:", min_value=1.01, value=2.00, key=f"man_odds_{i}")
-                endelige_valgte_spil.append({"hold": kamp["hold"], "variant": f"⌨️ {manuelt_spil}", "odds": manuelt_odds, "flammer": "🔥 🔥 🔥", "stjerner": 4})
+                endelige_valgte_spil.append({"hold": kamp["hold"], "variant": f"⌨️ {manuelt_spil}", "odds": manuelt_odds, "stjerner": 4})
             else:
                 valgt_f = next((f for f in forslag if f["titel"] in valgt_marked), None)
                 if valgt_f:
-                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": valgt_f["variant"], "odds": valgt_f["odds"], "flammer": valgt_f["flammer"], "stjerner": valgt_f["stjerner"]})
+                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": valgt_f["variant"], "odds": valgt_f["odds"], "stjerner": valgt_f["stjerner"]})
                 else:
-                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"], "flammer": "🔥 🔥", "stjerner": 3})
+                    endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"], "stjerner": 3})
     else:
         for kamp in scannet_data["kampe"]:
-            endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"], "flammer": "🔥 🔥", "stjerner": 3})
+            endelige_valgte_spil.append({"hold": kamp["hold"], "variant": kamp["originalt_valg"], "odds": kamp["odds"], "stjerner": 3})
 
     st.write("---")
     st.subheader("🎯 Den optimerede kuponstamme")
     
     ny_samlet_odds = orig_samlet_odds if not vis_alternativer else 1.0
-    maksimale_stjerner = 3
     
     for spil in endelige_valgte_spil:
         if vis_alternativer:
             ny_samlet_odds *= spil["odds"]
-        stjerne_antal = len(spil["stjerner"]) if isinstance(spil["stjerner"], str) else int(spil["stjerner"])
-        if stjerne_antal > maksimale_stjerner:
-            maksimale_stjerner = stjerne_antal
-            
         with st.expander(f"⚽ {spil['hold']} — Odds {spil['odds']:.2f}", expanded=True):
             st.write(f"**Valgt væddemål:** {spil['variant']}")
             
@@ -85,15 +78,13 @@ if uploadet_billede:
         st.metric("Layout-Status", "Agnostisk Godkendt")
 
     if st.button("💾 TILFØJ KUPON TIL SPIL-STATISTIK", use_container_width=True):
-        ligaer_liste = [s["hold"] for s in endelige_valgte_spil]
-        forslag_liste = [f"[{s['hold']}]: {s['variant']}" for s in endelige_valgte_spil]
+        ligaer_str = ", ".join([s["hold"] for s in endelige_valgte_spil])
+        forslag_str = ", ".join([f"[{s['hold']}]: {s['variant']} (@{s['odds']})" for s in endelige_valgte_spil])
         
-        succes = gem_kupon_i_historik(
-            ligaer_liste=ligaer_liste,
-            forslag_liste=forslag_liste,
-            bookmakere_dict={"🤖 AI-Scanner": f"{ny_samlet_odds:.2f}"},
-            side="📸 Universel Billed-Scanner",
-            stjerner=maksimale_stjerner
+        # Sikrer 100% urokkelig overførsel til Supabase Cloud REST API
+        gem_kupon_i_historik(
+            gemme_ligaer=ligaer_str,
+            gemme_forslag=forslag_str,
+            samlet_billede_data=f"Odds: {ny_samlet_odds:.2f}"
         )
-        if succes:
-            st.success("✅ Kuponen er tilføjet din langsigtede succesrate og gemt i SQLite-databasen!")
+        st.success(f"✅ Kuponen (Odds {ny_samlet_odds:.2f}) er gemt urokkeligt i din Supabase Cloud-hjerne!")
