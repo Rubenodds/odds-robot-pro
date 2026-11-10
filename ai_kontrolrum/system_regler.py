@@ -1,6 +1,6 @@
 ======================================================================
 Odds-Robot-Pro: Urokkeligt Master-Regelsæt & Fejlretning
-Status: Tirsdag d. 10. november 2026 kl. 22:28 (Dansk tid)
+Status: Tirsdag d. 10. november 2026 kl. 22:38 (Dansk tid)
 ======================================================================
 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
 
@@ -34,10 +34,10 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 15. 👤 BRUGER-ISOLATION & AKTIV GODKENDELSE ("SPILLET"-KNAP): Appen skal starte 100 % 0-stillet på økonomi og statistik (0,00 kr.) til offentlig brug. Scannede billeder og forslag må ALDRIG gemmes i statistikken automatisk, men kun når brugeren aktivt trykker på knappen "Spillet".
 
 ======================================================================
-📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 22:28)
+📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 22:38)
 ======================================================================
 * `app.py` er 100 % låst med dynamisk modul-indlæsning.
-* `odds_motor/autopilot_scanner.py` (Mappe 1) er færdigopgraderet med `_hent_kampe_v9` (uden små venskabslandskampe) og `_vurder_kupon()` med individuelle flueben pr. forslag samt live opdatering af samlet odds, `%`-vinderchance, stjerner (`⭐`) og risikoflammer (`🔥`).
+* `odds_motor/autopilot_scanner.py` (Mappe 1) er GODKENDT OG LÅST live med `_hent_kampe_v9`, individuelle flueben pr. kuponforslag, live vurdering af samlet odds, `%`-vinderchance, stjerner (`⭐`), risikoflammer (`🔥`) samt `🚀 SPILLET`-knap til Supabase. Fremtidige ekstraønsker til Mappe 1 bygges i et separat modul.
 * `odds_motor/liga_favoritter.py` fastholder de 24+ standardligaer med automatisk navnerettelse (`normaliser_liga_navn`).
-* `ai_kontrolrum/onskeliste_roadmap.md` er opdateret (Tirsdag d. 10. november 2026 kl. 22:28).
-* Næste trin: Læg den opdaterede `odds_motor/autopilot_scanner.py` på GitHub, godkend Mappe 1 live, og fortsæt derefter til Mappe 2 (`odds_motor/manuel_scanner.py`).
+* `ai_kontrolrum/onskeliste_roadmap.md` er opdateret (Tirsdag d. 10. november 2026 kl. 22:38).
+* Næste trin: Byg og opgrader Mappe 2 (`odds_motor/manuel_scanner.py`) med blanke kasser fra start, holdsøgning med anti-dobbeltvalg af modstanderholdet, %-vinderchance, stjerner (`⭐`), risikoflammer (`🔥`) og "Spillet"-knap.
