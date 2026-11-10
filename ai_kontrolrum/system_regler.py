@@ -1,6 +1,6 @@
 ======================================================================
 Odds-Robot-Pro: Urokkeligt Master-Regelsæt & Fejlretning
-Status: Tirsdag d. 10. november 2026 kl. 22:06 (Dansk tid)
+Status: Tirsdag d. 10. november 2026 kl. 22:28 (Dansk tid)
 ======================================================================
 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
 
@@ -20,7 +20,7 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 4. 📊 100% DYNAMISK MARKEDSPARSER: Den skal kunne håndtere alle specialmarkeder: Standard (Mål/Resultat), Hjørnespark (Over/Under/Flest), Spillerskud & Skud på mål, Tacklinger & Målmandsredninger, Kort-sandsynlighed (Gule/Røde) samt Målscorere (Anytime/Første).
 5. 🎲 DE 3 SCANNINGSMAPPER & ODDS-LOGIK:
    - Mappe 1 (Autopilot Scanner): Scanner markedet bredt efter bedst mulige odds inden for den valgte tidszone og et valgt odds-lag (f.eks. 44-50) via Value-Boost. Valgfri på kampe og udfald.
-   - Mappe 2 (Manuel Kamp Vælger): Brugeren vælger selv kampene og udfaldene inden for de valgte ligaer. Blanke kasser fra start, søg et hvilket som helst hold frem, regner %-vinderchance, stjerner og risikoflammer (🔥).
+   - Mappe 2 (Manuel Kamp Vælger): Brugeren vælger selv kampene og udfaldene inden for de valgte ligaer. Blanke kasser fra start, søg et hvilket som helst hold frem (med automatisk udelukkelse af modstanderholdet i samme kamp, så samme opgør ikke kan vælges to gange), regner %-vinderchance, stjerner og risikoflammer (🔥).
    - Mappe 3 (Billed-Scanner): Uploader screenshots, parser layout via mønster-genkendelse og tegner en mørk kuponstamme med interaktiv ret/tilføj-strategi.
 6. 💾 PERMANENT CLOUD-HJERNE & REGNSKAB (Mappe 4 / /historik): Supabase Cloud via REST API er robottens eneste sandhedskilde. Alle spil og rettelser SKAL kunne tilføjes til historikken, så de overlever en reboot permanent. Robotten fører et knivskarpt, automatisk årsregnskab (år for år) baseret på hitrate (%), reelt over-/underskud samt den akkumulerede TOTAL-SUM. Standardindsats på 100 kr. håndhæves altid, hvis intet beløb findes.
 7. 🧠 SELVLÆRENDE LIVE- & HISTORIK-HJERNE (MISSIONEN): Robotten SKAL kontinuerligt opsamle, lagre og lære af BÅDE historisk data (inkl. sæson 25/26) og realtids-data. Den SKAL analysere alt (holdopstillinger, resultater, offsides, målspark osv.) og bruge denne viden til intelligent at forudsige maksimale værdi-kuponer og lære af sine fejl over tid.
@@ -34,10 +34,10 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 15. 👤 BRUGER-ISOLATION & AKTIV GODKENDELSE ("SPILLET"-KNAP): Appen skal starte 100 % 0-stillet på økonomi og statistik (0,00 kr.) til offentlig brug. Scannede billeder og forslag må ALDRIG gemmes i statistikken automatisk, men kun når brugeren aktivt trykker på knappen "Spillet".
 
 ======================================================================
-📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 22:06)
+📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 22:28)
 ======================================================================
 * `app.py` er 100 % låst med dynamisk modul-indlæsning.
-* `odds_motor/autopilot_scanner.py` (Mappe 1) er færdigopgraderet med `_hent_kampe_v8` (korrekt slug-baseret liganavns-matching så bl.a. `bra.2` vises som `Brasilien - Serie B`, direkte opslag på alle ligaer inkl. UEFA Nations League og pokaler, `_vaelg_bedste_kombination()` samt globale flueben for `☑️ Vælg alle aktive ligaer` og `☑️ Vælg alle kampe`, så man lynhurtigt kan til-/fravælge ligaer og enkelte kampe inden for valgt tidsramme).
+* `odds_motor/autopilot_scanner.py` (Mappe 1) er færdigopgraderet med `_hent_kampe_v9` (uden små venskabslandskampe) og `_vurder_kupon()` med individuelle flueben pr. forslag samt live opdatering af samlet odds, `%`-vinderchance, stjerner (`⭐`) og risikoflammer (`🔥`).
 * `odds_motor/liga_favoritter.py` fastholder de 24+ standardligaer med automatisk navnerettelse (`normaliser_liga_navn`).
-* `ai_kontrolrum/onskeliste_roadmap.md` er opdateret (Tirsdag d. 10. november 2026 kl. 22:06).
+* `ai_kontrolrum/onskeliste_roadmap.md` er opdateret (Tirsdag d. 10. november 2026 kl. 22:28).
 * Næste trin: Læg den opdaterede `odds_motor/autopilot_scanner.py` på GitHub, godkend Mappe 1 live, og fortsæt derefter til Mappe 2 (`odds_motor/manuel_scanner.py`).
