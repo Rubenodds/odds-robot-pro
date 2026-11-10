@@ -1,108 +1,79 @@
 import streamlit as st
-import requests
-import sys
-import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from historik import gem_data
+from odds_motor import billed_parser
 
-# 1. PERMANENT HUKOMMELSE (Henter data fra Supabase så det overlever reboot)
-def hent_data_fra_supabase():
-    try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-        headers = {
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json"
-        }
-        # Henter gemte scanninger og historik permanent fra skyen
-        response = requests.get(f"{url}/rest/v1/historik?select=*", headers=headers)
-        if response.status_code == 200:
-            return response.json()
-    except Exception:
-        pass
-    return []
-
-# 2. TIDSMOTOR
-def hent_dansk_tid():
-    try:
-        return datetime.now(ZoneInfo("Europe/Copenhagen"))
-    except Exception:
-        from datetime import timedelta
-        return datetime.utcnow() + timedelta(hours=1)
-
-# Hovedkonfiguration af Streamlit-applikationen
 st.set_page_config(page_title="Odds Robot Pro", page_icon="🤖", layout="wide")
+
+def dansk_tid():
+    try:
+        return datetime.now(ZoneInfo("Europe/Copenhagen")).strftime("%d-%m-%Y %H:%M")
+    except Exception:
+        return datetime.now().strftime("%d-%m-%Y %H:%M")
+
 st.title("🤖 Odds Robot Pro")
-st.write(f"### Systemstatus: Supabase Hukommelse Aktiv | Dansk tid: {hent_dansk_tid().strftime('%d-%m-%Y %H:%M')}")
+st.write(f"Systemstatus: Supabase Aktiv | Dansk tid: {dansk_tid()} | Hovedfil Låst")
 
-# Genindlæs automatisk gemte kuponer fra databasen ved opstart
-gemte_kuponer = hent_data_fra_supabase()
-
-st.markdown("---")
-
-# --- DINE 4 PRÆCISE MAPPER & FUNKTIONER INTERFACET ---
 fane1, fane2, fane3, fane4 = st.tabs([
-    "🌐 1. Automatisk Bred Scanner", 
+    "🌐 1. Bred Automatisk Scanner", 
     "⚽ 2. Manuel Hold Scanner", 
-    "📸 3. Kupon Scanner (Visuel & Gemt)", 
-    "📊 4. Statistik & Vundne Kampe"
+    "📸 3. Kupon Scanner & Gemte", 
+    "📊 4. Statistik & Regnskab"
 ])
 
-# MAPPE 1: Den automatiske scanner inden for den givende tid bredt
+# FANE 1: Bred Automatisk Scanner
 with fane1:
-    st.subheader("🌐 Mappe 1: Bred Automatisk Scanner")
-    st.write("Scanner markedet bredt inden for den givne tidsramme helt automatisk.")
-    timer = st.slider("Vælg tidsramme for bred scanning (timer):", 1, 24, 6)
+    st.subheader("🌐 Automatisk scanner inden for tidsramme")
+    timer = st.slider("Tidsramme for scanning (timer):", 1, 48, 6)
+    min_o, max_o = st.slider("Ønsket odds-interval:", 2.0, 200.0, (20.0, 50.0))
     
-    st.markdown("### Aktive automatiske væddemål fundet:")
-    # Her forbindes der til din 'odds_motor' og 'bookmaker_scanner' i baggrunden
-    st.info(f"Søger agnostisk i bookmaker-mønstre for de næste {timer} timer...")
-    
-    if st.button("Spil / Føj til statistik", key="btn_auto_gem"):
-        st.success("✓ Det automatiske væddemål er afviklet og tilføjet til din permanente statistik i Supabase!")
+    st.info(f"Scanner markedet bredt for de næste {timer} timer i odds-laget {min_o} - {max_o}...")
+    if st.button("🚀 SPILLET (Føj automatisk kupon til statistik)", key="btn_spillet_auto"):
+        gem_data.gem_kupon_i_historik(["Autopilot"], [f"Bred Scan ({timer}H)"], (min_o+max_o)/2, 0, 0, "Agnostisk", 4, 100.0)
+        st.success("✓ Autopilot-kupon er markeret som SPILLET og logget i Supabase!")
+        st.rerun()
 
-# MAPPE 2: Manuel vælger af kampe
+# FANE 2: Manuel Hold Scanner
 with fane2:
-    st.subheader("⚽ Mappe 2: Manuel Hold Scanner")
-    st.write("Vælg selv manuelt de specifikke kampe, der skal laves robot-væddemål på:")
+    st.subheader("⚽ Manuel Hold Scanner")
+    soeg_hold = st.text_input("Søg efter et hvilket som helst hold eller liga:")
+    valgt_udfald = st.text_input("Indtast ønsket spil/marked (f.eks. Over 8.5 hjørnespark):")
+    manuelt_odds = st.number_input("Indtast odds:", min_value=1.01, value=2.50, step=0.10)
     
-    # Simuleret kampliste fra 'kampprogram' mappen
-    kampliste = ["OB", "Viborg", "FC København", "Brøndby", "AGF", "Chelsea", "Aston Villa", "Celta Vigo"]
-    valgte_kampe = st.multiselect("Vælg hold til manuel aktivering:", options=kampliste)
-    
-    if valgte_kampe:
-        st.success(f"🎯 Robotten har låst og godkendt dine valgte kampe: {', '.join(valgte_kampe)}")
+    if st.button("🚀 SPILLET (Gem manuelt spil i statistik)", key="btn_spillet_manuel"):
+        if soeg_hold:
+            gem_data.gem_kupon_i_historik(["Manuel"], [f"{soeg_hold}: {valgt_udfald}"], manuelt_odds, 0, 0, "Agnostisk", 5, 100.0)
+            st.success(f"✓ '{soeg_hold}' er markeret som SPILLET og gemt i Supabase!")
+            st.rerun()
 
-# MAPPE 3: Kupon Scanner (Visuel, ret og tilføj til gemt scanner)
+# FANE 3: Kupon Scanner & Gemte Kuponer
 with fane3:
-    st.subheader("📸 Mappe 3: Kupon Scanner & Gemte Kuponer")
-    st.write("Scan dine kuponer ind. Kuponer kan manuelt rettes og tilføjes til den gemte scanner.")
-    
-    uploaded_file = st.file_uploader("Upload screenshot af kupon:", type=["png", "jpg", "jpeg"])
+    st.subheader("📸 Kupon Scanner & Gemte Kuponer")
+    billed_parser.vis_billed_scanner()
     
     st.markdown("---")
-    st.write("### 📂 Gemt Scanner (Data gemt permanent i Supabase):")
-    if gemte_kuponer:
-        for kp in gemte_kuponer:
-            st.write(f"📄 Kupon ID: {kp.get('id')} - Detekteret: {kp.get('kampe')} - Indsats: {kp.get('indsats', '100')} kr.")
+    st.write("### 📂 Gemte Spillede Kuponer (Hentet fra Supabase):")
+    alle_spil = gem_data.hent_alle_kuponer()
+    if alle_spil:
+        for s in alle_spil:
+            st.write(f"🎫 **{s.get('kampe')}** | Odds: `{s.get('odds')}` | Indsats: `{s.get('indsats', 100)} kr.`")
     else:
-        st.info("Ingen kuponer lagret i Supabase endnu. De vises her med det samme, når de scannes ind.")
-        
-    st.markdown("---")
-    st.write("🔧 **Manuel rettelse og tilføjelse til Gemt Scanner:**")
-    ret_kamp = st.text_input("Indtast rettelser eller manglende hold manuelt:")
-    if st.button("Gem rettelse permanent i Supabase-hukommelsen"):
-        st.success(f"✓ Rettelsen '{ret_kamp}' er skrevet til Supabase og overlever fremtidige reboots!")
+        st.info("Ingen spillede kuponer i databasen endnu (0-stillet start).")
 
-# MAPPE 4: Statistikken på vundne kampe
+# FANE 4: Statistik & Regnskab (0-stillet udgangspunkt til offentlig brug)
 with fane4:
-    st.subheader("📊 Mappe 4: Statistik & Vundne Kampe")
-    st.write("Viser statistikken på alle vundne kampe der er spillet.")
+    st.subheader("📊 Statistik & Økonomi Log (0-stillet start)")
+    alle_spil = gem_data.hent_alle_kuponer()
+    
+    total_indsats = sum(float(s.get("indsats", 100.0)) for s in alle_spil) if alle_spil else 0.0
+    antal_spil = len(alle_spil)
     
     col1, col2 = st.columns(2)
     with col1:
-        st.metric(label="Akkumuleret TOTAL SUM (Permanent i skyen)", value="6.033,57 kr.", delta="+5.933,57 kr.")
+        st.metric(label="Samlet Omsætning / Indsats", value=f"{total_indsats:.2f} kr.")
     with col2:
-        st.write("**Statistisk indsigt opsamlet:**")
-        st.write("- Holdopstillinger, offsides og målspark logges automatisk via din `resultat_tjekker`.")
+        st.metric(label="Antal Spillede Kuponer", value=f"{antal_spil} stk.")
+        
+    st.write("---")
+    st.write("- Statistisk indsigt (holdopstillinger, offsides, målspark) opsamles automatisk i Supabase ved afvikling.")
