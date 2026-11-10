@@ -1,29 +1,30 @@
+import requests
 import streamlit as st
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from odds_motor import liga_favoritter, byg_kupon
 from historik import gem_data
 
-# Udvidelig kamp-katalog motor baseret på valgte favoritligaer
-STANDARD_KAMPE_KATALOG = [
-    {"liga": "Danmark - Superliga", "hj": "FC København", "ud": "AGF", "timer_frem": 3},
-    {"liga": "Danmark - Superliga", "hj": "Brøndby IF", "ud": "FC Midtjylland", "timer_frem": 5},
-    {"liga": "Danmark - Betinia LIGA (1. Division)", "hj": "OB", "ud": "AC Horsens", "timer_frem": 4},
-    {"liga": "Danmark - CampoBet 2. Division", "hj": "Fremad Amager", "ud": "AB Gladsaxe", "timer_frem": 6},
-    {"liga": "Danmark - Betano Pokalen", "hj": "Silkeborg IF", "ud": "Viborg FF", "timer_frem": 8},
-    {"liga": "England - Premier League", "hj": "Arsenal", "ud": "Chelsea", "timer_frem": 4},
-    {"liga": "England - Premier League", "hj": "Liverpool", "ud": "Aston Villa", "timer_frem": 7},
-    {"liga": "England - Championship", "hj": "Leeds United", "ud": "Sunderland", "timer_frem": 9},
-    {"liga": "Spanien - La Liga", "hj": "Real Madrid", "ud": "Real Sociedad", "timer_frem": 10},
-    {"liga": "Italien - Serie A", "hj": "Inter", "ud": "Atalanta", "timer_frem": 12},
-    {"liga": "Italien - Serie B", "hj": "Palermo", "ud": "Bari", "timer_frem": 14},
-    {"liga": "Tyskland - Bundesliga", "hj": "Bayer Leverkusen", "ud": "RB Leipzig", "timer_frem": 11},
-    {"liga": "Frankrig - Ligue 1", "hj": "PSG", "ud": "Monaco", "timer_frem": 15},
-    {"liga": "Frankrig - Ligue 2", "hj": "Paris FC", "ud": "Metz", "timer_frem": 16},
-    {"liga": "Frankrig - National (Ligue 3)", "hj": "Red Star", "ud": "Nancy", "timer_frem": 18},
-    {"liga": "Norge - OBOS-ligaen", "hj": "Vålerenga", "ud": "Stabæk", "timer_frem": 20},
-    {"liga": "Japan - J2 League", "hj": "Shimizu S-Pulse", "ud": "Yokohama FC", "timer_frem": 24},
-]
+LIGA_FEED_ENDPOINTS = {
+    "Danmark - Superliga": "https://espn.com",
+    "England - Premier League": "https://espn.com",
+    "England - Championship": "https://espn.com",
+    "England - League One": "https://espn.com",
+    "Spanien - La Liga": "https://espn.com",
+    "Italien - Serie A": "https://espn.com",
+    "Italien - Serie B": "https://espn.com",
+    "Tyskland - Bundesliga": "https://espn.com",
+    "Tyskland - 2. Bundesliga": "https://espn.com",
+    "Frankrig - Ligue 1": "https://espn.com",
+    "Frankrig - Ligue 2": "https://espn.com",
+    "Norge - Eliteserien": "https://espn.com",
+    "Sverige - Allsvenskan": "https://espn.com",
+    "Holland - Eredivisie": "https://espn.com",
+    "Portugal - Liga Portugal": "https://espn.com",
+    "Japan - J1 League": "https://espn.com",
+    "UEFA - Champions League": "https://espn.com",
+    "UEFA - Europa League": "https://espn.com",
+}
 
 SPECIAL_MARKEDER = [
     "Standard (Mål / Kampvinder)",
@@ -36,37 +37,62 @@ SPECIAL_MARKEDER = [
 ]
 
 
-def _hent_relevante_kampe(aktive_ligaer, max_timer):
-    nu_dk = datetime.now(ZoneInfo("Europe/Copenhagen"))
-    fundne = []
-    for k in STANDARD_KAMPE_KATALOG:
-        if k["liga"] in aktive_ligaer and k["timer_frem"] <= max_timer:
-            kamp_tid = nu_dk + timedelta(hours=k["timer_frem"])
-            fundne.append({
-                "liga": k["liga"],
-                "hj": k["hj"],
-                "ud": k["ud"],
-                "start": kamp_tid.strftime("%d-%m %H:%M")
-            })
-    # Hvis brugeren har tilføjet helt nye egne favoritligaer uden for standardkataloget,
-    # oprettes et agnostisk kamp-slot, så alle favoritligaer altid kan scannes
-    kendte_ligaer = {x["liga"] for x in fundne}
-    for l in aktive_ligaer:
-        if l not in kendte_ligaer and not l.startswith("Ingen aktive"):
-            kamp_tid = nu_dk + timedelta(hours=min(max_timer, 4))
-            fundne.append({
-                "liga": l,
-                "hj": f"{l.split('-')[-1].strip()} Hjemmehold",
-                "ud": f"{l.split('-')[-1].strip()} Udehold",
-                "start": kamp_tid.strftime("%d-%m %H:%M")
-            })
-    return fundne
+@st.cache_data(ttl=300, show_spinner=False)
+def _hent_aegte_kampe_fra_net(aktive_ligaer_tuple):
+    dk_tz = ZoneInfo("Europe/Copenhagen")
+    nu_dk = datetime.now(dk_tz)
+    dato_streng = f"{nu_dk.strftime('%Y%m%d')}-{(nu_dk + timedelta(days=3)).strftime('%Y%m%d')}"
+
+    alle_kampe = []
+    for liga_navn in aktive_ligaer_tuple:
+        url = LIGA_FEED_ENDPOINTS.get(liga_navn)
+        if not url:
+            continue
+        try:
+            res = requests.get(f"{url}?dates={dato_streng}", timeout=6)
+            if res.status_code != 200:
+                continue
+            data = res.json()
+            for event in data.get("events", []):
+                status_type = event.get("status", {}).get("type", {}).get("state", "")
+                if status_type != "pre":
+                    continue
+
+                raw_date = event.get("date")
+                if not raw_date:
+                    continue
+
+                utc_dt = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
+                dk_dt = utc_dt.astimezone(dk_tz)
+
+                diff_timer = (dk_dt - nu_dk).total_seconds() / 3600.0
+                if diff_timer <= 0:
+                    continue
+
+                competitions = event.get("competitions", [{}])
+                competitors = competitions[0].get("competitors", []) if competitions else []
+                hj = next((c["team"]["displayName"] for c in competitors if c.get("homeAway") == "home"), None)
+                ud = next((c["team"]["displayName"] for c in competitors if c.get("homeAway") == "away"), None)
+
+                if hj and ud:
+                    alle_kampe.append({
+                        "liga": liga_navn,
+                        "hj": hj,
+                        "ud": ud,
+                        "dk_dt": dk_dt,
+                        "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"),
+                        "timer_frem": round(diff_timer, 2)
+                    })
+        except Exception as e:
+            print(f"[Live-Feed Advarsel for {liga_navn}]: {e}")
+
+    alle_kampe.sort(key=lambda x: x["dk_dt"])
+    return alle_kampe
 
 
 def vis_autopilot_scanner():
-    st.subheader("🌐 1. Autopilot Scanner (Bred Markedsscanning)")
+    st.subheader("🌐 1. Autopilot Scanner (Ægte Dato- & Tidszone-Scanning)")
 
-    # 1. Liga-favorit styring (24 standard + tilføj/fjern)
     alle_favoritter = liga_favoritter.hent_favorit_ligaer()
     valgte_ligaer = st.multiselect(
         f"🏆 Aktive Favoritligaer ({len(alle_favoritter)} tilgængelige):",
@@ -90,10 +116,9 @@ def vis_autopilot_scanner():
                     st.warning(f"Fjernet fra favoritter: {fjern_valg}")
                     st.rerun()
 
-    # 2. Tidsramme, Odds-lag og Markeder
     col_t, col_o = st.columns(2)
     with col_t:
-        timer = st.slider("⏱️ Tidsramme frem (timer):", 1, 48, 12, key="auto_timer")
+        timer = st.slider("⏱️ Tidsramme frem (timer fra nu):", 1, 72, 12, key="auto_timer")
     with col_o:
         min_o, max_o = st.slider("🎯 Ønsket samlet odds-lag:", 2.0, 200.0, (20.0, 50.0), key="auto_odds_interval")
 
@@ -104,35 +129,54 @@ def vis_autopilot_scanner():
         key="auto_markeder"
     )
 
-    # 3. DEN RIGTIGE SCAN-KNAP
-    if st.button("🔍 SCAN MARKEDET NU (Find bedste Value-Boost kupon)", type="primary", key="btn_start_auto_scan"):
+    if st.button("🔍 SCAN MARKEDET NU (Tjek ægte kampdatoer & Value-Boost)", type="primary", key="btn_start_auto_scan"):
         if not valgte_ligaer or not valgte_markeder:
             st.warning("Vælg mindst én liga og ét marked, før du trykker SCAN.")
         else:
-            kandidat_kampe = _hent_relevante_kampe(valgte_ligaer, timer)
-            antal_kampe = min(len(kandidat_kampe), 5 if max_o >= 25 else 3)
-            udvalgte = kandidat_kampe[:antal_kampe]
-            maal_odds = round((min_o + max_o) / 2.0, 2)
+            with st.spinner("Henter ægte kampprogram og tjekker datoer i dansk tid..."):
+                alle_kommende = _hent_aegte_kampe_fra_net(tuple(valgte_ligaer))
+                kandidat_kampe = [k for k in alle_kommende if 0 < k["timer_frem"] <= timer]
 
-            kupon = byg_kupon.byg_kombineret_kupon(udvalgte, valgte_markeder, maal_odds)
-            st.session_state["auto_scannet_kupon"] = kupon
-            st.session_state["auto_scannede_kampe_liste"] = kandidat_kampe
+            if not kandidat_kampe:
+                st.session_state["auto_scannet_kupon"] = None
+                st.session_state["auto_scannede_kampe_liste"] = []
+                if alle_kommende:
+                    naeste = alle_kommende[0]
+                    st.warning(
+                        f"Ingen kampe i de valgte ligaer starter inden for de næste **{timer} timer**. "
+                        f"Næste rigtige kamp er **{naeste['hj']} vs {naeste['ud']}** ({naeste['liga']}) "
+                        f"d. **{naeste['start']}** (om ca. {naeste['timer_frem']:.1f} timer)."
+                    )
+                else:
+                    st.warning(
+                        f"Ingen kommende kampe fundet i de valgte ligaer de næste 72 timer (f.eks. pga. landsholdspause). "
+                        f"Nul fiktive kampe oprettet."
+                    )
+            else:
+                antal_kampe = min(len(kandidat_kampe), 5 if max_o >= 25 else 3)
+                udvalgte = kandidat_kampe[:antal_kampe]
+                maal_odds = round((min_o + max_o) / 2.0, 2)
 
-    # 4. VISNING AF SCANNEDE KAMPE & KUPONFORSLAG
-    if "auto_scannet_kupon" in st.session_state and st.session_state["auto_scannet_kupon"]:
+                kupon = byg_kupon.byg_kombineret_kupon(udvalgte, valgte_markeder, maal_odds)
+                st.session_state["auto_scannet_kupon"] = kupon
+                st.session_state["auto_scannede_kampe_liste"] = kandidat_kampe
+                st.session_state["auto_scannet_timer"] = timer
+
+    if st.session_state.get("auto_scannet_kupon"):
         kupon = st.session_state["auto_scannet_kupon"]
         alle_fundne = st.session_state.get("auto_scannede_kampe_liste", [])
+        brugt_timer = st.session_state.get("auto_scannet_timer", timer)
 
-        st.success(f"✓ Scanning gennemført! Gennemgik {len(alle_fundne)} kampe inden for de næste {timer} timer.")
+        st.success(f"✓ Scanning gennemført! Fandt {len(alle_fundne)} ægte kampe inden for de næste {brugt_timer} timer.")
 
-        with st.expander(f"📋 Se alle {len(alle_fundne)} scannede kampe i tidsrammen"):
+        with st.expander(f"📋 Se alle {len(alle_fundne)} scannede kampe (Ægte datoer i dansk tid)"):
             for k in alle_fundne:
                 st.write(f"• `[{k['start']}]` **{k['hj']} vs {k['ud']}** ({k['liga']})")
 
         st.markdown("### 🎫 Anbefalet Autopilot-Kupon (Afventer din SPILLET-godkendelse)")
         for idx, kamp in enumerate(kupon["kampe"], start=1):
             st.markdown(
-                f"**{idx}. {kamp['hj']} vs {kamp['ud']}** ({kamp['liga']} | Kl. {kamp['start']})  \n"
+                f"**{idx}. {kamp['hj']} vs {kamp['ud']}** ({kamp['liga']} | **{kamp['start']}**)  \n"
                 f"👉 Spil: **{', '.join(kamp['kombinationer'])}** | Odds: `{kamp['b365']}` | "
                 f"Vinderchance: **{kamp['vinderchance_pct']}%** | {kamp['flamme']}"
             )
@@ -152,20 +196,6 @@ def vis_autopilot_scanner():
         )
 
         if st.button("🚀 SPILLET (Godkend & gem Autopilot-kupon i Supabase)", type="primary", key="btn_spillet_auto_ny"):
-            kampe_tekst = [f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])})" for k in kupon["kampe"]]
+            kampe_tekst = [f"{k['hj']} - {k['ud']} [{k['start']}] ({', '.join(k['kombinationer'])})" for k in kupon["kampe"]]
             ligaer_tekst = list({k["liga"] for k in kupon["kampe"]})
             gemt = gem_data.gem_kupon_i_historik(
-                ligaer_tekst,
-                kampe_tekst,
-                kupon["bedste_odds"],
-                kupon["samlet_unibet"],
-                kupon["samlet_oddset"],
-                kupon["bedste_side"],
-                kupon["styrke"],
-                indsats_auto
-            )
-            if gemt:
-                st.success("✓ Autopilot-kuponen er godkendt som SPILLET og gemt permanent i Supabase!")
-                st.rerun()
-            else:
-                st.error("❌ Kunne ikke gemme i Supabase. Tjek dine Secrets.")
