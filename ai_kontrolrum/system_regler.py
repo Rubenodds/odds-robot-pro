@@ -1,6 +1,6 @@
 ======================================================================
 Odds-Robot-Pro: Urokkeligt Master-Regelsæt & Fejlretning
-Status: Tirsdag d. 10. november 2026 kl. 21:16 (Dansk tid)
+Status: Tirsdag d. 10. november 2026 kl. 22:06 (Dansk tid)
 ======================================================================
 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
 
@@ -34,9 +34,10 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 15. 👤 BRUGER-ISOLATION & AKTIV GODKENDELSE ("SPILLET"-KNAP): Appen skal starte 100 % 0-stillet på økonomi og statistik (0,00 kr.) til offentlig brug. Scannede billeder og forslag må ALDRIG gemmes i statistikken automatisk, men kun når brugeren aktivt trykker på knappen "Spillet".
 
 ======================================================================
-📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 21:16)
+📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 22:06)
 ======================================================================
 * `app.py` er 100 % låst med dynamisk modul-indlæsning.
-* `odds_motor/autopilot_scanner.py` (Mappe 1) er færdigopgraderet med `_vaelg_bedste_kombination()`, som automatisk udvælger den kombination af kampe med højeste vinderchance (inkl. form, H2H, dommer og vejr), der rammer det ønskede odds-lag.
-* `odds_motor/liga_favoritter.py` fastholder de 24 standardligaer med automatisk navnerettelse (`normaliser_liga_navn`).
+* `odds_motor/autopilot_scanner.py` (Mappe 1) er færdigopgraderet med `_hent_kampe_v8` (korrekt slug-baseret liganavns-matching så bl.a. `bra.2` vises som `Brasilien - Serie B`, direkte opslag på alle ligaer inkl. UEFA Nations League og pokaler, `_vaelg_bedste_kombination()` samt globale flueben for `☑️ Vælg alle aktive ligaer` og `☑️ Vælg alle kampe`, så man lynhurtigt kan til-/fravælge ligaer og enkelte kampe inden for valgt tidsramme).
+* `odds_motor/liga_favoritter.py` fastholder de 24+ standardligaer med automatisk navnerettelse (`normaliser_liga_navn`).
+* `ai_kontrolrum/onskeliste_roadmap.md` er opdateret (Tirsdag d. 10. november 2026 kl. 22:06).
 * Næste trin: Læg den opdaterede `odds_motor/autopilot_scanner.py` på GitHub, godkend Mappe 1 live, og fortsæt derefter til Mappe 2 (`odds_motor/manuel_scanner.py`).
