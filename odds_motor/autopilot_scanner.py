@@ -30,16 +30,6 @@ MARKEDER = [
     "Tacklinger & Målmandsredninger", "Kort-sandsynlighed (Gule/Røde)", "Målscorer (Anytime/Første)", "Offsides",
 ]
 
-def _find_slug(liga):
-    norm = liga_favoritter.normaliser_liga_navn(liga)
-    for navn in (norm, liga):
-        if navn in SLUGS:
-            return SLUGS[navn]
-    for k, slug in SLUGS.items():
-        if k.split(" - ")[-1].lower() in liga.lower() or liga.lower() in k.lower():
-            return slug
-    return None
-
 def _parse_event(ev, liga, nu, dk_tz, sete):
     ev_id = ev.get("id")
     if not ev_id or ev_id in sete or (ev.get("status") or {}).get("type", {}).get("state") == "post":
@@ -67,41 +57,35 @@ def _parse_event(ev, liga, nu, dk_tz, sete):
     return {"label": f"{hj} vs {ud} ({liga} | {dk_dt.strftime('%d-%m %H:%M')})", "liga": liga, "hj": hj, "ud": ud, "dk_dt": dk_dt, "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"), "timer": round(max(0.1, diff), 2), "pct": pct, "ctx": ctx}
 
 @st.cache_data(ttl=120, show_spinner=False)
-def _hent_kampe_v5(ligaer_tuple):
+def _hent_kampe_v6(ligaer_tuple):
     dk_tz = ZoneInfo("Europe/Copenhagen")
     nu = datetime.now(dk_tz)
-    d_str = f"{nu.strftime('%Y%m%d')}-{(nu + timedelta(days=4)).strftime('%Y%m%d')}"
-    kampe, sete, diag = [], set(), {"ra_events": 0, "fejl": ""}
+    datoer = [(nu + timedelta(days=d)).strftime("%Y%m%d") for d in range(4)]
+    kampe, sete, diag = [], set(), {"ra_events": 0, "fundne_ligaer": set(), "fejl": ""}
     noegleord = {l.split(" - ")[-1].lower(): l for l in ligaer_tuple}
 
-    for liga in ligaer_tuple:
-        slug = _find_slug(liga)
-        if not slug:
-            continue
+    for d_str in datoer:
         try:
-            r = requests.get(f"{API.format(slug)}?dates={d_str}", headers=HDR, timeout=6)
-            if r.status_code == 200:
-                evs = r.json().get("events", [])
-                diag["ra_events"] += len(evs)
-                for ev in evs:
-                    if k := _parse_event(ev, liga, nu, dk_tz, sete):
+            r = requests.get(f"{API.format('all')}?dates={d_str}", headers=HDR, timeout=8)
+            if r.status_code != 200:
+                diag["fejl"] = f"HTTP {r.status_code}"
+                continue
+            data = r.json()
+            evs = data.get("events", [])
+            diag["ra_events"] += len(evs)
+            for ev in evs:
+                lg = ev.get("league") or {}
+                lg_txt = f"{lg.get('name', '')} {lg.get('shortName', '')} {lg.get('slug', '')} {(ev.get('season') or {}).get('slug', '')}".lower()
+                if lg.get("name"):
+                    diag["fundne_ligaer"].add(lg["name"])
+                match_liga = next((orig for kw, orig in noegleord.items() if kw in lg_txt), None)
+                if match_liga:
+                    if k := _parse_event(ev, match_liga, nu, dk_tz, sete):
                         kampe.append(k)
         except Exception as e:
             diag["fejl"] = str(e)
 
-    try:
-        r_all = requests.get(f"{API.format('all')}?dates={d_str}", headers=HDR, timeout=8)
-        if r_all.status_code == 200:
-            evs_all = r_all.json().get("events", [])
-            diag["ra_events"] += len(evs_all)
-            for ev in evs_all:
-                lg_navn = (ev.get("league") or {}).get("name", "") or (ev.get("season") or {}).get("slug", "")
-                if match_liga := next((orig for kw, orig in noegleord.items() if kw in lg_navn.lower()), None):
-                    if k := _parse_event(ev, match_liga, nu, dk_tz, sete):
-                        kampe.append(k)
-    except Exception as e:
-        diag["fejl"] = str(e)
-
+    diag["fundne_ligaer"] = sorted(diag["fundne_ligaer"])[:6]
     return sorted(kampe, key=lambda x: x["dk_dt"]), diag
 
 def _vaelg_bedste_kombination(kandidater, min_o, max_o, max_kampe):
@@ -121,7 +105,7 @@ def vis_autopilot_scanner():
     min_o, max_o = c2.slider("🎯 Ønsket odds-lag:", 2.0, 200.0, (20.0, 50.0), key="auto_odds")
     max_kampe = c3.slider("🎫 Maks. kampe på kupon:", 1, 12, 4, key="auto_max_kampe")
 
-    alle, diag = _hent_kampe_v5(tuple(favs))
+    alle, diag = _hent_kampe_v6(tuple(favs))
     aktive = [k for k in alle if 0 < k["timer"] <= timer]
     ligaer = sorted({k["liga"] for k in aktive})
 
@@ -135,7 +119,7 @@ def vis_autopilot_scanner():
         foerste = next(iter(alle), None)
         naeste = f" Næste kamp: **{foerste['hj']} vs {foerste['ud']}** ({foerste['start']})." if foerste else ""
         st.info(f"📭 Ingen favoritligaer har kampe inden for **{timer} timer**.{naeste}")
-        st.caption(f"🔎 API-status: {diag['ra_events']} rå events hentet | {len(alle)} matchede favoritter | Fejl: {diag['fejl'] or 'Ingen'}")
+        st.caption(f"🔎 API-status: {diag['ra_events']} rå events | {len(alle)} matchede | Eks. ligaer i feed: {', '.join(diag['fundne_ligaer']) or 'Ingen'} | Fejl: {diag['fejl'] or 'Ingen'}")
 
     with st.expander(f"⚙️ Administrer favoritter ({len(liga_favoritter.hent_favorit_ligaer())} aktive)"):
         ny = st.text_input("➕ Ny favoritliga:", key="auto_ny")
