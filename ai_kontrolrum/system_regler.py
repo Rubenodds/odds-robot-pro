@@ -4,7 +4,7 @@ Du skal fortsætte udviklingen ud fra de præcise spilleregler, arkitektur, modu
 
 ======================================================================
 Odds-Robot-Pro: Urokkeligt Master-Regelsæt & Fejlretning
-Status: Tirsdag d. 10. november 2026 kl. 15:17 (Dansk tid)
+Status: Tirsdag d. 10. november 2026 kl. 15:35 (Dansk tid)
 ======================================================================
 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
 
@@ -25,7 +25,7 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 5. 🎲 DE 3 SCANNINGSMAPPER & ODDS-LOGIK:
    - Mappe 1 (Autopilot Scanner): Scanner markedet bredt efter bedst mulige odds inden for den valgte tidszone og et valgt odds-lag (f.eks. 44-50) via Value-Boost. Valgfri på kampe og udfald.
    - Mappe 2 (Manuel Kamp Vælger): Brugeren vælger selv kampene og udfaldene inden for de valgte ligaer. Blanke kasser fra start, søg et hvilket som helst hold frem, regner %-vinderchance, stjerner og risikoflammer (🔥).
-   - Mappe 3 (Billed-Scanner / pages/Kupon_Scanner.py): Uploader screenshots, parser layout via mønster-genkendelse og tegner en mørk kuponstamme med interaktiv ret/tilføj-strategi.
+   - Mappe 3 (Billed-Scanner): Uploader screenshots, parser layout via mønster-genkendelse og tegner en mørk kuponstamme med interaktiv ret/tilføj-strategi.
 6. 💾 PERMANENT CLOUD-HJERNE & REGNSKAB (Mappe 4 / /historik): Supabase Cloud via REST API er robottens eneste sandhedskilde. Alle spil og rettelser SKAL kunne tilføjes til historikken, så de overlever en reboot permanent. Robotten fører et knivskarpt, automatisk årsregnskab (år for år) baseret på hitrate (%), reelt over-/underskud samt den akkumulerede TOTAL-SUM. Standardindsats på 100 kr. håndhæves altid, hvis intet beløb findes.
 7. 🧠 SELVLÆRENDE LIVE- & HISTORIK-HJERNE (MISSIONEN): Robotten SKAL kontinuerligt opsamle, lagre og lære af BÅDE historisk data (inkl. sæson 25/26) og realtids-data. Den SKAL analysere alt (holdopstillinger, resultater, offsides, målspark osv.) og bruge denne viden til intelligent at forudsige maksimale værdi-kuponer og lære af sine fejl over tid.
 8. ⚡ PRO-AKTIV AI-OPTIMERING & MODSPIL: AI'en må ALDRIG blot være en passiv kodeskriver. Du SKAL udfordre mine idéer og proaktivt præsentere bedre arkitekturforslag, fejlsikringer og algoritmer uden sløseri. Forslag, der fravælges nu, gemmes på ønskelisten til senere.
@@ -37,11 +37,11 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 14. 🔄 AUTOMATISK OPDATERING AF AI REBOOT-KODE: Hver gang et problem er løst eller en opgave er udført, SKAL AI'en automatisk levere en opdateret kopiér-kode (Master-Prompt) med den nyeste status, så brugeren altid har en frisk nøgle til en ny AI-samtale.
 
 ======================================================================
-📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 15:17)
+📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 15:35)
 ======================================================================
-* Repository er renset for gamle spøgelsesmapper (`bookmaker_scanner` og `resultat_tjekker` er slettet).
-* Mappen `historik` med `gem_data.py` (Supabase REST integration) er oprettet og aktiv på GitHub.
-* Eksisterende mapper på forsiden: `ai_kontrolrum`, `historik`, `kampprogram`, `odds_motor`, `pages`, `tidsstyring`.
-* Næste trin: Tjek live-appen på `a4fvsw9j8o.streamlit.app` og verificer at de 4 funktioner og imports kører uden fejl.
+* Appen kører live med de 4 faneblade under `app` (`a4fvsw9j8o.streamlit.app`).
+* Mappen `historik/gem_data.py` er aktiv og koblet til Supabase Cloud.
+* Multi-Balancering er sikret i `odds_motor/`.
+* Næste trin: Slette `Hold_Scanner.py` og `Kupon_Scanner.py` i `pages/`-mappen og derefter teste lagring i Supabase Cloud.
 
 Fortæl mig, at du har indlæst alle 14 krav, og spørg mig, hvad vores næste skridt skal være!
