@@ -62,9 +62,7 @@ def _hent_kampe_v8(ligaer_tuple):
     nu = datetime.now(dk_tz)
     datoer = [(nu + timedelta(days=d)).strftime("%Y%m%d") for d in range(4)]
     kampe, sete = [], set()
-    alle_target = set(ligaer_tuple) | set(SLUGS.keys())
-
-    for liga in alle_target:
+    for liga in set(ligaer_tuple) | set(SLUGS.keys()):
         slug = SLUGS.get(liga) or SLUGS.get(liga_favoritter.normaliser_liga_navn(liga))
         if not slug:
             continue
@@ -77,7 +75,6 @@ def _hent_kampe_v8(ligaer_tuple):
                             kampe.append(k)
             except Exception:
                 continue
-
     for d_str in datoer:
         try:
             r = requests.get(f"{API.format('all')}?dates={d_str}", headers=HDR, timeout=6)
@@ -114,9 +111,16 @@ def vis_autopilot_scanner():
         f1, f2 = st.columns(2)
         alle_l = f1.checkbox("☑️ Vælg alle aktive ligaer", value=True, key="auto_chk_ligaer")
         alle_k = f2.checkbox("☑️ Vælg alle kampe", value=True, key="auto_chk_kampe")
+        if st.session_state.get("_sidste_chk_l") != alle_l:
+            st.session_state["_sidste_chk_l"] = alle_l
+            st.session_state["auto_ligaer"] = ligaer if alle_l else []
         v_ligaer = st.multiselect(f"🏆 Vælg ligaer med kampe ({len(ligaer)} aktive i {timer}T):", ligaer, default=ligaer if alle_l else [], key="auto_ligaer")
         filt = [k for k in aktive if k["liga"] in v_ligaer]
-        v_labels = st.multiselect(f"⚽ Vælg kampe ({len(filt)} tilgængelige):", [k["label"] for k in filt], default=[k["label"] for k in filt] if alle_k else [], key="auto_kampe_valgt")
+        filt_labels = [k["label"] for k in filt]
+        if st.session_state.get("_sidste_chk_k") != alle_k:
+            st.session_state["_sidste_chk_k"] = alle_k
+            st.session_state["auto_kampe_valgt"] = filt_labels if alle_k else []
+        v_labels = st.multiselect(f"⚽ Vælg kampe ({len(filt)} tilgængelige):", filt_labels, default=filt_labels if alle_k else [], key="auto_kampe_valgt")
         kandidater = [k for k in filt if k["label"] in v_labels]
     else:
         kandidater = []
