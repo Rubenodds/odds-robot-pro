@@ -187,3 +187,7 @@ def vis_autopilot_scanner():
                 kupon["samlet_oddset"], kupon["bedste_side"], kupon["styrke"], indsats_auto
             )
             if gemt:
+                st.success("✓ Autopilot-kuponen er godkendt som SPILLET og gemt permanent i Supabase!")
+                st.rerun()
+            else:
+                st.error("❌ Kunne ikke gemme i Supabase. Tjek dine Secrets.")
