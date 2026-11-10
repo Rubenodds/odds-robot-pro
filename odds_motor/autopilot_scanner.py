@@ -5,7 +5,8 @@ from zoneinfo import ZoneInfo
 from odds_motor import liga_favoritter, byg_kupon, kamp_intelligens
 from historik import gem_data
 
-API = "https://espn.com{}/scoreboard"
+HOST = "site.api." + "espn.com"
+API = f"https://{HOST}/apis/site/v2/sports/soccer/{{}}/scoreboard"
 HDR = {"User-Agent": "Mozilla/5.0"}
 SLUGS = {
     "Danmark - Superliga": "den.1", "Danmark - 1. Division": "den.2", "Danmark - Pokalen": "den.cup",
@@ -41,10 +42,7 @@ def _find_slug(liga):
 
 def _parse_event(ev, liga, nu, dk_tz, sete):
     ev_id = ev.get("id")
-    if not ev_id or ev_id in sete:
-        return None
-    state = (ev.get("status") or {}).get("type", {}).get("state", "pre")
-    if state == "post":
+    if not ev_id or ev_id in sete or (ev.get("status") or {}).get("type", {}).get("state") == "post":
         return None
     raw_dt = ev.get("date", "")
     if len(raw_dt) == 17 and raw_dt.endswith("Z"):
@@ -69,7 +67,7 @@ def _parse_event(ev, liga, nu, dk_tz, sete):
     return {"label": f"{hj} vs {ud} ({liga} | {dk_dt.strftime('%d-%m %H:%M')})", "liga": liga, "hj": hj, "ud": ud, "dk_dt": dk_dt, "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"), "timer": round(max(0.1, diff), 2), "pct": pct, "ctx": ctx}
 
 @st.cache_data(ttl=120, show_spinner=False)
-def _hent_kampe_v4(ligaer_tuple):
+def _hent_kampe_v5(ligaer_tuple):
     dk_tz = ZoneInfo("Europe/Copenhagen")
     nu = datetime.now(dk_tz)
     d_str = f"{nu.strftime('%Y%m%d')}-{(nu + timedelta(days=4)).strftime('%Y%m%d')}"
@@ -86,8 +84,7 @@ def _hent_kampe_v4(ligaer_tuple):
                 evs = r.json().get("events", [])
                 diag["ra_events"] += len(evs)
                 for ev in evs:
-                    k = _parse_event(ev, liga, nu, dk_tz, sete)
-                    if k:
+                    if k := _parse_event(ev, liga, nu, dk_tz, sete):
                         kampe.append(k)
         except Exception as e:
             diag["fejl"] = str(e)
@@ -99,10 +96,8 @@ def _hent_kampe_v4(ligaer_tuple):
             diag["ra_events"] += len(evs_all)
             for ev in evs_all:
                 lg_navn = (ev.get("league") or {}).get("name", "") or (ev.get("season") or {}).get("slug", "")
-                match_liga = next((orig for kw, orig in noegleord.items() if kw in lg_navn.lower()), None)
-                if match_liga:
-                    k = _parse_event(ev, match_liga, nu, dk_tz, sete)
-                    if k:
+                if match_liga := next((orig for kw, orig in noegleord.items() if kw in lg_navn.lower()), None):
+                    if k := _parse_event(ev, match_liga, nu, dk_tz, sete):
                         kampe.append(k)
     except Exception as e:
         diag["fejl"] = str(e)
@@ -126,7 +121,7 @@ def vis_autopilot_scanner():
     min_o, max_o = c2.slider("🎯 Ønsket odds-lag:", 2.0, 200.0, (20.0, 50.0), key="auto_odds")
     max_kampe = c3.slider("🎫 Maks. kampe på kupon:", 1, 12, 4, key="auto_max_kampe")
 
-    alle, diag = _hent_kampe_v4(tuple(favs))
+    alle, diag = _hent_kampe_v5(tuple(favs))
     aktive = [k for k in alle if 0 < k["timer"] <= timer]
     ligaer = sorted({k["liga"] for k in aktive})
 
@@ -170,3 +165,5 @@ def vis_autopilot_scanner():
             st.caption(f"Spil: {', '.join(k['kombinationer'])} | Odds: {k['b365']} | Chance: {k['vinderchance_pct']}% | Form: {ctx.get('hj_form')} vs {ctx.get('ud_form')} | Dommer: {ctx.get('dommer')} | Vejr: {v_txt}")
         st.info(f"⭐ {'⭐' * kupon['styrke']} | Bedste profil: {kupon['bedste_side']} | Samlet odds: **{kupon['bedste_odds']}**")
         indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
+        if st.button("🚀 SPILLET (Gem i Supabase)", type="primary", key="btn_auto_spillet") and gem_data.gem_kupon_i_historik(list({k["liga"] for k in kupon["kampe"]}), [f"{k['hj']} - {k['ud']} [{k['start']}]" for k in kupon["kampe"]], kupon["bedste_odds"], kupon["samlet_unibet"], kupon["samlet_oddset"], kupon["bedste_side"], kupon["styrke"], indsats):
+            st.success("✅ Kupon gemt i Supabase!")
