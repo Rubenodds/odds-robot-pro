@@ -1,10 +1,5 @@
-Hej AI. Jeg er i gang med at bygge Danmarks vildeste spil-robot via Streamlit (odds-robot-pro). Min app kører live på: a4fvsw9j8o.streamlit.app
-
-Du skal fortsætte udviklingen ud fra de præcise spilleregler, arkitektur, moduler og historik, som er fastlagt herunder. Du må ALDRIG bryde eller ændre disse urokkelige krav:
-
-======================================================================
 Odds-Robot-Pro: Urokkeligt Master-Regelsæt & Fejlretning
-Status: Tirsdag d. 10. november 2026 kl. 15:53 (Dansk tid)
+Status: Tirsdag d. 10. november 2026 kl. 19:58 (Dansk tid)
 ======================================================================
 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
 
@@ -38,10 +33,12 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 15. 👤 BRUGER-ISOLATION & AKTIV GODKENDELSE ("SPILLET"-KNAP): Appen skal starte 100 % 0-stillet på økonomi og statistik (0,00 kr.) til offentlig brug. Scannede billeder og forslag må ALDRIG gemmes i statistikken automatisk, men kun når brugeren aktivt trykker på knappen "Spillet".
 
 ======================================================================
-📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 15:53)
+📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 19:58)
 ======================================================================
-* `odds_motor/billed_parser.py` er oprettet med "SPILLET"-godkendelse.
-* `app.py` er opdateret én sidste gang (nu 100 % låst igen) med 0-stillet økonomi fra start og fuld kobling til `historik/gem_data.py`.
-* Næste trin: Teste hele flowet live på `a4fvsw9j8o.streamlit.app` (uploade billede, trykke SPILLET, og verificere at det vises i Fane 3 og Fane 4 efter reboot).
-
-Fortæl mig, at du har indlæst alle 15 krav, og spørg mig, hvad vores næste skridt skal være!
+* Appen `a4fvsw9j8o.streamlit.app` kører live uden import- eller syntaksfejl.
+* Mørkt tema klargjort i `.streamlit/config.toml` (uden at ændre `app.py`).
+* `odds_motor/liga_favoritter.py` opgraderet med de 24 standardligaer samt permanent tilføjelse og fjernelse af favoritligaer uden at påvirke eller slette tidligere spillede kuponer i historikken.
+* `historik/gem_data.py` opdateret til at filtrere interne system-favorit-indstillinger fra, så regnskab og kuponhistorik forbliver 100 % rene og uafhængige af favorit-ændringer.
+* `odds_motor/billed_parser.py` opdateret med udvidet OCR, mørk kuponstamme, liga-favoritadministration og aktiv "SPILLET"-godkendelse.
+* `app.py` er 100 % låst.
+* Næste trin: Læg `.streamlit/config.toml`, `historik/gem_data.py`, `odds_motor/liga_favoritter.py` og `odds_motor/billed_parser.py` på GitHub og test live.
