@@ -1,5 +1,5 @@
 Odds-Robot-Pro: Urokkeligt Master-Regelsæt & Fejlretning
-Status: Tirsdag d. 10. november 2026 kl. 19:58 (Dansk tid)
+Status: Tirsdag d. 10. november 2026 kl. 20:11 (Dansk tid)
 ======================================================================
 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
 
@@ -33,12 +33,9 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 15. 👤 BRUGER-ISOLATION & AKTIV GODKENDELSE ("SPILLET"-KNAP): Appen skal starte 100 % 0-stillet på økonomi og statistik (0,00 kr.) til offentlig brug. Scannede billeder og forslag må ALDRIG gemmes i statistikken automatisk, men kun når brugeren aktivt trykker på knappen "Spillet".
 
 ======================================================================
-📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 19:58)
+📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 20:11)
 ======================================================================
-* Appen `a4fvsw9j8o.streamlit.app` kører live uden import- eller syntaksfejl.
-* Mørkt tema klargjort i `.streamlit/config.toml` (uden at ændre `app.py`).
-* `odds_motor/liga_favoritter.py` opgraderet med de 24 standardligaer samt permanent tilføjelse og fjernelse af favoritligaer uden at påvirke eller slette tidligere spillede kuponer i historikken.
-* `historik/gem_data.py` opdateret til at filtrere interne system-favorit-indstillinger fra, så regnskab og kuponhistorik forbliver 100 % rene og uafhængige af favorit-ændringer.
-* `odds_motor/billed_parser.py` opdateret med udvidet OCR, mørk kuponstamme, liga-favoritadministration og aktiv "SPILLET"-godkendelse.
-* `app.py` er 100 % låst.
-* Næste trin: Læg `.streamlit/config.toml`, `historik/gem_data.py`, `odds_motor/liga_favoritter.py` og `odds_motor/billed_parser.py` på GitHub og test live.
+* `app.py` har fået sin sidste engangskobling til dynamisk modul-indlæsning (Mappe 1, 2, 3, 4 + automatisk udvidelsesmappe `udvidelser/`) og er nu 100 % låst igen!
+* Mappe 1 (`odds_motor/autopilot_scanner.py`) er færdigbygget med 24+ favoritligaer (inkl. tilføj/fjern uden at slette spillede kuponer), rigtig `SCAN MARKEDET NU`-knap, fuld kampoversigt, Value-Boost beregning, stjerner/flammer og aktiv `SPILLET`-godkendelse.
+* `historik/gem_data.py` og `odds_motor/liga_favoritter.py` sikrer dansk tid og 100 % uafhængighed mellem favoritliste og spillede kuponer.
+* Næste trin: Læg `odds_motor/autopilot_scanner.py` og den opdaterede `app.py` på GitHub, test Mappe 1 live, og gå derefter videre til Mappe 2 (`odds_motor/manuel_scanner.py`).
