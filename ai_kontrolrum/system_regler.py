@@ -1,13 +1,5 @@
-*(Tjek lige helt i bunden af begge filer at sidste linje er med, når du gemmer dem på GitHub!)*
-
----
-
-### Opdateret AI Reboot-Kode (Krav 14 – Tirsdag d. 10. november 2026 kl. 20:51)
-
-```text
-======================================================================
 Odds-Robot-Pro: Urokkeligt Master-Regelsæt & Fejlretning
-Status: Tirsdag d. 10. november 2026 kl. 20:51 (Dansk tid)
+Status: Tirsdag d. 10. november 2026 kl. 21:04 (Dansk tid)
 ======================================================================
 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
 
@@ -41,10 +33,9 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 15. 👤 BRUGER-ISOLATION & AKTIV GODKENDELSE ("SPILLET"-KNAP): Appen skal starte 100 % 0-stillet på økonomi og statistik (0,00 kr.) til offentlig brug. Scannede billeder og forslag må ALDRIG gemmes i statistikken automatisk, men kun når brugeren aktivt trykker på knappen "Spillet".
 
 ======================================================================
-📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 20:51)
+📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 21:04)
 ======================================================================
 * `app.py` er 100 % låst med dynamisk modul-indlæsning.
-* `odds_motor/kamp_intelligens.py` oprettet som fælles analyse-motor til udtræk af hjemme-/udeform, H2H, dagens dommer samt ægte stadionvejr/vind (Open-Meteo API).
-* `odds_motor/autopilot_scanner.py` (Mappe 1) opgraderet til automatisk at skjule ligaer uden kampe i tidsrammen, rangordne kandidater efter højeste sandsynlighed (inkl. vejr- og form-kontekst) og vise fuld kampintelligens under hver kupon.
-* `odds_motor/liga_favoritter.py` og `historik/gem_data.py` kører fejlfrit.
-* Næste trin: Opret `odds_motor/kamp_intelligens.py`, opdater `odds_motor/autopilot_scanner.py` på GitHub, test Mappe 1 live, og fortsæt derefter til Mappe 2 (`odds_motor/manuel_scanner.py`).
+* `odds_motor/liga_favoritter.py` opgraderet med automatisk navnerettelse (`normaliser_liga_navn`) og permanent lagring i Supabase uden at påvirke spillede kuponer.
+* `odds_motor/autopilot_scanner.py` opgraderet med pokalturneringer (`Spanien - Copa del Rey` m.fl.), fuzzy feed-opslag, øjeblikkelig cache-nulstilling og visning af Form, H2H, Dommer og Vejr (`kamp_intelligens.py`).
+* Næste trin: Læg de opdaterede `odds_motor/liga_favoritter.py` og `odds_motor/autopilot_scanner.py` på GitHub, godkend Mappe 1 live, og fortsæt derefter til Mappe 2 (`odds_motor/manuel_scanner.py`).
