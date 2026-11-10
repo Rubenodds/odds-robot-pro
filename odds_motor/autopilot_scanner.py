@@ -24,6 +24,7 @@ SLUGS = {
     "UEFA - Conference League": "uefa.europa.conf", "UEFA - Nations League": "uefa.nations",
     "Landskampe - FIFA / UEFA": "fifa.friendly", "Landskampe - VM Kvalifikation": "fifa.worldq.uefa",
 }
+SLUG_TIL_LIGA = {v: k for k, v in SLUGS.items()}
 LANDSKAMPE = ["UEFA - Nations League", "Landskampe - FIFA / UEFA", "Landskampe - VM Kvalifikation"]
 MARKEDER = [
     "Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Flest)", "Spillerskud & Skud på mål",
@@ -57,7 +58,7 @@ def _parse_event(ev, liga, nu, dk_tz, sete):
     return {"label": f"{hj} vs {ud} ({liga} | {dk_dt.strftime('%d-%m %H:%M')})", "liga": liga, "hj": hj, "ud": ud, "dk_dt": dk_dt, "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"), "timer": round(max(0.1, diff), 2), "pct": pct, "ctx": ctx}
 
 @st.cache_data(ttl=120, show_spinner=False)
-def _hent_kampe_v6(ligaer_tuple):
+def _hent_kampe_v7(ligaer_tuple):
     dk_tz = ZoneInfo("Europe/Copenhagen")
     nu = datetime.now(dk_tz)
     datoer = [(nu + timedelta(days=d)).strftime("%Y%m%d") for d in range(4)]
@@ -68,17 +69,21 @@ def _hent_kampe_v6(ligaer_tuple):
         try:
             r = requests.get(f"{API.format('all')}?dates={d_str}", headers=HDR, timeout=8)
             if r.status_code != 200:
-                diag["fejl"] = f"HTTP {r.status_code}"
                 continue
             data = r.json()
+            lg_map = {str(l.get("id")): l.get("name", "") for l in data.get("leagues", [])}
             evs = data.get("events", [])
             diag["ra_events"] += len(evs)
             for ev in evs:
-                lg = ev.get("league") or {}
-                lg_txt = f"{lg.get('name', '')} {lg.get('shortName', '')} {lg.get('slug', '')} {(ev.get('season') or {}).get('slug', '')}".lower()
-                if lg.get("name"):
-                    diag["fundne_ligaer"].add(lg["name"])
-                match_liga = next((orig for kw, orig in noegleord.items() if kw in lg_txt), None)
+                season_slug = (ev.get("season") or {}).get("slug", "")
+                links_txt = " ".join(lk.get("href", "") for lk in ev.get("links") or [])
+                lg_name = lg_map.get(str(ev.get("leagueId", "")), "") or (ev.get("league") or {}).get("name", "")
+                raw_txt = f"{lg_name} {season_slug} {links_txt}".replace("-", " ").replace("_", " ").replace("/", " ").lower()
+                if season_slug:
+                    diag["fundne_ligaer"].add(season_slug)
+                match_liga = next((orig for slug, orig in SLUG_TIL_LIGA.items() if orig in ligaer_tuple and slug in links_txt.lower()), None)
+                if not match_liga:
+                    match_liga = next((orig for kw, orig in noegleord.items() if kw in raw_txt), None)
                 if match_liga:
                     if k := _parse_event(ev, match_liga, nu, dk_tz, sete):
                         kampe.append(k)
@@ -105,7 +110,7 @@ def vis_autopilot_scanner():
     min_o, max_o = c2.slider("🎯 Ønsket odds-lag:", 2.0, 200.0, (20.0, 50.0), key="auto_odds")
     max_kampe = c3.slider("🎫 Maks. kampe på kupon:", 1, 12, 4, key="auto_max_kampe")
 
-    alle, diag = _hent_kampe_v6(tuple(favs))
+    alle, diag = _hent_kampe_v7(tuple(favs))
     aktive = [k for k in alle if 0 < k["timer"] <= timer]
     ligaer = sorted({k["liga"] for k in aktive})
 
@@ -119,7 +124,7 @@ def vis_autopilot_scanner():
         foerste = next(iter(alle), None)
         naeste = f" Næste kamp: **{foerste['hj']} vs {foerste['ud']}** ({foerste['start']})." if foerste else ""
         st.info(f"📭 Ingen favoritligaer har kampe inden for **{timer} timer**.{naeste}")
-        st.caption(f"🔎 API-status: {diag['ra_events']} rå events | {len(alle)} matchede | Eks. ligaer i feed: {', '.join(diag['fundne_ligaer']) or 'Ingen'} | Fejl: {diag['fejl'] or 'Ingen'}")
+        st.caption(f"🔎 API-status: {diag['ra_events']} rå events | {len(alle)} matchede | Slugs: {', '.join(diag['fundne_ligaer']) or 'Ingen'} | Fejl: {diag['fejl'] or 'Ingen'}")
 
     with st.expander(f"⚙️ Administrer favoritter ({len(liga_favoritter.hent_favorit_ligaer())} aktive)"):
         ny = st.text_input("➕ Ny favoritliga:", key="auto_ny")
@@ -150,4 +155,3 @@ def vis_autopilot_scanner():
         st.info(f"⭐ {'⭐' * kupon['styrke']} | Bedste profil: {kupon['bedste_side']} | Samlet odds: **{kupon['bedste_odds']}**")
         indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
         if st.button("🚀 SPILLET (Gem i Supabase)", type="primary", key="btn_auto_spillet") and gem_data.gem_kupon_i_historik(list({k["liga"] for k in kupon["kampe"]}), [f"{k['hj']} - {k['ud']} [{k['start']}]" for k in kupon["kampe"]], kupon["bedste_odds"], kupon["samlet_unibet"], kupon["samlet_oddset"], kupon["bedste_side"], kupon["styrke"], indsats):
-            st.success("✅ Kupon gemt i Supabase!")
