@@ -169,3 +169,16 @@ def vis_autopilot_scanner():
             titel = f"{i+1}. {k['hj']} vs {k['ud']} — {', '.join(k['kombinationer'])} (Odds: {k['b365']} | Chance: {k['vinderchance_pct']}%)"
             if st.checkbox(titel, value=True, key=f"kupon_chk_{i}_{k['hj']}_{k['ud']}"):
                 valgte_kampe.append(k)
+            st.caption(f"📍 {k['liga']} | **{k['start']}** | Form: {ctx.get('hj_form')} vs {ctx.get('ud_form')} | Dommer: {ctx.get('dommer')} | Vejr: {v_txt}")
+
+        if valgte_kampe:
+            side, samlet_o, uni_o, odd_o, samlet_pct, stjerner, flammer = _vurder_kupon(valgte_kampe)
+            st.info(f"📊 **{len(valgte_kampe)}/{len(kupon['kampe'])} valg med** | Samlet odds: **{samlet_o}** ({side}) | Kupon-chance: **{samlet_pct}%** | Værdi: {'⭐' * stjerner} | Risiko: {'🔥' * flammer}")
+            indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
+            if st.button("🚀 SPILLET (Gem valgte i Supabase)", type="primary", key="btn_auto_spillet"):
+                liga_liste = list({k["liga"] for k in valgte_kampe})
+                kamp_liste = [f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])}) [{k['start']}]" for k in valgte_kampe]
+                if gem_data.gem_kupon_i_historik(liga_liste, kamp_liste, samlet_o, uni_o, odd_o, side, stjerner, indsats):
+                    st.success("Kupon gemt i Supabase!")
+        else:
+            st.warning("Vælg mindst 1 kamp.")
