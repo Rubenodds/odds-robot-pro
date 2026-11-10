@@ -42,8 +42,8 @@ def _hent_aegte_kampe_fra_net(aktive_ligaer_tuple):
     dk_tz = ZoneInfo("Europe/Copenhagen")
     nu_dk = datetime.now(dk_tz)
     dato_streng = f"{nu_dk.strftime('%Y%m%d')}-{(nu_dk + timedelta(days=3)).strftime('%Y%m%d')}"
-
     alle_kampe = []
+
     for liga_navn in aktive_ligaer_tuple:
         url = LIGA_FEED_ENDPOINTS.get(liga_navn)
         if not url:
@@ -52,28 +52,20 @@ def _hent_aegte_kampe_fra_net(aktive_ligaer_tuple):
             res = requests.get(f"{url}?dates={dato_streng}", timeout=6)
             if res.status_code != 200:
                 continue
-            data = res.json()
-            for event in data.get("events", []):
-                status_type = event.get("status", {}).get("type", {}).get("state", "")
-                if status_type != "pre":
+            for event in res.json().get("events", []):
+                if event.get("status", {}).get("type", {}).get("state") != "pre":
                     continue
-
                 raw_date = event.get("date")
                 if not raw_date:
                     continue
-
-                utc_dt = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
-                dk_dt = utc_dt.astimezone(dk_tz)
-
+                dk_dt = datetime.fromisoformat(raw_date.replace("Z", "+00:00")).astimezone(dk_tz)
                 diff_timer = (dk_dt - nu_dk).total_seconds() / 3600.0
                 if diff_timer <= 0:
                     continue
 
-                competitions = event.get("competitions", [])
-                competitors = competitions[0].get("competitors", []) if competitions else []
+                competitors = event.get("competitions", [{}])[0].get("competitors", [])
                 hj = next((c["team"]["displayName"] for c in competitors if c.get("homeAway") == "home"), None)
                 ud = next((c["team"]["displayName"] for c in competitors if c.get("homeAway") == "away"), None)
-
                 if hj and ud:
                     alle_kampe.append({
                         "liga": liga_navn,
@@ -156,9 +148,7 @@ def vis_autopilot_scanner():
                 antal_kampe = min(len(kandidat_kampe), 5 if max_o >= 25 else 3)
                 udvalgte = kandidat_kampe[:antal_kampe]
                 maal_odds = round((min_o + max_o) / 2.0, 2)
-
-                kupon = byg_kupon.byg_kombineret_kupon(udvalgte, valgte_markeder, maal_odds)
-                st.session_state["auto_scannet_kupon"] = kupon
+                st.session_state["auto_scannet_kupon"] = byg_kupon.byg_kombineret_kupon(udvalgte, valgte_markeder, maal_odds)
                 st.session_state["auto_scannede_kampe_liste"] = kandidat_kampe
                 st.session_state["auto_scannet_timer"] = timer
 
@@ -187,15 +177,13 @@ def vis_autopilot_scanner():
             f"💰 **Samlet Kupon-Odds:** `{kupon['bedste_odds']}`"
         )
 
-        indsats_auto = st.number_input(
-            "Indsats i kr. (Standard 100 kr.):",
-            min_value=1.0,
-            value=100.0,
-            step=10.0,
-            key="auto_indsats",
-        )
+        indsats_auto = st.number_input("Indsats i kr. (Standard 100 kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_indsats")
 
         if st.button("🚀 SPILLET (Godkend & gem Autopilot-kupon i Supabase)", type="primary", key="btn_spillet_auto_ny"):
             kampe_tekst = [f"{k['hj']} - {k['ud']} [{k['start']}] ({', '.join(k['kombinationer'])})" for k in kupon["kampe"]]
             ligaer_tekst = list({k["liga"] for k in kupon["kampe"]})
             gemt = gem_data.gem_kupon_i_historik(
+                ligaer_tekst, kampe_tekst, kupon["bedste_odds"], kupon["samlet_unibet"],
+                kupon["samlet_oddset"], kupon["bedste_side"], kupon["styrke"], indsats_auto
+            )
+            if gemt:
