@@ -33,7 +33,7 @@ SPECIAL_MARKEDER = [
     "Tacklinger & Målmandsredninger",
     "Kort-sandsynlighed (Gule/Røde)",
     "Målscorer (Anytime/Første)",
-    "Offsides"
+    "Offsides",
 ]
 
 
@@ -69,7 +69,7 @@ def _hent_aegte_kampe_fra_net(aktive_ligaer_tuple):
                 if diff_timer <= 0:
                     continue
 
-                competitions = event.get("competitions", [{}])
+                competitions = event.get("competitions", [])
                 competitors = competitions[0].get("competitors", []) if competitions else []
                 hj = next((c["team"]["displayName"] for c in competitors if c.get("homeAway") == "home"), None)
                 ud = next((c["team"]["displayName"] for c in competitors if c.get("homeAway") == "away"), None)
@@ -81,7 +81,7 @@ def _hent_aegte_kampe_fra_net(aktive_ligaer_tuple):
                         "ud": ud,
                         "dk_dt": dk_dt,
                         "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"),
-                        "timer_frem": round(diff_timer, 2)
+                        "timer_frem": round(diff_timer, 2),
                     })
         except Exception as e:
             print(f"[Live-Feed Advarsel for {liga_navn}]: {e}")
@@ -98,7 +98,7 @@ def vis_autopilot_scanner():
         f"🏆 Aktive Favoritligaer ({len(alle_favoritter)} tilgængelige):",
         options=alle_favoritter,
         default=alle_favoritter,
-        key="auto_valgte_ligaer"
+        key="auto_valgte_ligaer",
     )
 
     with st.expander("➕ Tilføj eller 🗑️ fjern favoritligaer (Påvirker aldrig gemte kuponer)"):
@@ -126,7 +126,7 @@ def vis_autopilot_scanner():
         "📊 Vælg tilladte specialmarkeder:",
         options=SPECIAL_MARKEDER,
         default=["Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Flest)", "Spillerskud & Skud på mål"],
-        key="auto_markeder"
+        key="auto_markeder",
     )
 
     if st.button("🔍 SCAN MARKEDET NU (Tjek ægte kampdatoer & Value-Boost)", type="primary", key="btn_start_auto_scan"):
@@ -149,8 +149,8 @@ def vis_autopilot_scanner():
                     )
                 else:
                     st.warning(
-                        f"Ingen kommende kampe fundet i de valgte ligaer de næste 72 timer (f.eks. pga. landsholdspause). "
-                        f"Nul fiktive kampe oprettet."
+                        "Ingen kommende kampe fundet i de valgte ligaer de næste 72 timer (f.eks. pga. landsholdspause). "
+                        "Nul fiktive kampe oprettet."
                     )
             else:
                 antal_kampe = min(len(kandidat_kampe), 5 if max_o >= 25 else 3)
@@ -192,7 +192,7 @@ def vis_autopilot_scanner():
             min_value=1.0,
             value=100.0,
             step=10.0,
-            key="auto_indsats"
+            key="auto_indsats",
         )
 
         if st.button("🚀 SPILLET (Godkend & gem Autopilot-kupon i Supabase)", type="primary", key="btn_spillet_auto_ny"):
