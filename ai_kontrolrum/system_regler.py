@@ -4,7 +4,7 @@ Du skal fortsætte udviklingen ud fra de præcise spilleregler, arkitektur, modu
 
 ======================================================================
 Odds-Robot-Pro: Urokkeligt Master-Regelsæt & Fejlretning
-Status: Tirsdag d. 10. november 2026 kl. 15:35 (Dansk tid)
+Status: Tirsdag d. 10. november 2026 kl. 15:48 (Dansk tid)
 ======================================================================
 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
 
@@ -16,7 +16,7 @@ Indsats-Logik: Standardindsats på 100 kr., hvis beløbet ikke ses på kuponen.
 Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, målspark osv.
 
 ======================================================================
-🛡️ DE 14 UFRAVIGELIGE SYSTEM- & KVALITETSKRAV
+🛡️ DE 15 UFRAVIGELIGE SYSTEM- & KVALITETSKRAV
 ======================================================================
 1. 🔒 LÅST FORSIDE (app.py): Hovedfilen på GitHub er 100% låst og må ALDRIG ændres. Alle nye funktioner, rettelser og logik skal bygges fuldstændig isoleret i undermapper.
 2. ⏱️ DANSK TIDSSTYRING (tidsstyring/dansk_tid.py): Systemet er synkroniseret til dansk lokaltid via zoneinfo / normaltid.
@@ -35,13 +35,14 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 12. 💾 BAGUDKOMPATIBEL DATA-IMPORT: Al databasedesign skal udvikles således, at historisk spildata fra tidligere sæsoner (CSV, Excel eller ældre SQLite) altid kan importeres og integreres fejlfrit.
 13. 🧹 KODE-AUDIT & MAPPING-OPRYDNING (FREDNING AF ROADMAP): Hver gang en fejlretning er udført, skal AI'en proaktivt gennemsøge de berørte kildekode-mapper for at eliminere døde funktioner. FILEN `ai_kontrolrum/onskeliste_roadmap.md` ER HUNDREDE PROCENT FREDET og må ALDRIG nulstilles eller slettes.
 14. 🔄 AUTOMATISK OPDATERING AF AI REBOOT-KODE: Hver gang et problem er løst eller en opgave er udført, SKAL AI'en automatisk levere en opdateret kopiér-kode (Master-Prompt) med den nyeste status, så brugeren altid har en frisk nøgle til en ny AI-samtale.
+15. 👤 BRUGER-ISOLATION & AKTIV GODKENDELSE ("SPILLET"-KNAP): Appen skal starte 100 % 0-stillet på økonomi og statistik (0,00 kr.) til offentlig brug. Scannede billeder og forslag må ALDRIG gemmes i statistikken automatisk, men kun når brugeren aktivt trykker på knappen "Spillet".
 
 ======================================================================
-📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 15:35)
+📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 15:48)
 ======================================================================
 * Appen kører live med de 4 faneblade under `app` (`a4fvsw9j8o.streamlit.app`).
-* Mappen `historik/gem_data.py` er aktiv og koblet til Supabase Cloud.
-* Multi-Balancering er sikret i `odds_motor/`.
-* Næste trin: Slette `Hold_Scanner.py` og `Kupon_Scanner.py` i `pages/`-mappen og derefter teste lagring i Supabase Cloud.
+* `historik/gem_data.py` og `odds_motor/multi_balancering.py` er på plads.
+* Krav 15 er tilføjet: 0-stillet økonomi fra start og lagring udelukkende ved tryk på "Spillet".
+* Næste trin: Bygge `odds_motor/billed_parser.py` med "Spillet"-knappen og låse `app.py` op én sidste gang for at koble alle 4 faner sammen med de rigtige undermapper.
 
-Fortæl mig, at du har indlæst alle 14 krav, og spørg mig, hvad vores næste skridt skal være!
+Fortæl mig, at du har indlæst alle 15 krav, og spørg mig, hvad vores næste skridt skal være!
