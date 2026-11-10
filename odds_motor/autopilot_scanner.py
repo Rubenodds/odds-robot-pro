@@ -191,3 +191,13 @@ def vis_autopilot_scanner():
         indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
         if st.button("🚀 SPILLET (Gem i Supabase)", type="primary", key="btn_auto_spillet"):
             if gem_data.gem_kupon_i_historik(
+                list({k["liga"] for k in kupon["kampe"]}),
+                [f"{k['hj']} - {k['ud']} [{k['start']}]" for k in kupon["kampe"]],
+                kupon["bedste_odds"],
+                kupon["samlet_unibet"],
+                kupon["samlet_oddset"],
+                kupon["bedste_side"],
+                kupon["styrke"],
+                indsats,
+            ):
+                st.success("✅ Kupon gemt i Supabase!")
