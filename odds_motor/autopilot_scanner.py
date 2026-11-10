@@ -28,48 +28,74 @@ MARKEDER = [
     "Tacklinger & Målmandsredninger", "Kort-sandsynlighed (Gule/Røde)", "Målscorer (Anytime/Første)", "Offsides",
 ]
 
-def _find_url(liga):
+def _find_slug(liga):
     norm = liga_favoritter.normaliser_liga_navn(liga)
     for navn in (norm, liga):
         if navn in SLUGS:
-            return API.format(SLUGS[navn])
+            return SLUGS[navn]
     for k, slug in SLUGS.items():
         if k.split(" - ")[-1].lower() in liga.lower() or liga.lower() in k.lower():
-            return API.format(slug)
+            return slug
     return None
 
+def _parse_event(ev, liga, nu, dk_tz, sete):
+    ev_id = ev.get("id")
+    if not ev_id or ev_id in sete or ev.get("status", {}).get("type", {}).get("state") != "pre":
+        return None
+    dk_dt = datetime.fromisoformat(ev["date"].replace("Z", "+00:00")).astimezone(dk_tz)
+    diff = (dk_dt - nu).total_seconds() / 3600.0
+    if diff <= 0:
+        return None
+    comps = ev.get("competitions") or []
+    comp = comps[0] if comps else {}
+    teams = comp.get("competitors") or []
+    hj = next((c["team"]["displayName"] for c in teams if c.get("homeAway") == "home"), None)
+    ud = next((c["team"]["displayName"] for c in teams if c.get("homeAway") == "away"), None)
+    if not (hj and ud):
+        return None
+    sete.add(ev_id)
+    try:
+        ctx = kamp_intelligens.analyser_kamp_kontekst(comp, hj, ud)
+        pct = round(max(35.0, min(95.0, byg_kupon.beregn_sandsynlighed_fra_odds(1.85) + ctx.get("justering_pct", 0.0))), 1)
+    except Exception:
+        ctx = {"justering_pct": 0.0, "hj_form": "Ukendt", "ud_form": "Ukendt", "dommer": "Afventer", "vejr": None}
+        pct = 54.0
+    return {"label": f"{hj} vs {ud} ({liga} | {dk_dt.strftime('%d-%m %H:%M')})", "liga": liga, "hj": hj, "ud": ud, "dk_dt": dk_dt, "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"), "timer": round(diff, 2), "pct": pct, "ctx": ctx}
+
 @st.cache_data(ttl=120, show_spinner=False)
-def _hent_kampe_v2(ligaer_tuple):
+def _hent_kampe_v3(ligaer_tuple):
     dk_tz = ZoneInfo("Europe/Copenhagen")
     nu = datetime.now(dk_tz)
     d_str = f"{nu.strftime('%Y%m%d')}-{(nu + timedelta(days=4)).strftime('%Y%m%d')}"
     kampe, sete = [], set()
+    noegleord = {l.split(" - ")[-1].lower(): l for l in ligaer_tuple}
+
     for liga in ligaer_tuple:
-        url = _find_url(liga)
-        if not url:
+        slug = _find_slug(liga)
+        if not slug:
             continue
         try:
-            r = requests.get(f"{url}?dates={d_str}", timeout=6)
-            if r.status_code != 200:
-                continue
-            for ev in r.json().get("events", []):
-                if ev.get("id") in sete or ev.get("status", {}).get("type", {}).get("state") != "pre":
-                    continue
-                dk_dt = datetime.fromisoformat(ev["date"].replace("Z", "+00:00")).astimezone(dk_tz)
-                diff = (dk_dt - nu).total_seconds() / 3600.0
-                if diff <= 0:
-                    continue
-                comp = (ev.get("competitions") or [{}])
-                teams = comp.get("competitors", [])
-                hj = next((c["team"]["displayName"] for c in teams if c.get("homeAway") == "home"), None)
-                ud = next((c["team"]["displayName"] for c in teams if c.get("homeAway") == "away"), None)
-                if hj and ud:
-                    sete.add(ev["id"])
-                    ctx = kamp_intelligens.analyser_kamp_kontekst(comp, hj, ud)
-                    pct = round(max(35.0, min(95.0, byg_kupon.beregn_sandsynlighed_fra_odds(1.85) + ctx["justering_pct"])), 1)
-                    kampe.append({"label": f"{hj} vs {ud} ({liga} | {dk_dt.strftime('%d-%m %H:%M')})", "liga": liga, "hj": hj, "ud": ud, "dk_dt": dk_dt, "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"), "timer": round(diff, 2), "pct": pct, "ctx": ctx})
+            r = requests.get(f"{API.format(slug)}?dates={d_str}", timeout=6)
+            if r.status_code == 200:
+                for ev in r.json().get("events", []):
+                    k = _parse_event(ev, liga, nu, dk_tz, sete)
+                    if k:
+                        kampe.append(k)
         except Exception:
             continue
+
+    try:
+        r_all = requests.get(f"{API.format('all')}?dates={d_str}", timeout=8)
+        if r_all.status_code == 200:
+            for ev in r_all.json().get("events", []):
+                lg_navn = (ev.get("league") or {}).get("name", "") or (ev.get("season") or {}).get("slug", "")
+                match_liga = next((orig for kw, orig in noegleord.items() if kw in lg_navn.lower()), None)
+                if match_liga:
+                    k = _parse_event(ev, match_liga, nu, dk_tz, sete)
+                    if k:
+                        kampe.append(k)
+    except Exception:
+        pass
     return sorted(kampe, key=lambda x: x["dk_dt"])
 
 def _vaelg_bedste_kombination(kandidater, min_o, max_o, max_kampe):
@@ -89,7 +115,7 @@ def vis_autopilot_scanner():
     min_o, max_o = c2.slider("🎯 Ønsket odds-lag:", 2.0, 200.0, (20.0, 50.0), key="auto_odds")
     max_kampe = c3.slider("🎫 Maks. kampe på kupon:", 1, 12, 4, key="auto_max_kampe")
 
-    alle = _hent_kampe_v2(tuple(favs))
+    alle = _hent_kampe_v3(tuple(favs))
     aktive = [k for k in alle if 0 < k["timer"] <= timer]
     ligaer = sorted({k["liga"] for k in aktive})
 
@@ -100,7 +126,7 @@ def vis_autopilot_scanner():
         kandidater = [k for k in filt if k["label"] in v_labels]
     else:
         kandidater = []
-        naeste = f" Næste kamp: **{alle['hj']} vs {alle['ud']}** ({alle['start']})." if alle else ""
+        naeste = f" Næste kamp: **{alle[0]['hj']} vs {alle[0]['ud']}** ({alle[0]['start']})." if alle else ""
         st.info(f"📭 Ingen favoritligaer har kampe inden for **{timer} timer**.{naeste}")
 
     with st.expander(f"⚙️ Administrer favoritter ({len(liga_favoritter.hent_favorit_ligaer())} aktive)"):
