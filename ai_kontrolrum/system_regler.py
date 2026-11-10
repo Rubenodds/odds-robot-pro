@@ -4,7 +4,7 @@ Du skal fortsætte udviklingen ud fra de præcise spilleregler, arkitektur, modu
 
 ======================================================================
 Odds-Robot-Pro: Urokkeligt Master-Regelsæt & Fejlretning
-Status: Tirsdag d. 10. november 2026 kl. 15:48 (Dansk tid)
+Status: Tirsdag d. 10. november 2026 kl. 15:53 (Dansk tid)
 ======================================================================
 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
 
@@ -38,11 +38,10 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 15. 👤 BRUGER-ISOLATION & AKTIV GODKENDELSE ("SPILLET"-KNAP): Appen skal starte 100 % 0-stillet på økonomi og statistik (0,00 kr.) til offentlig brug. Scannede billeder og forslag må ALDRIG gemmes i statistikken automatisk, men kun når brugeren aktivt trykker på knappen "Spillet".
 
 ======================================================================
-📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 15:48)
+📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 15:53)
 ======================================================================
-* Appen kører live med de 4 faneblade under `app` (`a4fvsw9j8o.streamlit.app`).
-* `historik/gem_data.py` og `odds_motor/multi_balancering.py` er på plads.
-* Krav 15 er tilføjet: 0-stillet økonomi fra start og lagring udelukkende ved tryk på "Spillet".
-* Næste trin: Bygge `odds_motor/billed_parser.py` med "Spillet"-knappen og låse `app.py` op én sidste gang for at koble alle 4 faner sammen med de rigtige undermapper.
+* `odds_motor/billed_parser.py` er oprettet med "SPILLET"-godkendelse.
+* `app.py` er opdateret én sidste gang (nu 100 % låst igen) med 0-stillet økonomi fra start og fuld kobling til `historik/gem_data.py`.
+* Næste trin: Teste hele flowet live på `a4fvsw9j8o.streamlit.app` (uploade billede, trykke SPILLET, og verificere at det vises i Fane 3 og Fane 4 efter reboot).
 
 Fortæl mig, at du har indlæst alle 15 krav, og spørg mig, hvad vores næste skridt skal være!
