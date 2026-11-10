@@ -60,51 +60,80 @@ def _hent_kampe(ligaer_tuple):
                 diff = (dk_dt - nu).total_seconds() / 3600.0
                 if diff <= 0:
                     continue
-                comp = ev.get("competitions", [{}])
+                comps = ev.get("competitions", [])
+                comp = comps[0] if comps else {}
                 teams = comp.get("competitors", [])
                 hj = next((c["team"]["displayName"] for c in teams if c.get("homeAway") == "home"), None)
                 ud = next((c["team"]["displayName"] for c in teams if c.get("homeAway") == "away"), None)
                 if hj and ud:
                     ctx = kamp_intelligens.analyser_kamp_kontekst(comp, hj, ud)
                     pct = round(max(35.0, min(95.0, byg_kupon.beregn_sandsynlighed_fra_odds(1.85) + ctx["justering_pct"])), 1)
-                    kampe.append({"liga": liga, "hj": hj, "ud": ud, "dk_dt": dk_dt, "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"), "timer": round(diff, 2), "pct": pct, "ctx": ctx})
+                    label = f"{hj} vs {ud} ({liga} | {dk_dt.strftime('%d-%m %H:%M')})"
+                    kampe.append({"label": label, "liga": liga, "hj": hj, "ud": ud, "dk_dt": dk_dt, "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"), "timer": round(diff, 2), "pct": pct, "ctx": ctx})
         except Exception:
             pass
     return sorted(kampe, key=lambda x: x["dk_dt"])
 
+def _vaelg_bedste_kombination(kandidater, min_o, max_o, max_kampe):
+    """Udvælger de mest sandsynlige kampe, hvis samlede odds rammer bedst ind i [min_o, max_o]."""
+    sorteret = sorted(kandidater, key=lambda x: x["pct"], reverse=True)
+    maal_odds = round((min_o + max_o) / 2.0, 2)
+    bedste_antal = min(len(sorteret), max_kampe)
+    for antal in range(1, min(len(sorteret), max_kampe) + 1):
+        odds_pr_kamp = maal_odds ** (1.0 / antal)
+        if 1.45 <= odds_pr_kamp <= 3.20:
+            bedste_antal = antal
+            break
+    return sorteret[:bedste_antal], maal_odds
+
 def vis_autopilot_scanner():
-    st.subheader("🌐 1. Autopilot Scanner (Form, H2H, Dommer & Vejr)")
-    favs = liga_favoritter.hent_favorit_ligaer()
-    c1, c2 = st.columns(2)
-    timer = c1.slider("⏱️ Tidsramme frem (timer):", 1, 72, 12, key="auto_timer")
+    st.subheader("🌐 1. Autopilot Scanner (Højeste Sandsynlighed til Valgt Odds)")
+    favs = list(liga_favoritter.hent_favorit_ligaer())
+    if st.checkbox("🌍 Inkludér Landskampe (FIFA / UEFA)", value=False, key="auto_landskampe"):
+        if "Landskampe - FIFA / UEFA" not in favs:
+            favs.append("Landskampe - FIFA / UEFA")
+
+    c1, c2, c3 = st.columns(3)
+    timer = c1.slider("⏱️ Tidsramme (timer):", 1, 72, 12, key="auto_timer")
     min_o, max_o = c2.slider("🎯 Ønsket odds-lag:", 2.0, 200.0, (20.0, 50.0), key="auto_odds")
+    max_kampe = c3.slider("🎫 Maks. kampe på kupon:", 1, 12, 4, key="auto_max_kampe")
 
     alle_kampe = _hent_kampe(tuple(favs))
     aktive = [k for k in alle_kampe if 0 < k["timer"] <= timer]
     aktive_ligaer = sorted(list({k["liga"] for k in aktive}))
 
     if aktive_ligaer:
-        valgte_ligaer = st.multiselect(f"🏆 Ligaer med kampe inden for {timer}T:", aktive_ligaer, default=aktive_ligaer, key="auto_ligaer")
+        valgte_ligaer = st.multiselect(f"🏆 Vælg ligaer med kampe ({len(aktive_ligaer)} aktive i {timer}T):", aktive_ligaer, default=aktive_ligaer, key="auto_ligaer")
+        filtrerede = [k for k in aktive if k["liga"] in valgte_ligaer]
+        valgte_labels = st.multiselect(f"⚽ Vælg kampe ({len(filtrerede)} tilgængelige):", [k["label"] for k in filtrerede], default=[k["label"] for k in filtrerede], key="auto_kampe_valgt")
+        kandidater = [k for k in filtrerede if k["label"] in valgte_labels]
     else:
-        valgte_ligaer = []
-        naeste = f" Næste kamp: **{alle_kampe['hj']} vs {alle_kampe['ud']}** ({alle_kampe['start']})." if alle_kampe else ""
-        st.info(f"📭 Ingen favoritligaer har kampe inden for **{timer} timer**.{naeste}")
+        kandidater = []
+        naeste = f" Næste kamp: **{alle_kampe[0]['hj']} vs {alle_kampe[0]['ud']}** ({alle_kampe[0]['start']})." if alle_kampe else ""
+        st.info(f"📭 Ingen aktive ligaer har kampe inden for **{timer} timer**.{naeste}")
 
-    with st.expander(f"⚙️ Administrer favoritter ({len(favs)} aktive)"):
+    with st.expander(f"⚙️ Administrer favoritter ({len(liga_favoritter.hent_favorit_ligaer())} faste)"):
         ny = st.text_input("➕ Ny favoritliga:", key="auto_ny")
         if st.button("Gem favorit", key="auto_add") and liga_favoritter.tilfoej_ny_favorit_liga(ny):
             st.cache_data.clear()
             st.rerun()
-        fjern = st.selectbox("🗑️ Fjern liga:", favs, key="auto_del_sel")
+        fjern = st.selectbox("🗑️ Fjern liga:", liga_favoritter.hent_favorit_ligaer(), key="auto_del_sel")
         if st.button("Fjern liga", key="auto_del") and liga_favoritter.fjern_favorit_liga(fjern):
             st.cache_data.clear()
             st.rerun()
 
     markeder = st.multiselect("📊 Specialmarkeder:", MARKEDER, default=MARKEDER[:3], key="auto_mark")
-    if st.button("🔍 SCAN MARKEDET NU", type="primary", key="btn_scan") and valgte_ligaer and markeder:
-        kand = sorted([k for k in aktive if k["liga"] in valgte_ligaer], key=lambda x: x["pct"], reverse=True)
-        udv = kand[:min(len(kand), 5 if max_o >= 25 else 3)]
-        kupon = byg_kupon.byg_kombineret_kupon(udv, markeder, round((min_o + max_o) / 2.0, 2))
+    b1, b2 = st.columns(2)
+    scan_bedste = b1.button("🔍 FIND MEST SANDSYNLIGE KUPON", type="primary", key="btn_scan")
+    scan_alle = b2.button("⚡ SCAN ALLE VALGTE KAMPE", key="btn_scan_alle")
+
+    if (scan_bedste or scan_alle) and kandidater and markeder:
+        if scan_alle:
+            udv = sorted(kandidater, key=lambda x: x["pct"], reverse=True)
+            maal_odds = round((min_o + max_o) / 2.0, 2)
+        else:
+            udv, maal_odds = _vaelg_bedste_kombination(kandidater, min_o, max_o, max_kampe)
+        kupon = byg_kupon.byg_kombineret_kupon(udv, markeder, maal_odds)
         for i, k_obj in enumerate(kupon["kampe"]):
             k_obj["ctx"] = udv[i]["ctx"]
         st.session_state["auto_kupon"] = kupon
