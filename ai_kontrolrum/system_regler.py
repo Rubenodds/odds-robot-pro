@@ -4,7 +4,7 @@ Du skal fortsætte udviklingen ud fra de præcise spilleregler, arkitektur, modu
 
 ======================================================================
 Odds-Robot-Pro: Urokkeligt Master-Regelsæt & Fejlretning
-Status: Tirsdag d. 10. november 2026 kl. 14:55 (Dansk tid)
+Status: Tirsdag d. 10. november 2026 kl. 15:17 (Dansk tid)
 ======================================================================
 🔒 FASTLÅSTE SYSTEM-REGLER & LOGIK (Må ALDRIG ændres)
 
@@ -37,11 +37,11 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 14. 🔄 AUTOMATISK OPDATERING AF AI REBOOT-KODE: Hver gang et problem er løst eller en opgave er udført, SKAL AI'en automatisk levere en opdateret kopiér-kode (Master-Prompt) med den nyeste status, så brugeren altid har en frisk nøgle til en ny AI-samtale.
 
 ======================================================================
-📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 14:55)
+📍 AKTUEL STATUS (Tirsdag d. 10. november 2026 kl. 15:17)
 ======================================================================
 * Repository er renset for gamle spøgelsesmapper (`bookmaker_scanner` og `resultat_tjekker` er slettet).
-* Eksisterende mapper på forsiden: `ai_kontrolrum`, `kampprogram`, `odds_motor`, `pages`, `tidsstyring`.
-* Afventende opgave: Oprettelse af mappen `historik` med `gem_data.py` til Supabase Cloud.
-* Gemt idé til senere: Automatisk afregnings- og resultat-loop i `historik`.
+* Mappen `historik` med `gem_data.py` (Supabase REST integration) er oprettet og aktiv på GitHub.
+* Eksisterende mapper på forsiden: `ai_kontrolrum`, `historik`, `kampprogram`, `odds_motor`, `pages`, `tidsstyring`.
+* Næste trin: Tjek live-appen på `a4fvsw9j8o.streamlit.app` og verificer at de 4 funktioner og imports kører uden fejl.
 
 Fortæl mig, at du har indlæst alle 14 krav, og spørg mig, hvad vores næste skridt skal være!
