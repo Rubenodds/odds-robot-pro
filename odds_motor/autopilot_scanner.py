@@ -9,9 +9,13 @@ FEEDS = {
     "Danmark - Superliga": "https://espn.com",
     "England - Premier League": "https://espn.com",
     "England - Championship": "https://espn.com",
+    "England - FA Cup": "https://espn.com",
     "Spanien - La Liga": "https://espn.com",
+    "Spanien - Copa del Rey": "https://espn.com",
     "Italien - Serie A": "https://espn.com",
+    "Italien - Coppa Italia": "https://espn.com",
     "Tyskland - Bundesliga": "https://espn.com",
+    "Tyskland - DFB Pokal": "https://espn.com",
     "Frankrig - Ligue 1": "https://espn.com",
     "Norge - Eliteserien": "https://espn.com",
     "Sverige - Allsvenskan": "https://espn.com",
@@ -20,6 +24,7 @@ FEEDS = {
     "Japan - J1 League": "https://espn.com",
     "UEFA - Champions League": "https://espn.com",
     "UEFA - Europa League": "https://espn.com",
+    "Landskampe - FIFA / UEFA": "https://espn.com",
 }
 
 MARKEDER = [
@@ -28,14 +33,23 @@ MARKEDER = [
     "Kort-sandsynlighed (Gule/Røde)", "Målscorer (Anytime/Første)", "Offsides",
 ]
 
-@st.cache_data(ttl=300, show_spinner=False)
+def _find_url(liga_navn):
+    norm = liga_favoritter.normaliser_liga_navn(liga_navn)
+    if norm in FEEDS:
+        return FEEDS[norm]
+    for k, v in FEEDS.items():
+        if liga_navn.lower() in k.lower() or k.lower() in liga_navn.lower():
+            return v
+    return None
+
+@st.cache_data(ttl=180, show_spinner=False)
 def _hent_kampe(ligaer_tuple):
     dk_tz = ZoneInfo("Europe/Copenhagen")
     nu = datetime.now(dk_tz)
     d_str = f"{nu.strftime('%Y%m%d')}-{(nu + timedelta(days=3)).strftime('%Y%m%d')}"
     kampe = []
     for liga in ligaer_tuple:
-        url = FEEDS.get(liga)
+        url = _find_url(liga)
         if not url:
             continue
         try:
@@ -79,9 +93,11 @@ def vis_autopilot_scanner():
     with st.expander(f"⚙️ Administrer favoritter ({len(favs)} aktive)"):
         ny = st.text_input("➕ Ny favoritliga:", key="auto_ny")
         if st.button("Gem favorit", key="auto_add") and liga_favoritter.tilfoej_ny_favorit_liga(ny):
+            st.cache_data.clear()
             st.rerun()
         fjern = st.selectbox("🗑️ Fjern liga:", favs, key="auto_del_sel")
         if st.button("Fjern liga", key="auto_del") and liga_favoritter.fjern_favorit_liga(fjern):
+            st.cache_data.clear()
             st.rerun()
 
     markeder = st.multiselect("📊 Specialmarkeder:", MARKEDER, default=MARKEDER[:3], key="auto_mark")
