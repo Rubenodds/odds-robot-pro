@@ -9,7 +9,6 @@ from historik import gem_data
 HOST = "site.api." + "espn.com"
 API = f"https://{HOST}/apis/site/v2/sports/soccer/{{}}/scoreboard"
 HDR = {"User-Agent": "Mozilla/5.0"}
-
 SLUGS = {
     "Danmark - Superliga": "den.1", "Danmark - 1. Division": "den.2", "Danmark - Pokalen": "den.cup",
     "England - Premier League": "eng.1", "England - Championship": "eng.2", "England - League One": "eng.3",
@@ -27,12 +26,10 @@ SLUGS = {
     "UEFA - VM Kvalifikation": "fifa.worldq.uefa",
 }
 SLUG_TIL_LIGA = {v: k for k, v in SLUGS.items()}
-
 MARKEDER = [
     "Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Flest)", "Spillerskud & Skud på mål",
     "Tacklinger & Målmandsredninger", "Kort-sandsynlighed (Gule/Røde)", "Målscorer (Anytime/Første)", "Offsides",
 ]
-
 
 def _parse_event(ev, liga, nu, dk_tz, sete):
     ev_id = ev.get("id")
@@ -58,19 +55,7 @@ def _parse_event(ev, liga, nu, dk_tz, sete):
     except Exception:
         ctx = {"justering_pct": 0.0, "hj_form": "Ukendt", "ud_form": "Ukendt", "dommer": "Afventer", "vejr": None}
         pct = 54.0
-    return {
-        "id": ev_id,
-        "label": f"{hj} vs {ud} ({liga} | {dk_dt.strftime('%d-%m %H:%M')})",
-        "liga": liga,
-        "hj": hj,
-        "ud": ud,
-        "dk_dt": dk_dt,
-        "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"),
-        "timer": round(max(0.1, diff), 2),
-        "pct": pct,
-        "ctx": ctx,
-    }
-
+    return {"id": ev_id, "label": f"{hj} vs {ud} ({liga} | {dk_dt.strftime('%d-%m %H:%M')})", "liga": liga, "hj": hj, "ud": ud, "dk_dt": dk_dt, "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"), "timer": round(max(0.1, diff), 2), "pct": pct, "ctx": ctx}
 
 @st.cache_data(ttl=120, show_spinner=False)
 def _hent_kampe_v9(ligaer_tuple):
@@ -97,26 +82,18 @@ def _hent_kampe_v9(ligaer_tuple):
             if r.status_code == 200:
                 for ev in r.json().get("events", []):
                     links_txt = " ".join(lk.get("href", "") for lk in ev.get("links") or []).lower()
-                    match_liga = next(
-                        (orig for slug, orig in SLUG_TIL_LIGA.items() if f"/{slug}/" in links_txt or slug in links_txt),
-                        None,
-                    )
+                    match_liga = next((orig for slug, orig in SLUG_TIL_LIGA.items() if f"/{slug}/" in links_txt or slug in links_txt), None)
                     if match_liga and (k := _parse_event(ev, match_liga, nu, dk_tz, sete)):
                         kampe.append(k)
         except Exception:
             continue
     return sorted(kampe, key=lambda x: x["dk_dt"])
 
-
 def _vaelg_bedste_kombination(kandidater, min_o, max_o, max_kampe):
     sorteret = sorted(kandidater, key=lambda x: x["pct"], reverse=True)
     maal = round((min_o + max_o) / 2.0, 2)
-    antal = next(
-        (n for n in range(1, min(len(sorteret), max_kampe) + 1) if 1.45 <= maal ** (1.0 / n) <= 3.20),
-        min(len(sorteret), max_kampe),
-    )
+    antal = next((n for n in range(1, min(len(sorteret), max_kampe) + 1) if 1.45 <= maal ** (1.0 / n) <= 3.20), min(len(sorteret), max_kampe))
     return sorteret[:antal], maal
-
 
 def _vurder_kupon(valgte):
     odds_b365 = round(math.prod(float(k.get("b365", 1.85)) for k in valgte), 2)
@@ -125,14 +102,10 @@ def _vurder_kupon(valgte):
     profiler = {"Bet365": odds_b365, "Unibet": odds_uni, "Danske Spil": odds_odd}
     bedste_side = max(profiler, key=profiler.get)
     bedste_odds = profiler[bedste_side]
-    samlet_pct = round(
-        max(1.0, min(95.0, math.prod(float(k.get("vinderchance_pct", 55.0)) / 100.0 for k in valgte) * 100.0)),
-        1,
-    )
+    samlet_pct = round(max(1.0, min(95.0, math.prod(float(k.get("vinderchance_pct", 55.0)) / 100.0 for k in valgte) * 100.0)), 1)
     stjerner = 5 if samlet_pct >= 45 else (4 if samlet_pct >= 30 else (3 if samlet_pct >= 18 else (2 if samlet_pct >= 10 else 1)))
     flammer = 1 if bedste_odds < 4 else (2 if bedste_odds < 12 else (3 if bedste_odds < 30 else (4 if bedste_odds < 65 else 5)))
     return bedste_side, bedste_odds, odds_uni, odds_odd, samlet_pct, stjerner, flammer
-
 
 def vis_autopilot_scanner():
     st.subheader("🌐 1. Autopilot Scanner (Form, H2H, Dommer & Vejr)")
@@ -150,12 +123,7 @@ def vis_autopilot_scanner():
     if ligaer:
         v_ligaer = st.multiselect(f"🏆 Aktive turneringer ({len(ligaer)} i {timer}T):", ligaer, default=ligaer, key="auto_ligaer")
         filt = [k for k in aktive if k["liga"] in v_ligaer]
-        valg_mode = st.radio(
-            "🎯 Kampvalg:",
-            [f"Alle kampe i valgte ligaer ({len(filt)} stk.)", "Håndpluk bestemte kampe"],
-            horizontal=True,
-            key="auto_mode",
-        )
+        valg_mode = st.radio("🎯 Kampvalg:", [f"Alle kampe i valgte ligaer ({len(filt)} stk.)", "Håndpluk bestemte kampe"], horizontal=True, key="auto_mode")
         if valg_mode == "Håndpluk bestemte kampe":
             v_labels = st.multiselect("⚽ Søg og vælg dine kampe:", [k["label"] for k in filt], default=[], key="auto_kampe_valgt")
             kandidater = [k for k in filt if k["label"] in v_labels]
@@ -173,35 +141,44 @@ def vis_autopilot_scanner():
             st.cache_data.clear()
             st.rerun()
         fjern = st.selectbox("🗑️ Fjern liga:", favs, key="auto_del_sel")
-        if st.button("Fjern valgt liga", key="auto_del_btn") and liga_favoritter.fjern_favorit_liga(fjern):
+        if st.button("Fjern liga", key="auto_del") and liga_favoritter.fjern_favorit_liga(fjern):
             st.cache_data.clear()
             st.rerun()
 
-    st.divider()
-
-    if st.button("🚀 Start Autopilot Scan", type="primary", use_container_width=True, key="btn_auto_scan"):
+    markeder = st.multiselect("📊 Specialmarkeder:", MARKEDER, default=MARKEDER[:3], key="auto_mark")
+    b1, b2 = st.columns(2)
+    if (b1.button("🔍 FIND MEST SANDSYNLIGE KUPON", type="primary", key="btn_scan") or b2.button("⚡ SCAN ALLE VALGTE KAMPE", key="btn_scan_alle")):
         if not kandidater:
-            st.warning("⚠️ Ingen kampe matcher dine valgte kriterier i tidsrammen.")
-            return
+            st.warning("⚠️ Vælg mindst én kamp eller liga først.")
+        elif not markeder:
+            st.warning("⚠️ Vælg mindst ét specialmarked først.")
+        else:
+            udv, maal = (sorted(kandidater, key=lambda x: x["pct"], reverse=True), round((min_o + max_o) / 2.0, 2)) if st.session_state.get("btn_scan_alle") else _vaelg_bedste_kombination(kandidater, min_o, max_o, max_kampe)
+            kupon = byg_kupon.byg_kombineret_kupon(udv, markeder, maal)
+            for k_obj, u_obj in zip(kupon["kampe"], udv):
+                k_obj["ctx"] = u_obj["ctx"]
+            st.session_state["auto_kupon"] = kupon
 
-        valgte_kampe, _ = _vaelg_bedste_kombination(kandidater, min_o, max_o, max_kampe)
-        kupon_kampe = []
-        for k in valgte_kampe:
-            kamp_kopi = dict(k)
-            try:
-                forslag = byg_kupon.byg_spilbare_forslag(kamp_kopi, MARKEDER)
-                if isinstance(forslag, dict):
-                    kamp_kopi.update(forslag)
-            except Exception:
-                pass
-            kamp_kopi.setdefault("kombinationer", ["Standard (Mål / Kampvinder)"])
-            kamp_kopi.setdefault("b365", round(max(1.35, min(3.40, 100.0 / max(float(kamp_kopi.get("pct", 55.0)), 30.0))), 2))
-            kamp_kopi.setdefault("vinderchance_pct", kamp_kopi.get("pct", 55.0))
-            kupon_kampe.append(kamp_kopi)
+    if kupon := st.session_state.get("auto_kupon"):
+        st.markdown("### 🎫 Vælg hvilke forslag der skal med på kuponen:")
+        valgte_kampe = []
+        for i, k in enumerate(kupon["kampe"]):
+            ctx = k.get("ctx", {})
+            v = ctx.get("vejr")
+            v_txt = f"{v['temp']}°C, {v['vind']} m/s ({v['effekt']})" if v else "Afventer"
+            titel = f"{i+1}. {k['hj']} vs {k['ud']} — {', '.join(k['kombinationer'])} (Odds: {k['b365']} | Chance: {k['vinderchance_pct']}%)"
+            if st.checkbox(titel, value=True, key=f"kupon_chk_{i}_{k['hj']}_{k['ud']}"):
+                valgte_kampe.append(k)
+            st.caption(f"📍 {k['liga']} | **{k['start']}** | Form: {ctx.get('hj_form')} vs {ctx.get('ud_form')} | Dommer: {ctx.get('dommer')} | Vejr: {v_txt}")
 
-        st.session_state["auto_seneste_kupon"] = kupon_kampe
-
-    kupon_kampe = st.session_state.get("auto_seneste_kupon", [])
-    if kupon_kampe:
-        bedste_side, samlet_odds, _, _, samlet_pct, stjerner, flammer = _vurder_kupon(kupon_kampe)
-        st.success(
+        if valgte_kampe:
+            side, samlet_o, uni_o, odd_o, samlet_pct, stjerner, flammer = _vurder_kupon(valgte_kampe)
+            st.info(f"📊 **{len(valgte_kampe)}/{len(kupon['kampe'])} valg med** | Samlet odds: **{samlet_o}** ({side}) | Kupon-chance: **{samlet_pct}%** | Værdi: {'⭐' * stjerner} | Risiko: {'🔥' * flammer}")
+            indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
+            if st.button("🚀 SPILLET (Gem valgte i Supabase)", type="primary", key="btn_auto_spillet"):
+                liga_liste = list({k["liga"] for k in valgte_kampe})
+                kamp_liste = [f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])}) [{k['start']}]" for k in valgte_kampe]
+                if gem_data.gem_kupon_i_historik(liga_liste, kamp_liste, samlet_o, uni_o, odd_o, side, stjerner, indsats):
+                    st.success("Kupon gemt i Supabase!")
+        else:
+            st.warning("Vælg mindst 1 kamp.")
