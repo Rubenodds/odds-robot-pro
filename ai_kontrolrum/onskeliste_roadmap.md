@@ -1,7 +1,10 @@
 # 🤖 Odds Robot Pro – Systemstatus & Roadmap
 **Opdateret:** Onsdag d. 11. november 2026 kl. 21:54 (Dansk normaltid)  
 **Arkitekturstatus:** `app.py` 100 % LÅST | Supabase Cloud aktiv | Alle motorer samlet i `odds_motor/`  
-
+### 📅 Log: 11-11-2026 kl. 22:15 (Dansk tid)
+- **Mappe 1 (`odds_motor/autopilot_scanner.py`):** Opgraderet med kampbegrundelser (`mh.begrundelse`), spilværdi/edge (`%`) og samlet **Robottens vurdering**.
+- **Mappe 2 (`manuel_scanner.py` + `manuel_hjaelp.py`):** Færdigbygget med liga-flueben (`📌`), søgbar klub-rullemenu, **Kun Resultatspil**, **Chance / Værdi (`⭐` 1–5) / Risiko (`🔥` 1–5)** og **Guld/Sølv/Bronze**.
+- **Låst arbejdsregel:** Maks. 3.000 tegn pr. kodeblok + kun tilføjelser i toppen af logfiler.
 ---
 
 ## ✅ Gennemførte Milepæle & Løste Opgaver (11-11-2026)
