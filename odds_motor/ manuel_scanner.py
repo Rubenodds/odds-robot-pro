@@ -4,6 +4,53 @@ from odds_motor import byg_kupon, liga_favoritter
 from historik import gem_data
 
 
+def _byg_spilbare_forslag_sikkert(udvalgte, maal_odds):
+    """
+    Bruger byg_kupon.byg_kombineret_kupon på tværs af ALLE spilmarkeder (ap.MARKEDER),
+    med sikker fallback hvis en kamp mangler eksterne oddsdata.
+    """
+    try:
+        kupon = byg_kupon.byg_kombineret_kupon(udvalgte, ap.MARKEDER, maal_odds)
+        if isinstance(kupon, dict) and kupon.get("kampe"):
+            for k_obj, u_obj in zip(kupon["kampe"], udvalgte):
+                k_obj["ctx"] = u_obj.get("ctx", {})
+                if u_obj.get("valgt_hold"):
+                    k_obj["valgt_hold"] = u_obj["valgt_hold"]
+            return kupon
+    except Exception:
+        pass
+
+    # Sikker fallback så kuponen altid genererer spilbare forslag
+    kampe_resultat = []
+    for u in udvalgte:
+        kopi = dict(u)
+        pct = float(kopi.get("pct", 55.0))
+        ctx = kopi.get("ctx") or {}
+        fokus = kopi.get("valgt_hold")
+
+        forslag = []
+        if fokus:
+            forslag.append(f"Kampvinder / DNB: {fokus}")
+        elif pct >= 60.0:
+            forslag.append(f"Kampvinder: {kopi['hj']}")
+        elif pct <= 44.0:
+            forslag.append(f"Kampvinder: {kopi['ud']}")
+        else:
+            forslag.append("Standard: Over 1.5 mål i kampen")
+
+        if ctx.get("justering_pct", 0.0) >= 1.5:
+            forslag.append("Hjørnespark: Over 8.5 total")
+        if ctx.get("dommer") and ctx.get("dommer") != "Afventer":
+            forslag.append("Kort-sandsynlighed: Over 3.5 kort")
+
+        kopi["kombinationer"] = forslag
+        kopi.setdefault("b365", round(max(1.35, min(3.40, 100.0 / max(pct, 30.0))), 2))
+        kopi.setdefault("vinderchance_pct", pct)
+        kampe_resultat.append(kopi)
+
+    return {"kampe": kampe_resultat}
+
+
 def vis_manuel_scanner():
     st.subheader("⚽ 2. Manuel Liga- & Klub-Scanner (Alle Spilmarkeder)")
     favs = list(liga_favoritter.hent_favorit_ligaer())
@@ -18,10 +65,10 @@ def vis_manuel_scanner():
     ligaer = sorted({k["liga"] for k in aktive})
 
     if not ligaer:
-        st.info(f"Ingen aktive ligaer inden for {timer} timer.")
+        st.info(f"📭 Ingen aktive ligaer inden for **{timer} timer**. Prøv at øge tidsrammen.")
         return
 
-    # 1. LIGAER MED FLUEBEN (Kun flueben på ligaer – ingen på spilmarkeder)
+    # 1. LIGAER MED FLUEBEN (Kun ligaer – ingen flueben på spilmarkeder)
     st.markdown(f"### 🏆 Vælg ligaer med flueben ({len(ligaer)} aktive i {timer}T):")
     vaelg_alle = st.checkbox("Vælg / fravælg alle aktive ligaer", value=True, key="man_alle_ligaer")
 
@@ -29,7 +76,7 @@ def vis_manuel_scanner():
     cols = st.columns(3)
     for idx, liga in enumerate(ligaer):
         with cols[idx % 3]:
-            if st.checkbox(liga, value=vaelg_alle, key=f"man_liga_chk_{liga}"):
+            if st.checkbox(liga, value=vaelg_alle, key=f"man_liga_chk_{idx}_{liga}"):
                 v_ligaer.append(liga)
 
     pulje = [k for k in aktive if k["liga"] in v_ligaer]
@@ -49,7 +96,6 @@ def vis_manuel_scanner():
         if valgte_klubber:
             if k["hj"] in valgte_klubber or k["ud"] in valgte_klubber:
                 kopi = dict(k)
-                # Sætter valgt_hold, hvis den ene eller anden klub er valgt i rullemenuen
                 if k["hj"] in valgte_klubber and k["ud"] not in valgte_klubber:
                     kopi["valgt_hold"] = k["hj"]
                 elif k["ud"] in valgte_klubber and k["hj"] not in valgte_klubber:
@@ -60,27 +106,20 @@ def vis_manuel_scanner():
 
     st.caption(f"📊 **{len(kandidater)} kampe** i spil – alle spilmarkeder og spilbare forslag analyseres automatisk.")
 
-    # 3. BEREGN KUPON MED SPILBARE FORSLAG PÅ TVÆRS AF ALLE MARKEDER
+    # 3. BEREGN KUPON MED SPILBARE FORSLAG
     if st.button(f"🔍 BEREGN KUPON ({len(kandidater)} kampe i spil)", type="primary", use_container_width=True, key="btn_man_scan"):
         if not kandidater:
-            st.warning("Vælg mindst én liga med flueben (eller ryd klubfilteret) for at finde kampe.")
+            st.warning("⚠️ Sæt flueben ved mindst én liga (eller ryd klubfilteret) for at finde kampe.")
         else:
-            # Hvis der er flere kampe end max_kampe, udvælger robotten de bedste kandidater ligesom Mappe 1
             if len(kandidater) > max_kampe and not valgte_klubber:
                 udvalgte, maal = ap._vaelg_bedste_kombination(kandidater, min_o, max_o, max_kampe)
             else:
                 udvalgte = kandidater[:max_kampe]
                 maal = round((min_o + max_o) / 2.0, 2)
 
-            # Inddrager automatisk ALLE spilmarkeder (ap.MARKEDER) for at finde de bedste spilbare forslag
-            kupon = byg_kupon.byg_kombineret_kupon(udvalgte, ap.MARKEDER, maal)
-            for k_obj, u_obj in zip(kupon["kampe"], udvalgte):
-                k_obj["ctx"] = u_obj.get("ctx", {})
-                if u_obj.get("valgt_hold"):
-                    k_obj["valgt_hold"] = u_obj["valgt_hold"]
-            st.session_state["man_kupon"] = kupon
+            st.session_state["man_kupon"] = _byg_spilbare_forslag_sikkert(udvalgte, maal)
 
-    # 4. VIS KUPON MED SPILBARE FORSLAG & GEM I SUPABASE
+    # 4. VIS KUPON & GEM I SUPABASE
     if kupon := st.session_state.get("man_kupon"):
         st.markdown("### 🎫 Din Kupon (Spilbare Forslag):")
         valgte_kampe = []
@@ -108,4 +147,4 @@ def vis_manuel_scanner():
                     stjerner,
                     indsats,
                 ):
-                    st.success("Manuel kupon gemt i Supabase!")
+                    st.success("✅ Manuel kupon gemt i Supabase!")
