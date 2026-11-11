@@ -25,7 +25,7 @@ def vis_manuel_scanner():
     kupon = st.session_state.setdefault("manuel_kupon", [])
     favs = list(liga_favoritter.hent_favorit_ligaer())
 
-    c1, c2 = st.columns([2, 1])
+    c1, c2 = st.columns(2)
     timer = c1.slider("⏱️ Tidsramme frem (timer):", 1, 72, 48, key="man_timer")
     alle_l = c2.checkbox("⚡ Tilvælg alle aktive ligaer", value=False, key="man_chk_l")
 
@@ -63,7 +63,7 @@ def vis_manuel_scanner():
             kupon.append({"kamp_id": ko["id"], "liga": ko["liga"], "kamp_txt": f"{ko['hj']} vs {ko['ud']} [{ko['start']}]", "udfald": f"{hold} — {udf}", "odds": round(float(odds), 2), "pct": byg_kupon.beregn_sandsynlighed_fra_odds(odds), "aktiv": True})
             st.rerun()
         elif frit_h.strip() and udf:
-            kupon.append({"kamp_id": f"frit_{frit_h.strip().lower()}", "liga": v_ligaer[0] if v_ligaer else "Manuel", "kamp_txt": frit_h.strip(), "udfald": f"{frit_h.strip()} — {udf}", "odds": round(float(odds), 2), "pct": byg_kupon.beregn_sandsynlighed_fra_odds(odds), "aktiv": True})
+            kupon.append({"kamp_id": f"frit_{frit_h.strip().lower()}", "liga": next(iter(v_ligaer), "Manuel"), "kamp_txt": frit_h.strip(), "udfald": f"{frit_h.strip()} — {udf}", "odds": round(float(odds), 2), "pct": byg_kupon.beregn_sandsynlighed_fra_odds(odds), "aktiv": True})
             st.rerun()
         else:
             st.warning("Vælg et hold og et spiludfald.")
@@ -77,7 +77,7 @@ def vis_manuel_scanner():
         st.markdown("### 🎫 Din Kupon:")
         aktive = []
         for i, item in enumerate(kupon):
-            k1, k2 = st.columns([6, 1])
+            k1, k2 = st.columns(2)
             item["aktiv"] = k1.checkbox(f"{i+1}. {item['kamp_txt']} — {item['udfald']} (Odds: {item['odds']} | {item['pct']}%)", value=item.get("aktiv", True), key=f"m_chk_{i}_{item['kamp_id']}")
             if item["aktiv"]:
                 aktive.append(item)
