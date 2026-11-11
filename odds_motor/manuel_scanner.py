@@ -91,9 +91,9 @@ def vis_manuel_scanner():
 
     st.markdown(f"### 🏆 Vælg ligaer med flueben ({len(ligaer)} aktive i {timer}T):")
 
-    # Favorit-hukommelsesknap til mobil og PC
+    # Favorit-hukommelse med nål (📌)
     husk_val = st.checkbox(
-        "⭐ Husk mine valgte fokus-ligaer fast",
+        "📌 Husk mine valgte fokus-ligaer fast",
         value=har_gemt_fokus,
         key="man_husk_favorit",
         on_change=_opdater_fokus_hukommelse,
@@ -101,19 +101,19 @@ def vis_manuel_scanner():
     )
 
     if husk_val and gemte_fokus:
-        st.caption(f"📌 Gemte fokus-ligaer aktive ({len(gemte_fokus)} stk.) – øvrige ligaer er klar til flueben nedenfor.")
+        st.caption(f"📌 Fastgjorte fokus-ligaer aktive ({len(gemte_fokus)} stk.) – øvrige ligaer er klar til flueben nedenfor.")
 
-    # Initialiser flueben ud fra gemte fokus-ligaer (eller alle, hvis ingen fokus-ligaer er gemt)
+    # Starter helt UDEN flueben (False), medmindre ligaen er fastgjort som favorit
     for liga in ligaer:
         l_key = f"man_liga_chk_{liga}"
         if l_key not in st.session_state:
-            st.session_state[l_key] = (liga in gemte_fokus) if har_gemt_fokus else True
+            st.session_state[l_key] = (liga in gemte_fokus) if har_gemt_fokus else False
 
     v_ligaer = []
     cols = st.columns(3)
     for idx, liga in enumerate(ligaer):
         l_key = f"man_liga_chk_{liga}"
-        label = f"⭐ {liga}" if (husk_val and liga in gemte_fokus) else liga
+        label = f"📌 {liga}" if (husk_val and liga in gemte_fokus) else liga
         with cols[idx % 3]:
             if st.checkbox(
                 label,
@@ -152,7 +152,7 @@ def vis_manuel_scanner():
 
     if st.button(f"🔍 BEREGN KUPON ({len(kandidater)} kampe i spil)", type="primary", use_container_width=True, key="btn_man_scan"):
         if not kandidater:
-            st.warning("⚠️ Sæt flueben ved mindst én liga (eller ryd klubfilteret).")
+            st.warning("⚠️ Sæt flueben ved mindst én liga ovenfor for at vælge kampe.")
         else:
             if len(kandidater) > max_kampe and not valgte_klubber:
                 udvalgte, maal = ap._vaelg_bedste_kombination(kandidater, min_o, max_o, max_kampe)
