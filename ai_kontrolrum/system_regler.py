@@ -41,3 +41,11 @@ Statistisk Total-Indsigt: Opsamling og læring af holdopstillinger, offsides, m�
 * `odds_motor/manuel_scanner.py` (Mappe 2) er opgraderet med tids-slider (1–72T), filtrering på kun aktive ligaer i tidsrammen + 1-kliks `⚡ Tilvælg alle aktive ligaer` (blank fra start), favorit-styring, global holdsøgning med anti-dobbeltvalg af modstanderholdet (`kamp_id`), 1-kliks `⚡ TILFØJ ALLE KAMPE FRA VALGTE LIGAER`, individuelle flueben pr. kuponvalg med live vurdering af odds, `%`-vinderchance, stjerner (`⭐`), risikoflammer (`🔥`) og aktiv `🚀 SPILLET`-knap til Supabase.
 * `ai_kontrolrum/onskeliste_roadmap.md` er opdateret (Onsdag d. 11. november 2026 kl. 10:52).
 * Næste trin: Læg den opdaterede `odds_motor/manuel_scanner.py` på GitHub, godkend Mappe 2 live på Streamlit, og fortsæt derefter til Mappe 3 (`odds_motor/billed_parser.py`).
+## TEKNISKE ARBEJDS- & KODELEVERINGSREGLER (LÅST)
+- **MOBIL- & SAFARI-SIKKER KODELEVERING (MAKS. 3.000 TEGN):** Da udvikling og opdatering ofte foregår via iPhone/Safari på GitHub, må kodeblokke ALDRIG overstige ca. 3.000 tegn pr. fil. Større funktioner skal altid opdeles i små, modulære hjælpefiler i undermapper (f.eks. `manuel_hjaelp.py` + `manuel_scanner.py`), så udklipsholderen aldrig klipper kode over.
+- **VISUEL VURDERINGSSKALA (1–5):**
+  - **Stjerner (`⭐` til `⭐⭐⭐⭐⭐`):** Bruges udelukkende til **spilværdi (value)** – flere stjerner = højere spilværdi.
+  - **Flammer (`🔥` til `🔥🔥🔥🔥🔥`):** Bruges udelukkende til **risiko** – flere flammer = højere risiko for at kuponen ikke går hjem.
+  - **Medaljer (`🥇`, `🥈`, `🥉`):** Bruges udelukkende til **Guld, Sølv og Bronze** rangering af højeste odds på tværs af bookmakere.
+  - **Nål (`📌`):** Bruges udelukkende til fastgjorte fokus-ligaer i den manuelle scanner.
+- **HOVEDFILEN (`app.py`):** Forbliver 100 % låst og urørt. Al ny logik bygges i undermapper (`odds_motor/`, `historik/`, `kampprogram/`, `tidsstyring/`, `udvidelser/`).
