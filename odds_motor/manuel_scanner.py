@@ -4,17 +4,45 @@ from odds_motor import byg_kupon, liga_favoritter
 from historik import gem_data
 
 
-def _byg_spilbare_forslag(udvalgte, maal_odds):
-    try:
-        kupon = byg_kupon.byg_kombineret_kupon(udvalgte, ap.MARKEDER, maal_odds)
-        if isinstance(kupon, dict) and kupon.get("kampe"):
-            for k_obj, u_obj in zip(kupon["kampe"], udvalgte):
-                k_obj["ctx"] = u_obj.get("ctx", {})
-                if u_obj.get("valgt_hold"):
-                    k_obj["valgt_hold"] = u_obj["valgt_hold"]
-            return kupon
-    except Exception:
-        pass
+def _lav_kamp_begrundelse(kamp, kun_resultat=False):
+    pct = float(kamp.get("pct", 55.0))
+    ctx = kamp.get("ctx") or {}
+    hj_form = ctx.get("hj_form", "Ukendt")
+    ud_form = ctx.get("ud_form", "Ukendt")
+    dommer = ctx.get("dommer", "Afventer")
+    fokus = kamp.get("valgt_hold")
+
+    dele = []
+    if fokus:
+        dele.append(f"Fokus på **{fokus}** ud fra dit klubvalg")
+    elif pct >= 60.0:
+        dele.append(f"**{kamp['hj']}** har klar statistisk fordel ({pct:.0f}% modelchance)")
+    elif pct <= 44.0:
+        dele.append(f"**{kamp['ud']}** vurderes stærkest på udebane ({100 - pct:.0f}% ude-styrke)")
+    else:
+        dele.append(f"Tæt opgør ({pct:.0f}% / {100 - pct:.0f}%), hvor mål- eller cifferspil giver bedst værdi")
+
+    if hj_form != "Ukendt" and ud_form != "Ukendt":
+        dele.append(f"seneste form er {hj_form} mod {ud_form}")
+    if not kun_resultat and dommer and dommer != "Afventer":
+        dele.append(f"dommer {dommer} trækker kort-snittet op")
+
+    return "💡 *Begrundelse:* " + ", ".join(dele) + "."
+
+
+def _byg_spilbare_forslag(udvalgte, maal_odds, kun_resultat=False):
+    if not kun_resultat:
+        try:
+            kupon = byg_kupon.byg_kombineret_kupon(udvalgte, ap.MARKEDER, maal_odds)
+            if isinstance(kupon, dict) and kupon.get("kampe"):
+                for k_obj, u_obj in zip(kupon["kampe"], udvalgte):
+                    k_obj["ctx"] = u_obj.get("ctx", {})
+                    if u_obj.get("valgt_hold"):
+                        k_obj["valgt_hold"] = u_obj["valgt_hold"]
+                    k_obj["begrundelse"] = _lav_kamp_begrundelse(k_obj, kun_resultat=False)
+                return kupon
+        except Exception:
+            pass
 
     kampe_resultat = []
     for u in udvalgte:
@@ -24,23 +52,40 @@ def _byg_spilbare_forslag(udvalgte, maal_odds):
         fokus = kopi.get("valgt_hold")
 
         forslag = []
-        if fokus:
-            forslag.append(f"Kampvinder / DNB: {fokus}")
-        elif pct >= 60.0:
-            forslag.append(f"Kampvinder: {kopi['hj']}")
-        elif pct <= 44.0:
-            forslag.append(f"Kampvinder: {kopi['ud']}")
+        if kun_resultat:
+            # Kun rene resultatspil (1X2 + konkret ciffer-resultat)
+            if fokus == kopi["hj"] or (not fokus and pct >= 62.0):
+                ciffer = "2-0" if pct >= 68.0 else "2-1"
+                forslag.append(f"Resultatspil: {kopi['hj']} vinder ({ciffer})")
+                odds_est = round(max(1.65, min(6.50, 100.0 / max(pct * 0.45, 16.0))), 2)
+            elif fokus == kopi["ud"] or (not fokus and pct <= 43.0):
+                ciffer = "0-2" if pct <= 36.0 else "1-2"
+                forslag.append(f"Resultatspil: {kopi['ud']} vinder ({ciffer})")
+                odds_est = round(max(1.85, min(7.50, 100.0 / max((100 - pct) * 0.45, 14.0))), 2)
+            else:
+                forslag.append("Resultatspil: Uafgjort (1-1)")
+                odds_est = 5.50
+            kopi["b365"] = odds_est
         else:
-            forslag.append("Standard: Over 1.5 mål i kampen")
+            if fokus:
+                forslag.append(f"Kampvinder / DNB: {fokus}")
+            elif pct >= 60.0:
+                forslag.append(f"Kampvinder: {kopi['hj']}")
+            elif pct <= 44.0:
+                forslag.append(f"Kampvinder: {kopi['ud']}")
+            else:
+                forslag.append("Standard: Over 1.5 mål i kampen")
 
-        if ctx.get("justering_pct", 0.0) >= 1.5:
-            forslag.append("Hjørnespark: Over 8.5 total")
-        if ctx.get("dommer") and ctx.get("dommer") != "Afventer":
-            forslag.append("Kort-sandsynlighed: Over 3.5 kort")
+            if ctx.get("justering_pct", 0.0) >= 1.5:
+                forslag.append("Hjørnespark: Over 8.5 total")
+            if ctx.get("dommer") and ctx.get("dommer") != "Afventer":
+                forslag.append("Kort-sandsynlighed: Over 3.5 kort")
+
+            kopi.setdefault("b365", round(max(1.35, min(3.40, 100.0 / max(pct, 30.0))), 2))
 
         kopi["kombinationer"] = forslag
-        kopi.setdefault("b365", round(max(1.35, min(3.40, 100.0 / max(pct, 30.0))), 2))
-        kopi.setdefault("vinderchance_pct", pct)
+        kopi.setdefault("vinderchance_pct", round(pct * (0.55 if kun_resultat else 1.0), 1))
+        kopi["begrundelse"] = _lav_kamp_begrundelse(kopi, kun_resultat=kun_resultat)
         kampe_resultat.append(kopi)
 
     return {"kampe": kampe_resultat}
@@ -83,27 +128,9 @@ def _lav_kupon_forklaring(valgte_kampe, bedste_side, samlet_o, samlet_pct, value
     else:
         vaerdi_tekst = f"tæt på markedsodds ({value_pct:.1f}% edge)"
 
-    detaljer = []
-    for k in valgte_kampe:
-        ctx = k.get("ctx") or {}
-        hj_form = ctx.get("hj_form")
-        ud_form = ctx.get("ud_form")
-        dommer = ctx.get("dommer")
-        info = f"**{k['hj']} vs {k['ud']}**"
-        ekstra = []
-        if hj_form and hj_form != "Ukendt" and ud_form and ud_form != "Ukendt":
-            ekstra.append(f"Form: {hj_form} / {ud_form}")
-        if dommer and dommer != "Afventer":
-            ekstra.append(f"Dommer: {dommer}")
-        if ekstra:
-            info += f" ({', '.join(ekstra)})"
-        detaljer.append(info)
-
-    kampe_opsum = " • ".join(detaljer)
     return (
         f"Kuponen samler **{len(valgte_kampe)} spilbare forslag** til samlet odds **{samlet_o:.2f}** hos **{bedste_side}**. "
-        f"Robotten vurderer den samlede chance til **{samlet_pct:.1f}%**, hvilket giver **{vaerdi_tekst}** med **{risiko_tekst}**. "
-        f"Grundlag: {kampe_opsum}."
+        f"Robotten vurderer den samlede chance til **{samlet_pct:.1f}%**, hvilket giver **{vaerdi_tekst}** med **{risiko_tekst}**."
     )
 
 
@@ -129,7 +156,6 @@ def vis_manuel_scanner():
 
     st.markdown(f"### 🏆 Vælg ligaer med flueben ({len(ligaer)} aktive i {timer}T):")
 
-    # Favorit-hukommelse med nål (📌)
     husk_val = st.checkbox(
         "📌 Husk mine valgte fokus-ligaer fast",
         value=har_gemt_fokus,
@@ -141,7 +167,6 @@ def vis_manuel_scanner():
     if husk_val and gemte_fokus:
         st.caption(f"📌 Fastgjorte fokus-ligaer aktive ({len(gemte_fokus)} stk.) – øvrige ligaer er klar til flueben nedenfor.")
 
-    # Starter helt UDEN flueben (False), medmindre ligaen er fastgjort som favorit
     for liga in ligaer:
         l_key = f"man_liga_chk_{liga}"
         if l_key not in st.session_state:
@@ -163,7 +188,6 @@ def vis_manuel_scanner():
 
     pulje = [k for k in aktive if k["liga"] in v_ligaer]
 
-    # Søgbar rullemenu til klubnavne
     alle_klubber = sorted({k["hj"] for k in pulje} | {k["ud"] for k in pulje})
     valgte_klubber = st.multiselect(
         "🔎 Søg eller vælg klubnavne i rullemenuen (lad feltet stå tomt for alle klubber i valgte ligaer):",
@@ -186,9 +210,14 @@ def vis_manuel_scanner():
         else:
             kandidater.append(dict(k))
 
-    st.caption(f"📊 **{len(kandidater)} kampe** i spil – alle spilmarkeder analyseres automatisk.")
+    st.caption(f"📊 **{len(kandidater)} kampe** i spil.")
 
-    if st.button(f"🔍 BEREGN KUPON ({len(kandidater)} kampe i spil)", type="primary", use_container_width=True, key="btn_man_scan"):
+    # To knapper side om side: Alle spilmarkeder ELLER Kun Resultatspil
+    b1, b2 = st.columns(2)
+    klik_alle = b1.button(f"🔍 BEREGN KUPON ({len(kandidater)} kampe)", type="primary", use_container_width=True, key="btn_man_scan")
+    klik_res = b2.button("🎯 KUN RESULTATSPIL (1X2 / Cifre)", use_container_width=True, key="btn_man_resultat")
+
+    if klik_alle or klik_res:
         if not kandidater:
             st.warning("⚠️ Sæt flueben ved mindst én liga ovenfor for at vælge kampe.")
         else:
@@ -198,7 +227,7 @@ def vis_manuel_scanner():
                 udvalgte = kandidater[:max_kampe]
                 maal = round((min_o + max_o) / 2.0, 2)
 
-            st.session_state["man_kupon"] = _byg_spilbare_forslag(udvalgte, maal)
+            st.session_state["man_kupon"] = _byg_spilbare_forslag(udvalgte, maal, kun_resultat=klik_res)
 
     if kupon := st.session_state.get("man_kupon"):
         st.markdown("### 🎫 Din Kupon (Accepter / fjern forslag med flueben):")
@@ -207,35 +236,3 @@ def vis_manuel_scanner():
             fok = f" [{k['valgt_hold']}]" if k.get("valgt_hold") else ""
             titel = f"{i+1}. {k['hj']} vs {k['ud']}{fok} — {', '.join(k['kombinationer'])} (Odds: {k['b365']} | {k['vinderchance_pct']}%)"
             if st.checkbox(titel, value=True, key=f"man_k_chk_{i}_{k['hj']}"):
-                valgte_kampe.append(k)
-
-        if valgte_kampe:
-            side, samlet_o, uni_o, odd_o, samlet_pct, stjerner, flammer = ap._vurder_kupon(valgte_kampe)
-
-            # Beregn bookmakerens implicitte sandsynlighed og reel spilværdi (Value/Edge)
-            impl_pct = round(100.0 / max(samlet_o, 1.01), 1)
-            value_pct = round(samlet_pct - impl_pct, 1)
-
-            # 1. CHANCE, VÆRDI (⭐) & RISIKO (🔥) PÅ SKÆRMEN
-            st.markdown("#### 📊 Samlet Kupon-Vurdering:")
-            v1, v2, v3 = st.columns(3)
-            v1.metric("🎯 Chance for gevinst", f"{samlet_pct:.1f}%", f"Marked: {impl_pct:.1f}%")
-            v2.metric("⭐ Værdi i spillet", f"{'⭐' * stjerner}", f"{value_pct:+.1f}% edge")
-            v3.metric("🔥 Risiko-niveau", f"{'🔥' * flammer}", f"{len(valgte_kampe)}/{len(kupon['kampe'])} valg")
-
-            # 2. LILLE FORKLARING AF KUPONEN
-            st.info(_lav_kupon_forklaring(valgte_kampe, side, samlet_o, samlet_pct, value_pct, flammer))
-
-            # 3. GULD, SØLV & BRONZE FOR HØJESTE ODDS
-            st.markdown("#### 🏅 Rangering af Højeste Odds (Live-opdateret):")
-            top3 = sorted(
-                [("Bet365", samlet_o), ("Unibet", uni_o), ("Danske Spil", odd_o)],
-                key=lambda x: x[1],
-                reverse=True,
-            )
-            t1, t2, t3 = st.columns(3)
-            t1.metric(f"🥇 Guld: {top3[0][0]}", f"{top3[0][1]:.2f}x")
-            t2.metric(f"🥈 Sølv: {top3[1][0]}", f"{top3[1][1]:.2f}x")
-            t3.metric(f"🥉 Bronze: {top3[2][0]}", f"{top3[2][1]:.2f}x")
-
-            indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="man_kr")
