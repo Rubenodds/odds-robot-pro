@@ -3,7 +3,7 @@ from odds_motor import autopilot_scanner as ap
 from odds_motor import byg_kupon, liga_favoritter
 from historik import gem_data
 
-FANE_TITEL = "🎯 2B. Liga & Klub Scanner"
+FANE_TITEL = "⚽ 2. Manuel Liga & Klub Scanner"
 
 
 def _byg_spilbare_forslag(udvalgte, maal_odds):
@@ -49,7 +49,7 @@ def _byg_spilbare_forslag(udvalgte, maal_odds):
 
 
 def vis_modul():
-    st.subheader("🎯 Manuel Liga- & Klub-Scanner (Alle Spilmarkeder)")
+    st.subheader("⚽ Manuel Liga- & Klub-Scanner (Alle Spilmarkeder)")
     favs = list(liga_favoritter.hent_favorit_ligaer())
 
     c1, c2, c3 = st.columns(3)
@@ -125,17 +125,16 @@ def vis_modul():
         if valgte_kampe:
             side, samlet_o, uni_o, odd_o, samlet_pct, stjerner, flammer = ap._vurder_kupon(valgte_kampe)
 
-            # TOP 3 BEDSTE BETS / BOOKMAKERE (Opdaterer live når du fjerner eller accepterer forslag!)
             st.markdown("#### 🏆 Top 3 Bedste Bets (Live-beregnet på dine valgte forslag):")
             top3 = sorted(
                 [("Bet365", samlet_o), ("Unibet", uni_o), ("Danske Spil", odd_o)],
-                key=lambda x: x[1],
+                key=lambda x: x,
                 reverse=True,
             )
             t1, t2, t3 = st.columns(3)
-            t1.metric(f"🥇 #1 {top3[0][0]}", f"{top3[0][1]}x", f"Chance: {samlet_pct}%")
-            t2.metric(f"🥈 #2 {top3[1][0]}", f"{top3[1][1]}x", f"{'⭐' * stjerner}")
-            t3.metric(f"🥉 #3 {top3[2][0]}", f"{top3[2][1]}x", f"{'🔥' * flammer}")
+            t1.metric(f"🥇 #1 {top3}", f"{top3}x", f"Chance: {samlet_pct}%")
+            t2.metric(f"🥈 #2 {top3}", f"{top3}x", f"{'⭐' * stjerner}")
+            t3.metric(f"🥉 #3 {top3}", f"{top3}x", f"{'🔥' * flammer}")
 
             indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="udv_kr")
             if st.button("🚀 SPILLET (Gem i Supabase)", type="primary", key="btn_udv_spillet"):
