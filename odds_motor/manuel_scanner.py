@@ -53,7 +53,6 @@ def _byg_spilbare_forslag(udvalgte, maal_odds, kun_resultat=False):
 
         forslag = []
         if kun_resultat:
-            # Kun rene resultatspil (1X2 + konkret ciffer-resultat)
             if fokus == kopi["hj"] or (not fokus and pct >= 62.0):
                 ciffer = "2-0" if pct >= 68.0 else "2-1"
                 forslag.append(f"Resultatspil: {kopi['hj']} vinder ({ciffer})")
@@ -115,14 +114,8 @@ def _opdater_fokus_hukommelse(aktive_ligaer):
 
 
 def _lav_kupon_forklaring(valgte_kampe, bedste_side, samlet_o, samlet_pct, value_pct, flammer):
-    risiko_tekst = {
-        1: "lav risiko",
-        2: "moderat risiko",
-        3: "mellem-høj risiko",
-        4: "høj risiko",
-        5: "meget høj risiko",
-    }.get(flammer, "moderat risiko")
-
+    risiko_map = {1: "lav risiko", 2: "moderat risiko", 3: "mellem-høj risiko", 4: "høj risiko", 5: "meget høj risiko"}
+    risiko_tekst = risiko_map.get(flammer, "moderat risiko")
     if value_pct > 0:
         vaerdi_tekst = f"positiv spilværdi (+{value_pct:.1f}% over bookmakerens vurdering)"
     else:
@@ -155,7 +148,6 @@ def vis_manuel_scanner():
     har_gemt_fokus = len(gemte_fokus) > 0
 
     st.markdown(f"### 🏆 Vælg ligaer med flueben ({len(ligaer)} aktive i {timer}T):")
-
     husk_val = st.checkbox(
         "📌 Husk mine valgte fokus-ligaer fast",
         value=har_gemt_fokus,
@@ -178,16 +170,10 @@ def vis_manuel_scanner():
         l_key = f"man_liga_chk_{liga}"
         label = f"📌 {liga}" if (husk_val and liga in gemte_fokus) else liga
         with cols[idx % 3]:
-            if st.checkbox(
-                label,
-                key=l_key,
-                on_change=_opdater_fokus_hukommelse,
-                args=(ligaer,),
-            ):
+            if st.checkbox(label, key=l_key, on_change=_opdater_fokus_hukommelse, args=(ligaer,)):
                 v_ligaer.append(liga)
 
     pulje = [k for k in aktive if k["liga"] in v_ligaer]
-
     alle_klubber = sorted({k["hj"] for k in pulje} | {k["ud"] for k in pulje})
     valgte_klubber = st.multiselect(
         "🔎 Søg eller vælg klubnavne i rullemenuen (lad feltet stå tomt for alle klubber i valgte ligaer):",
@@ -212,7 +198,6 @@ def vis_manuel_scanner():
 
     st.caption(f"📊 **{len(kandidater)} kampe** i spil.")
 
-    # To knapper side om side: Alle spilmarkeder ELLER Kun Resultatspil
     b1, b2 = st.columns(2)
     klik_alle = b1.button(f"🔍 BEREGN KUPON ({len(kandidater)} kampe)", type="primary", use_container_width=True, key="btn_man_scan")
     klik_res = b2.button("🎯 KUN RESULTATSPIL (1X2 / Cifre)", use_container_width=True, key="btn_man_resultat")
@@ -226,7 +211,6 @@ def vis_manuel_scanner():
             else:
                 udvalgte = kandidater[:max_kampe]
                 maal = round((min_o + max_o) / 2.0, 2)
-
             st.session_state["man_kupon"] = _byg_spilbare_forslag(udvalgte, maal, kun_resultat=klik_res)
 
     if kupon := st.session_state.get("man_kupon"):
@@ -236,3 +220,8 @@ def vis_manuel_scanner():
             fok = f" [{k['valgt_hold']}]" if k.get("valgt_hold") else ""
             titel = f"{i+1}. {k['hj']} vs {k['ud']}{fok} — {', '.join(k['kombinationer'])} (Odds: {k['b365']} | {k['vinderchance_pct']}%)"
             if st.checkbox(titel, value=True, key=f"man_k_chk_{i}_{k['hj']}"):
+                valgte_kampe.append(k)
+            st.caption(k.get("begrundelse", _lav_kamp_begrundelse(k)))
+
+        if valgte_kampe:
+            side, samlet_o, uni_o, odd_o, samlet_pct, stjerner, flammer = ap._vurder_kupon(valgte_kampe)
