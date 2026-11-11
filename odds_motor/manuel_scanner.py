@@ -69,6 +69,44 @@ def _opdater_fokus_hukommelse(aktive_ligaer):
             del st.query_params["fokus_ligaer"]
 
 
+def _lav_kupon_forklaring(valgte_kampe, bedste_side, samlet_o, samlet_pct, value_pct, flammer):
+    risiko_tekst = {
+        1: "lav risiko",
+        2: "moderat risiko",
+        3: "mellem-høj risiko",
+        4: "høj risiko",
+        5: "meget høj risiko",
+    }.get(flammer, "moderat risiko")
+
+    if value_pct > 0:
+        vaerdi_tekst = f"positiv spilværdi (+{value_pct:.1f}% over bookmakerens vurdering)"
+    else:
+        vaerdi_tekst = f"tæt på markedsodds ({value_pct:.1f}% edge)"
+
+    detaljer = []
+    for k in valgte_kampe:
+        ctx = k.get("ctx") or {}
+        hj_form = ctx.get("hj_form")
+        ud_form = ctx.get("ud_form")
+        dommer = ctx.get("dommer")
+        info = f"**{k['hj']} vs {k['ud']}**"
+        ekstra = []
+        if hj_form and hj_form != "Ukendt" and ud_form and ud_form != "Ukendt":
+            ekstra.append(f"Form: {hj_form} / {ud_form}")
+        if dommer and dommer != "Afventer":
+            ekstra.append(f"Dommer: {dommer}")
+        if ekstra:
+            info += f" ({', '.join(ekstra)})"
+        detaljer.append(info)
+
+    kampe_opsum = " • ".join(detaljer)
+    return (
+        f"Kuponen samler **{len(valgte_kampe)} spilbare forslag** til samlet odds **{samlet_o:.2f}** hos **{bedste_side}**. "
+        f"Robotten vurderer den samlede chance til **{samlet_pct:.1f}%**, hvilket giver **{vaerdi_tekst}** med **{risiko_tekst}**. "
+        f"Grundlag: {kampe_opsum}."
+    )
+
+
 def vis_manuel_scanner():
     st.subheader("⚽ 2. Manuel Liga- & Klub-Scanner (Alle Spilmarkeder)")
     favs = list(liga_favoritter.hent_favorit_ligaer())
@@ -174,27 +212,30 @@ def vis_manuel_scanner():
         if valgte_kampe:
             side, samlet_o, uni_o, odd_o, samlet_pct, stjerner, flammer = ap._vurder_kupon(valgte_kampe)
 
-            st.markdown("#### 🏆 Top 3 Bedste Bets (Live-beregnet på dine valgte forslag):")
+            # Beregn bookmakerens implicitte sandsynlighed og reel spilværdi (Value/Edge)
+            impl_pct = round(100.0 / max(samlet_o, 1.01), 1)
+            value_pct = round(samlet_pct - impl_pct, 1)
+
+            # 1. CHANCE, VÆRDI (⭐) & RISIKO (🔥) PÅ SKÆRMEN
+            st.markdown("#### 📊 Samlet Kupon-Vurdering:")
+            v1, v2, v3 = st.columns(3)
+            v1.metric("🎯 Chance for gevinst", f"{samlet_pct:.1f}%", f"Marked: {impl_pct:.1f}%")
+            v2.metric("⭐ Værdi i spillet", f"{'⭐' * stjerner}", f"{value_pct:+.1f}% edge")
+            v3.metric("🔥 Risiko-niveau", f"{'🔥' * flammer}", f"{len(valgte_kampe)}/{len(kupon['kampe'])} valg")
+
+            # 2. LILLE FORKLARING AF KUPONEN
+            st.info(_lav_kupon_forklaring(valgte_kampe, side, samlet_o, samlet_pct, value_pct, flammer))
+
+            # 3. GULD, SØLV & BRONZE FOR HØJESTE ODDS
+            st.markdown("#### 🏅 Rangering af Højeste Odds (Live-opdateret):")
             top3 = sorted(
                 [("Bet365", samlet_o), ("Unibet", uni_o), ("Danske Spil", odd_o)],
                 key=lambda x: x[1],
                 reverse=True,
             )
             t1, t2, t3 = st.columns(3)
-            t1.metric(f"🥇 #1 {top3[0][0]}", f"{top3[0][1]:.2f}x", f"Chance: {samlet_pct}%")
-            t2.metric(f"🥈 #2 {top3[1][0]}", f"{top3[1][1]:.2f}x", f"{'⭐' * stjerner}")
-            t3.metric(f"🥉 #3 {top3[2][0]}", f"{top3[2][1]:.2f}x", f"{'🔥' * flammer}")
+            t1.metric(f"🥇 Guld: {top3[0][0]}", f"{top3[0][1]:.2f}x")
+            t2.metric(f"🥈 Sølv: {top3[1][0]}", f"{top3[1][1]:.2f}x")
+            t3.metric(f"🥉 Bronze: {top3[2][0]}", f"{top3[2][1]:.2f}x")
 
             indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="man_kr")
-            if st.button("🚀 SPILLET (Gem i Supabase)", type="primary", key="btn_man_spillet"):
-                if gem_data.gem_kupon_i_historik(
-                    list({k["liga"] for k in valgte_kampe}),
-                    [f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])})" for k in valgte_kampe],
-                    samlet_o,
-                    uni_o,
-                    odd_o,
-                    side,
-                    stjerner,
-                    indsats,
-                ):
-                    st.success("✅ Kupon gemt i Supabase!")
