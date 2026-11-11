@@ -46,6 +46,29 @@ def _byg_spilbare_forslag(udvalgte, maal_odds):
     return {"kampe": kampe_resultat}
 
 
+def _hent_gemte_fokus_ligaer():
+    if "man_gemte_fokus" in st.session_state:
+        return st.session_state["man_gemte_fokus"]
+    raw = st.query_params.get("fokus_ligaer", "")
+    gemte = [x for x in raw.split("|") if x] if raw else []
+    st.session_state["man_gemte_fokus"] = gemte
+    return gemte
+
+
+def _opdater_fokus_hukommelse(aktive_ligaer):
+    husk_aktiv = st.session_state.get("man_husk_favorit", False)
+    if husk_aktiv:
+        valgte_nu = [l for l in aktive_ligaer if st.session_state.get(f"man_liga_chk_{l}", False)]
+        tidligere = [l for l in _hent_gemte_fokus_ligaer() if l not in aktive_ligaer]
+        samlet = sorted(set(valgte_nu + tidligere))
+        st.session_state["man_gemte_fokus"] = samlet
+        st.query_params["fokus_ligaer"] = "|".join(samlet)
+    else:
+        st.session_state["man_gemte_fokus"] = []
+        if "fokus_ligaer" in st.query_params:
+            del st.query_params["fokus_ligaer"]
+
+
 def vis_manuel_scanner():
     st.subheader("⚽ 2. Manuel Liga- & Klub-Scanner (Alle Spilmarkeder)")
     favs = list(liga_favoritter.hent_favorit_ligaer())
@@ -63,18 +86,46 @@ def vis_manuel_scanner():
         st.info(f"📭 Ingen aktive ligaer inden for **{timer} timer**.")
         return
 
+    gemte_fokus = _hent_gemte_fokus_ligaer()
+    har_gemt_fokus = len(gemte_fokus) > 0
+
     st.markdown(f"### 🏆 Vælg ligaer med flueben ({len(ligaer)} aktive i {timer}T):")
-    vaelg_alle = st.checkbox("Vælg / fravælg alle aktive ligaer", value=True, key="man_alle_ligaer")
+
+    # Favorit-hukommelsesknap til mobil og PC
+    husk_val = st.checkbox(
+        "⭐ Husk mine valgte fokus-ligaer fast",
+        value=har_gemt_fokus,
+        key="man_husk_favorit",
+        on_change=_opdater_fokus_hukommelse,
+        args=(ligaer,),
+    )
+
+    if husk_val and gemte_fokus:
+        st.caption(f"📌 Gemte fokus-ligaer aktive ({len(gemte_fokus)} stk.) – øvrige ligaer er klar til flueben nedenfor.")
+
+    # Initialiser flueben ud fra gemte fokus-ligaer (eller alle, hvis ingen fokus-ligaer er gemt)
+    for liga in ligaer:
+        l_key = f"man_liga_chk_{liga}"
+        if l_key not in st.session_state:
+            st.session_state[l_key] = (liga in gemte_fokus) if har_gemt_fokus else True
 
     v_ligaer = []
     cols = st.columns(3)
     for idx, liga in enumerate(ligaer):
+        l_key = f"man_liga_chk_{liga}"
+        label = f"⭐ {liga}" if (husk_val and liga in gemte_fokus) else liga
         with cols[idx % 3]:
-            if st.checkbox(liga, value=vaelg_alle, key=f"man_liga_chk_{idx}_{liga}"):
+            if st.checkbox(
+                label,
+                key=l_key,
+                on_change=_opdater_fokus_hukommelse,
+                args=(ligaer,),
+            ):
                 v_ligaer.append(liga)
 
     pulje = [k for k in aktive if k["liga"] in v_ligaer]
 
+    # Søgbar rullemenu til klubnavne
     alle_klubber = sorted({k["hj"] for k in pulje} | {k["ud"] for k in pulje})
     valgte_klubber = st.multiselect(
         "🔎 Søg eller vælg klubnavne i rullemenuen (lad feltet stå tomt for alle klubber i valgte ligaer):",
@@ -126,13 +177,13 @@ def vis_manuel_scanner():
             st.markdown("#### 🏆 Top 3 Bedste Bets (Live-beregnet på dine valgte forslag):")
             top3 = sorted(
                 [("Bet365", samlet_o), ("Unibet", uni_o), ("Danske Spil", odd_o)],
-                key=lambda x: x,
+                key=lambda x: x[1],
                 reverse=True,
             )
             t1, t2, t3 = st.columns(3)
-            t1.metric(f"🥇 #1 {top3}", f"{top3}x", f"Chance: {samlet_pct}%")
-            t2.metric(f"🥈 #2 {top3}", f"{top3}x", f"{'⭐' * stjerner}")
-            t3.metric(f"🥉 #3 {top3}", f"{top3}x", f"{'🔥' * flammer}")
+            t1.metric(f"🥇 #1 {top3[0][0]}", f"{top3[0][1]:.2f}x", f"Chance: {samlet_pct}%")
+            t2.metric(f"🥈 #2 {top3[1][0]}", f"{top3[1][1]:.2f}x", f"{'⭐' * stjerner}")
+            t3.metric(f"🥉 #3 {top3[2][0]}", f"{top3[2][1]:.2f}x", f"{'🔥' * flammer}")
 
             indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="man_kr")
             if st.button("🚀 SPILLET (Gem i Supabase)", type="primary", key="btn_man_spillet"):
