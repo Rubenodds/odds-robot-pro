@@ -4,7 +4,7 @@ from odds_motor import byg_kupon, liga_favoritter
 from historik import gem_data
 
 
-def _byg_spilbare_forslag_sikkert(udvalgte, maal_odds):
+def _byg_spilbare_forslag(udvalgte, maal_odds):
     try:
         kupon = byg_kupon.byg_kombineret_kupon(udvalgte, ap.MARKEDER, maal_odds)
         if isinstance(kupon, dict) and kupon.get("kampe"):
@@ -51,26 +51,26 @@ def vis_manuel_scanner():
     favs = list(liga_favoritter.hent_favorit_ligaer())
 
     c1, c2, c3 = st.columns(3)
-    timer = c1.slider("⏱️ Tidsramme frem (timer):", 1, 72, 48, key="man_timer")
-    min_o, max_o = c2.slider("🎯 Ønsket odds-lag:", 2.0, 200.0, (10.0, 40.0), key="man_odds")
-    max_kampe = c3.slider("🎫 Maks. kampe på kupon:", 1, 12, 4, key="man_max_kampe")
+    timer = c1.slider("⏱️ Tidsramme frem (timer):", 1, 72, 48, key="man2_timer")
+    min_o, max_o = c2.slider("🎯 Ønsket odds-lag:", 2.0, 200.0, (10.0, 40.0), key="man2_odds")
+    max_kampe = c3.slider("🎫 Maks. kampe på kupon:", 1, 12, 4, key="man2_max_kampe")
 
     alle = ap._hent_kampe_v9(tuple(favs))
     aktive = [k for k in alle if 0 < k["timer"] <= timer]
     ligaer = sorted({k["liga"] for k in aktive})
 
     if not ligaer:
-        st.info(f"📭 Ingen aktive ligaer inden for **{timer} timer**. Prøv at øge tidsrammen.")
+        st.info(f"📭 Ingen aktive ligaer inden for **{timer} timer**.")
         return
 
     st.markdown(f"### 🏆 Vælg ligaer med flueben ({len(ligaer)} aktive i {timer}T):")
-    vaelg_alle = st.checkbox("Vælg / fravælg alle aktive ligaer", value=True, key="man_alle_ligaer")
+    vaelg_alle = st.checkbox("Vælg / fravælg alle aktive ligaer", value=True, key="man2_alle_ligaer")
 
     v_ligaer = []
     cols = st.columns(3)
     for idx, liga in enumerate(ligaer):
         with cols[idx % 3]:
-            if st.checkbox(liga, value=vaelg_alle, key=f"man_liga_chk_{idx}_{liga}"):
+            if st.checkbox(liga, value=vaelg_alle, key=f"man2_liga_chk_{idx}_{liga}"):
                 v_ligaer.append(liga)
 
     pulje = [k for k in aktive if k["liga"] in v_ligaer]
@@ -81,7 +81,7 @@ def vis_manuel_scanner():
         options=alle_klubber,
         default=[],
         placeholder="Skriv eller vælg klubnavn...",
-        key="man_klub_rullemenu",
+        key="man2_klub_rullemenu",
     )
 
     kandidater = []
@@ -97,11 +97,11 @@ def vis_manuel_scanner():
         else:
             kandidater.append(dict(k))
 
-    st.caption(f"📊 **{len(kandidater)} kampe** i spil – alle spilmarkeder og spilbare forslag analyseres automatisk.")
+    st.caption(f"📊 **{len(kandidater)} kampe** i spil – alle spilmarkeder analyseres automatisk.")
 
-    if st.button(f"🔍 BEREGN KUPON ({len(kandidater)} kampe i spil)", type="primary", use_container_width=True, key="btn_man_scan"):
+    if st.button(f"🔍 BEREGN KUPON ({len(kandidater)} kampe i spil)", type="primary", use_container_width=True, key="btn_man2_scan"):
         if not kandidater:
-            st.warning("⚠️ Sæt flueben ved mindst én liga (eller ryd klubfilteret) for at finde kampe.")
+            st.warning("⚠️ Sæt flueben ved mindst én liga (eller ryd klubfilteret).")
         else:
             if len(kandidater) > max_kampe and not valgte_klubber:
                 udvalgte, maal = ap._vaelg_bedste_kombination(kandidater, min_o, max_o, max_kampe)
@@ -109,25 +109,33 @@ def vis_manuel_scanner():
                 udvalgte = kandidater[:max_kampe]
                 maal = round((min_o + max_o) / 2.0, 2)
 
-            st.session_state["man_kupon"] = _byg_spilbare_forslag_sikkert(udvalgte, maal)
+            st.session_state["man2_kupon"] = _byg_spilbare_forslag(udvalgte, maal)
 
-    if kupon := st.session_state.get("man_kupon"):
-        st.markdown("### 🎫 Din Kupon (Spilbare Forslag):")
+    if kupon := st.session_state.get("man2_kupon"):
+        st.markdown("### 🎫 Din Kupon (Accepter / fjern forslag med flueben):")
         valgte_kampe = []
         for i, k in enumerate(kupon["kampe"]):
             fok = f" [{k['valgt_hold']}]" if k.get("valgt_hold") else ""
             titel = f"{i+1}. {k['hj']} vs {k['ud']}{fok} — {', '.join(k['kombinationer'])} (Odds: {k['b365']} | {k['vinderchance_pct']}%)"
-            if st.checkbox(titel, value=True, key=f"man_k_chk_{i}_{k['hj']}"):
+            if st.checkbox(titel, value=True, key=f"man2_k_chk_{i}_{k['hj']}"):
                 valgte_kampe.append(k)
 
         if valgte_kampe:
             side, samlet_o, uni_o, odd_o, samlet_pct, stjerner, flammer = ap._vurder_kupon(valgte_kampe)
-            st.info(
-                f"📊 **{len(valgte_kampe)}/{len(kupon['kampe'])} valg** | Odds: **{samlet_o}** ({side}) | "
-                f"Chance: **{samlet_pct}%** | Værdi: {'⭐' * stjerner} | Risiko: {'🔥' * flammer}"
+
+            st.markdown("#### 🏆 Top 3 Bedste Bets (Live-beregnet på dine valgte forslag):")
+            top3 = sorted(
+                [("Bet365", samlet_o), ("Unibet", uni_o), ("Danske Spil", odd_o)],
+                key=lambda x: x[1],
+                reverse=True,
             )
-            indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="man_kr")
-            if st.button("🚀 SPILLET (Gem i Supabase)", type="primary", key="btn_man_spillet"):
+            t1, t2, t3 = st.columns(3)
+            t1.metric(f"🥇 #1 {top3[0][0]}", f"{top3[0][1]}x", f"Chance: {samlet_pct}%")
+            t2.metric(f"🥈 #2 {top3[1][0]}", f"{top3[1][1]}x", f"{'⭐' * stjerner}")
+            t3.metric(f"🥉 #3 {top3[2][0]}", f"{top3[2][1]}x", f"{'🔥' * flammer}")
+
+            indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="man2_kr")
+            if st.button("🚀 SPILLET (Gem i Supabase)", type="primary", key="btn_man2_spillet"):
                 if gem_data.gem_kupon_i_historik(
                     list({k["liga"] for k in valgte_kampe}),
                     [f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])})" for k in valgte_kampe],
@@ -138,5 +146,4 @@ def vis_manuel_scanner():
                     stjerner,
                     indsats,
                 ):
-                    st.success("✅ Manuel kupon gemt i Supabase!")
-
+                    st.success("✅ Kupon gemt i Supabase!")
