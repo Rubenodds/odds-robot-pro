@@ -4,7 +4,7 @@ import streamlit as st
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from historik import gem_data
-from odds_motor import autopilot_scanner, billed_parser
+from odds_motor import autopilot_scanner, manuel_scanner, billed_parser
 
 st.set_page_config(page_title="Odds Robot Pro", page_icon="🤖", layout="wide")
 
@@ -31,7 +31,7 @@ except Exception:
 
 fane_navne = [
     "🌐 1. Bred Automatisk Scanner",
-    "⚽ 2. Manuel Hold Scanner",
+    "⚽ 2. Manuel Liga & Klub Scanner",
     "📸 3. Kupon Scanner & Gemte",
     "📊 4. Statistik & Regnskab"
 ] + [t for t, _ in ekstra_faner]
@@ -42,21 +42,9 @@ faner = st.tabs(fane_navne)
 with faner[0]:
     autopilot_scanner.vis_autopilot_scanner()
 
-# FANE 2: Manuel Hold Scanner (Mappe 2 - næste trin i udviklingen)
+# FANE 2: Manuel Liga & Klub Scanner (Mappe 2)
 with faner[1]:
-    try:
-        from odds_motor import manuel_scanner
-        manuel_scanner.vis_manuel_scanner()
-    except Exception:
-        st.subheader("⚽ 2. Manuel Hold Scanner")
-        soeg_hold = st.text_input("Søg efter et hvilket som helst hold eller liga:")
-        valgt_udfald = st.text_input("Indtast ønsket spil/marked (f.eks. Over 8.5 hjørnespark):")
-        manuelt_odds = st.number_input("Indtast odds:", min_value=1.01, value=2.50, step=0.10)
-        if st.button("🚀 SPILLET (Gem manuelt spil i statistik)", key="btn_spillet_manuel"):
-            if soeg_hold:
-                gem_data.gem_kupon_i_historik(["Manuel"], [f"{soeg_hold}: {valgt_udfald}"], manuelt_odds, 0, 0, "Agnostisk", 5, 100.0)
-                st.success(f"✓ '{soeg_hold}' er markeret som SPILLET og gemt i Supabase!")
-                st.rerun()
+    manuel_scanner.vis_manuel_scanner()
 
 # FANE 3: Kupon Scanner & Gemte Kuponer (Mappe 3)
 with faner[2]:
