@@ -1,0 +1,108 @@
+import math
+import traceback
+import streamlit as st
+from odds_motor import autopilot_scanner, byg_kupon, liga_favoritter
+from historik import gem_data
+
+MARKEDER = {
+    "Standard (Mål / Kampvinder)": ["1 (Hjemmesejr)", "X (Uafgjort)", "2 (Udesejr)", "1X", "X2", "Over 2.5 mål", "Under 2.5 mål", "Begge hold scorer (Ja)"],
+    "Hjørnespark (Over/Under & Flest)": ["Over 8.5 hjørnespark", "Over 9.5 hjørnespark", "Over 10.5 hjørnespark", "Under 9.5 hjørnespark", "Flest hjørnespark: Hjemme", "Flest hjørnespark: Ude"],
+    "Spillerskud & Skud på mål": ["Over 4.5 skud på mål (Hjemme)", "Over 3.5 skud på mål (Ude)", "Over 8.5 skud på mål i kampen", "Spiller: Over 0.5 skud på mål", "Spiller: Over 1.5 skud på mål"],
+    "Tacklinger & Målmandsredninger": ["Over 25.5 tacklinger i kampen", "Over 29.5 tacklinger i kampen", "Målmand: Over 2.5 redninger", "Målmand: Over 3.5 redninger"],
+    "Kort-sandsynlighed (Gule/Røde)": ["Over 3.5 kort i kampen", "Over 4.5 kort i kampen", "Over 1.5 kort til Hjemme", "Over 1.5 kort til Ude", "Rødt kort i kampen (Ja)"],
+    "Målscorer (Anytime/Første)": ["Anytime målscorer", "Første målscorer", "Sidste målscorer", "Scorer 2+ mål"],
+    "Offsides": ["Over 2.5 offsides i kampen", "Over 3.5 offsides i kampen", "Flest offsides: Hjemme", "Flest offsides: Ude"],
+}
+
+def _status(valg):
+    o = round(math.prod(float(x["odds"]) for x in valg), 2)
+    p = round(max(1.0, min(95.0, math.prod(float(x["pct"]) / 100.0 for x in valg) * 100.0)), 1)
+    s = 5 if p >= 45 else (4 if p >= 30 else (3 if p >= 18 else (2 if p >= 10 else 1)))
+    f = 1 if o < 4 else (2 if o < 12 else (3 if o < 30 else (4 if o < 65 else 5)))
+    return o, p, s, f
+
+def _tegn_ui():
+    st.subheader("⚽ 2. Manuel Kamp Vælger (Tidsfilter, Ligaer & Anti-Dobbeltvalg)")
+    kupon = st.session_state.setdefault("manuel_kupon", [])
+    favs = list(liga_favoritter.hent_favorit_ligaer())
+
+    c1, c2 = st.columns(2)
+    timer = c1.slider("⏱️ Tidsramme frem (timer):", 1, 72, 48, key="man_timer")
+    alle_l = c2.checkbox("⚡ Tilvælg alle aktive ligaer", value=False, key="man_chk_l")
+
+    brugte_ids = {x["kamp_id"] for x in kupon}
+    ledige = [k for k in autopilot_scanner._hent_kampe_v9(tuple(favs)) if 0 < k["timer"] <= timer and k.get("id") not in brugte_ids]
+    ligaer = sorted({k["liga"] for k in ledige})
+
+    if st.session_state.get("_man_l_prev") != alle_l:
+        st.session_state["_man_l_prev"] = alle_l
+        st.session_state["man_ligaer"] = ligaer if alle_l else []
+
+    v_ligaer = st.multiselect(f"🏆 Aktive ligaer i {timer}T ({len(ligaer)} stk. — blank fra start):", ligaer, default=ligaer if alle_l else [], key="man_ligaer")
+    pulje = [k for k in ledige if k["liga"] in v_ligaer] if v_ligaer else ledige
+
+    hold_map = {}
+    for k in pulje:
+        hold_map[f"{k['hj']} (vs {k['ud']} | {k['liga']} | {k['start']})"] = (k, k["hj"])
+        hold_map[f"{k['ud']} (vs {k['hj']} | {k['liga']} | {k['start']})"] = (k, k["ud"])
+
+    h1, h2 = st.columns(2)
+    valgt_h = h1.selectbox(f"🔍 Søg hold ({len(pulje)} ledige kampe):", [""] + sorted(hold_map.keys()), key="man_h_sel")
+    frit_h = h2.text_input("✍️ Eller skriv hold/kamp frit:", placeholder="F.eks. Arsenal - Man City", key="man_frit_h")
+
+    m1, m2, m3 = st.columns(3)
+    marked = m1.selectbox("📊 Marked:", [""] + list(MARKEDER.keys()), key="man_m")
+    udf_sel = m2.selectbox("🎯 Standardudfald:", [""] + MARKEDER.get(marked, []), key="man_u_sel") if marked else ""
+    odds = m3.number_input("💰 Odds:", min_value=1.01, value=1.85, step=0.05, key="man_o")
+    udf_frit = st.text_input("📝 Eller skriv eget spil/linje:", placeholder="F.eks. Over 1.5 skud på mål", key="man_u_frit")
+    udf = udf_frit.strip() or udf_sel
+
+    b1, b2 = st.columns(2)
+    if b1.button("➕ TILFØJ VALGT KAMP", type="primary", key="btn_man_add"):
+        if valgt_h and udf:
+            ko, hold = hold_map[valgt_h]
+            kupon.append({"kamp_id": ko["id"], "liga": ko["liga"], "kamp_txt": f"{ko['hj']} vs {ko['ud']} [{ko['start']}]", "udfald": f"{hold} — {udf}", "odds": round(float(odds), 2), "pct": byg_kupon.beregn_sandsynlighed_fra_odds(odds), "aktiv": True})
+            st.rerun()
+        elif frit_h.strip() and udf:
+            kupon.append({"kamp_id": f"frit_{frit_h.strip().lower()}", "liga": next(iter(v_ligaer), "Manuel"), "kamp_txt": frit_h.strip(), "udfald": f"{frit_h.strip()} — {udf}", "odds": round(float(odds), 2), "pct": byg_kupon.beregn_sandsynlighed_fra_odds(odds), "aktiv": True})
+            st.rerun()
+        else:
+            st.warning("Vælg et hold og et spiludfald.")
+
+    if v_ligaer and pulje and b2.button(f"⚡ TILFØJ ALLE {len(pulje)} KAMPE", key="btn_man_bulk"):
+        for k in pulje:
+            kupon.append({"kamp_id": k["id"], "liga": k["liga"], "kamp_txt": f"{k['hj']} vs {k['ud']} [{k['start']}]", "udfald": f"{k['hj']} — {udf or '1X'}", "odds": round(float(odds), 2), "pct": byg_kupon.beregn_sandsynlighed_fra_odds(odds), "aktiv": True})
+        st.rerun()
+
+    if kupon:
+        st.markdown("### 🎫 Din Kupon:")
+        aktive = []
+        for i, item in enumerate(kupon):
+            k1, k2 = st.columns(2)
+            item["aktiv"] = k1.checkbox(f"{i+1}. {item['kamp_txt']} — {item['udfald']} (Odds: {item['odds']} | {item['pct']}%)", value=item.get("aktiv", True), key=f"m_chk_{i}_{item['kamp_id']}")
+            if item["aktiv"]:
+                aktive.append(item)
+            if k2.button("🗑️", key=f"m_del_{i}"):
+                kupon.pop(i)
+                st.rerun()
+        if aktive:
+            so, sp, stj, fl = _status(aktive)
+            st.info(f"📊 **{len(aktive)}/{len(kupon)} valg** | Odds: **{so}** | Chance: **{sp}%** | Værdi: {'⭐' * stj} | Risiko: {'🔥' * fl}")
+            c_i, c_r = st.columns(2)
+            indsats = c_i.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="man_kr")
+            if c_r.button("🧹 Ryd alle", key="btn_man_ryd"):
+                st.session_state["manuel_kupon"] = []
+                st.rerun()
+            if st.button("🚀 SPILLET (Gem i Supabase)", type="primary", key="btn_man_spillet"):
+                if gem_data.gem_kupon_i_historik(list({x["liga"] for x in aktive}), [f"{x['kamp_txt']} ({x['udfald']})" for x in aktive], so, so, so, "Manuel", stj, indsats):
+                    st.session_state["manuel_kupon"] = []
+                    st.success("Manuel kupon gemt i Supabase!")
+                    st.rerun()
+        else:
+            st.warning("Sæt mindst 1 flueben.")
+
+def vis_manuel_scanner():
+    try:
+        _tegn_ui()
+    except Exception:
+        st.error(traceback.format_exc())
