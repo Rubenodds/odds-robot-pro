@@ -80,11 +80,12 @@ def vis_manuel_scanner():
             v2.metric("⭐ Værdi", "⭐" * stj, f"{val_p:+.1f}% edge")
             v3.metric("🔥 Risiko", "🔥" * flm, f"{len(valgte)}/{len(kupon['kampe'])} valg")
             st.info(f"Kuponen har **{len(valgte)} spil** til samlet odds **{s_o:.2f}** ({side}). Vurderet chance er **{s_pct:.1f}%** ({val_p:+.1f}% edge).")
-            top3 = sorted([("Bet365", float(s_o)), ("Unibet", float(u_o)), ("Danske Spil", float(o_o))], key=lambda x: x, reverse=True)
+            top3 = sorted([("Bet365", float(s_o)), ("Unibet", float(u_o)), ("Danske Spil", float(o_o))], key=lambda item: item[1], reverse=True)
+            (g_n, g_o), (s_n, s_o2), (b_n, b_o) = top3
             t1, t2, t3 = st.columns(3)
-            t1.metric(f"🥇 Guld: {top3}", f"{top3:.2f}x")
-            t2.metric(f"🥈 Sølv: {top3}", f"{top3:.2f}x")
-            t3.metric(f"🥉 Bronze: {top3}", f"{top3:.2f}x")
+            t1.metric(f"🥇 Guld: {g_n}", f"{g_o:.2f}x")
+            t2.metric(f"🥈 Sølv: {s_n}", f"{s_o2:.2f}x")
+            t3.metric(f"🥉 Bronze: {b_n}", f"{b_o:.2f}x")
             indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="man_kr")
             if st.button("🚀 SPILLET (Gem i Supabase)", type="primary", use_container_width=True, key="btn_man_spillet"):
                 try:
