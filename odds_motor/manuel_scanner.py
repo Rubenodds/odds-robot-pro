@@ -20,6 +20,17 @@ def _opdater_fokus(ligaer):
         if "fokus_ligaer" in st.query_params:
             del st.query_params["fokus_ligaer"]
 
+def _forklar_kupon(valgte, side, s_o, s_pct, val_p, flm):
+    risiko_txt = {1: "lav risiko", 2: "moderat risiko", 3: "mellem-høj risiko", 4: "høj risiko", 5: "meget høj risiko"}.get(flm, "moderat risiko")
+    edge_txt = f"positiv spilværdi (+{val_p:.1f}% over bookmakerens sandsynlighed)" if val_p > 0 else f"tæt på markedsodds ({val_p:+.1f}% edge)"
+    bedste_k = max(valgte, key=lambda x: float(x.get("vinderchance_pct") or x.get("pct") or 50.0))
+    anker = f"{bedste_k['hj']} vs {bedste_k['ud']} ({bedste_k.get('vinderchance_pct', 55)}%)"
+    return (
+        f"🧠 **Robottens vurdering:** Kuponen kombinerer **{len(valgte)} spil** til samlet odds **{s_o:.2f}** hos **{side}**. "
+        f"Med en samlet modelchance på **{s_pct:.1f}%** giver kombinationen **{edge_txt}** ved **{risiko_txt}**. "
+        f"Stærkeste ankerkamp på kuponen er **{anker}**."
+    )
+
 def vis_manuel_scanner():
     st.subheader("⚽ 2. Manuel Liga- & Klub-Scanner (Alle Spilmarkeder)")
     favs = list(liga_favoritter.hent_favorit_ligaer())
@@ -79,7 +90,7 @@ def vis_manuel_scanner():
             v1.metric("🎯 Chance", f"{s_pct:.1f}%", f"Marked: {imp:.1f}%")
             v2.metric("⭐ Værdi", "⭐" * stj, f"{val_p:+.1f}% edge")
             v3.metric("🔥 Risiko", "🔥" * flm, f"{len(valgte)}/{len(kupon['kampe'])} valg")
-            st.info(f"Kuponen har **{len(valgte)} spil** til samlet odds **{s_o:.2f}** ({side}). Vurderet chance er **{s_pct:.1f}%** ({val_p:+.1f}% edge).")
+            st.info(_forklar_kupon(valgte, side, s_o, s_pct, val_p, flm))
             top3 = sorted([("Bet365", float(s_o)), ("Unibet", float(u_o)), ("Danske Spil", float(o_o))], key=lambda item: item[1], reverse=True)
             (g_n, g_o), (s_n, s_o2), (b_n, b_o) = top3
             t1, t2, t3 = st.columns(3)
