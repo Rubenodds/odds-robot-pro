@@ -160,6 +160,7 @@ def vis_autopilot_scanner():
             st.session_state["auto_kupon"] = kupon
 
     if kupon := st.session_state.get("auto_kupon"):
+        from odds_motor import manuel_hjaelp as mh
         st.markdown("### 🎫 Vælg hvilke forslag der skal med på kuponen:")
         valgte_kampe = []
         for i, k in enumerate(kupon["kampe"]):
@@ -170,10 +171,14 @@ def vis_autopilot_scanner():
             if st.checkbox(titel, value=True, key=f"kupon_chk_{i}_{k['hj']}_{k['ud']}"):
                 valgte_kampe.append(k)
             st.caption(f"📍 {k['liga']} | **{k['start']}** | Form: {ctx.get('hj_form')} vs {ctx.get('ud_form')} | Dommer: {ctx.get('dommer')} | Vejr: {v_txt}")
+            st.caption(mh.begrundelse(k))
 
         if valgte_kampe:
             side, samlet_o, uni_o, odd_o, samlet_pct, stjerner, flammer = _vurder_kupon(valgte_kampe)
-            st.info(f"📊 **{len(valgte_kampe)}/{len(kupon['kampe'])} valg med** | Samlet odds: **{samlet_o}** ({side}) | Kupon-chance: **{samlet_pct}%** | Værdi: {'⭐' * stjerner} | Risiko: {'🔥' * flammer}")
+            impl_pct = round(100.0 / max(samlet_o, 1.01), 1)
+            val_p = round(samlet_pct - impl_pct, 1)
+            st.info(f"📊 **{len(valgte_kampe)}/{len(kupon['kampe'])} valg med** | Samlet odds: **{samlet_o}** ({side}) | Kupon-chance: **{samlet_pct}%** | Værdi: {'⭐' * stjerner} ({val_p:+.1f}% edge) | Risiko: {'🔥' * flammer}")
+            st.success(f"🧠 **Robottens vurdering:** Kuponen kombinerer **{len(valgte_kampe)} spil** til samlet odds **{samlet_o:.2f}** hos **{side}** med **{samlet_pct:.1f}%** modelchance ({val_p:+.1f}% edge over bookmakeren).")
             indsats = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
             if st.button("🚀 SPILLET (Gem valgte i Supabase)", type="primary", key="btn_auto_spillet"):
                 liga_liste = list({k["liga"] for k in valgte_kampe})
