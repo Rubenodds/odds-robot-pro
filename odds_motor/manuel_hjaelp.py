@@ -10,7 +10,10 @@ def form_score(f):
     if "W" in t or "V" in t:
         return (t.count("W") + t.count("V")) * 1.5 - (t.count("L") + t.count("T")) * 1.2
     d = [int(x) for x in t.split("-") if x.isdigit()]
-    return (d * 1.5) - (d * 1.2) if len(d) >= 3 else 0.0
+    if len(d) >= 3:
+        sejre, _, tab = d[:3]
+        return (sejre * 1.5) - (tab * 1.2)
+    return 0.0
 
 def begrundelse(k, res=False):
     pct = float(k.get("vinderchance_pct") or k.get("pct") or 55.0)
