@@ -20,7 +20,7 @@ def _status(valg):
     f = 1 if o < 4 else (2 if o < 12 else (3 if o < 30 else (4 if o < 65 else 5)))
     return o, p, s, f
 
-def vis_manuel_scanner():
+def _tegn_ui():
     st.subheader("⚽ 2. Manuel Kamp Vælger (Tidsfilter, Ligaer & Anti-Dobbeltvalg)")
     kupon = st.session_state.setdefault("manuel_kupon", [])
     favs = list(liga_favoritter.hent_favorit_ligaer())
@@ -99,3 +99,9 @@ def vis_manuel_scanner():
                     st.rerun()
         else:
             st.warning("Sæt mindst 1 flueben.")
+
+def vis_manuel_scanner():
+    try:
+        _tegn_ui()
+    except Exception as e:
+        st.error(f"Fejl i manuel_scanner: {e}")
