@@ -5,7 +5,6 @@ from historik import gem_data
 
 
 def _hent_historik_statistik():
-    """Henter tidligere spillede kuponer fra Supabase for at justere historisk træfsikkerhed."""
     try:
         historik = gem_data.hent_alle_kuponer() or []
         antal = len(historik)
@@ -20,7 +19,6 @@ def _hent_historik_statistik():
 
 
 def _beregn_form_score(form_str):
-    """Oversætter formstreng (f.eks. 'W-D-W-L-W' eller '2-1-1') til en pointscore."""
     if not form_str or "ingen" in str(form_str).lower() or "ukendt" in str(form_str).lower():
         return 0.0
     txt = str(form_str).upper()
@@ -28,7 +26,7 @@ def _beregn_form_score(form_str):
         return (txt.count("W") + txt.count("V")) * 1.5 - txt.count("L") * 1.2 - txt.count("T") * 1.2
     dele = [int(x) for x in txt.split("-") if x.isdigit()]
     if len(dele) >= 3:
-        return (dele * 1.5) - (dele * 1.2)
+        return (dele[0] * 1.5) - (dele[2] * 1.2)
     return 0.0
 
 
@@ -85,14 +83,12 @@ def _byg_spilbare_forslag(udvalgte, maal_odds, kun_resultat=False):
         ctx = kopi.get("ctx") or {}
         fokus = kopi.get("valgt_hold")
 
-        # Beregn unik kampstyrke ud fra modelchance + form + kontekst + Supabase-historik
         form_diff = _beregn_form_score(ctx.get("hj_form")) - _beregn_form_score(ctx.get("ud_form"))
         ctx_just = float(ctx.get("justering_pct", 0.0))
         samlet_styrke = max(25.0, min(85.0, basis_pct + form_diff + ctx_just + hist["justering"]))
 
         forslag = []
         if kun_resultat:
-            # Unik resultat- og cifferberegning for hver enkelt kamp
             if fokus == kopi["hj"] or (not fokus and samlet_styrke >= 57.0):
                 if samlet_styrke >= 68.0:
                     ciffer, res_pct = "2-0", round(min(24.0, samlet_styrke * 0.28), 1)
@@ -176,23 +172,10 @@ def _opdater_fokus_hukommelse(aktive_ligaer):
 
 
 def _lav_kupon_forklaring(valgte_kampe, bedste_side, samlet_o, samlet_pct, value_pct, flammer):
-    risiko_map = {
-        1: "lav risiko (🔥)",
-        2: "moderat risiko (🔥🔥)",
-        3: "mellem-høj risiko (🔥🔥🔥)",
-        4: "høj risiko (🔥🔥🔥🔥)",
-        5: "meget høj risiko (🔥🔥🔥🔥🔥)",
-    }
+    risiko_map = {1: "lav risiko (🔥)", 2: "moderat risiko (🔥🔥)", 3: "mellem-høj risiko (🔥🔥🔥)", 4: "høj risiko (🔥🔥🔥🔥)", 5: "meget høj risiko (🔥🔥🔥🔥🔥)"}
     risiko_tekst = risiko_map.get(flammer, "moderat risiko")
-    if value_pct > 0:
-        vaerdi_tekst = f"positiv spilværdi (+{value_pct:.1f}% over bookmakerens vurdering)"
-    else:
-        vaerdi_tekst = f"tæt på markedsodds ({value_pct:.1f}% edge)"
-
-    return (
-        f"Kuponen samler **{len(valgte_kampe)} spilbare forslag** til samlet odds **{samlet_o:.2f}** hos **{bedste_side}**. "
-        f"Robotten vurderer den samlede chance til **{samlet_pct:.1f}%**, hvilket giver **{vaerdi_tekst}** med **{risiko_tekst}**."
-    )
+    vaerdi_tekst = f"positiv spilværdi (+{value_pct:.1f}% over bookmakerens vurdering)" if value_pct > 0 else f"tæt på markedsodds ({value_pct:.1f}% edge)"
+    return f"Kuponen samler **{len(valgte_kampe)} spilbare forslag** til samlet odds **{samlet_o:.2f}** hos **{bedste_side}**. Robotten vurderer den samlede chance til **{samlet_pct:.1f}%**, hvilket giver **{vaerdi_tekst}** med **{risiko_tekst}**."
 
 
 def vis_manuel_scanner():
@@ -216,12 +199,19 @@ def vis_manuel_scanner():
     har_gemt_fokus = len(gemte_fokus) > 0
 
     st.markdown(f"### 🏆 Vælg ligaer med flueben ({len(ligaer)} aktive i {timer}T):")
-    husk_val = st.checkbox(
-        "📌 Husk mine valgte fokus-ligaer fast",
-        value=har_gemt_fokus,
-        key="man_husk_favorit",
-        on_change=_opdater_fokus_hukommelse,
-        args=(ligaer,),
-    )
+    husk_val = st.checkbox("📌 Husk mine valgte fokus-ligaer fast", value=har_gemt_fokus, key="man_husk_favorit", on_change=_opdater_fokus_hukommelse, args=(ligaer,))
 
     if husk_val and gemte_fokus:
+        st.caption(f"📌 Fastgjorte fokus-ligaer aktive ({len(gemte_fokus)} stk.) – øvrige ligaer er klar til flueben nedenfor.")
+
+    for liga in ligaer:
+        l_key = f"man_liga_chk_{liga}"
+        if l_key not in st.session_state:
+            st.session_state[l_key] = (liga in gemte_fokus) if har_gemt_fokus else False
+
+    v_ligaer = []
+    cols = st.columns(3)
+    for idx, liga in enumerate(ligaer):
+        l_key = f"man_liga_chk_{liga}"
+        label = f"📌 {liga}" if (husk_val and liga in gemte_fokus) else liga
+        with cols[idx % 3]:
