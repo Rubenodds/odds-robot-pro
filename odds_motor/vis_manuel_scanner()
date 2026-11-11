@@ -134,9 +134,11 @@ def vis_manuel_scanner():
             if st.button("🚀 SPILLET (Gem valgte i Supabase)", type="primary", key="btn_man_spillet"):
                 ligaer_gem = list({x["liga"] for x in aktive_valg})
                 kampe_gem = [f"{x['kamp_txt']} ({x['udfald']})" for x in aktive_valg]
+                if gem_data.gem_kupon_i_historik(ligaer_gem, python
+                kampe_gem = [f"{x['kamp_txt']} ({x['udfald']})" for x in aktive_valg]
                 if gem_data.gem_kupon_i_historik(ligaer_gem, kampe_gem, samlet_o, samlet_o, samlet_o, "Manuel", stjerner, indsats):
                     st.session_state["manuel_kupon"] = []
-                    st.success("✅ Manuel kupon gemt i Supabase!")
+                    st.success("Manuel kupon gemt i Supabase!")
                     st.rerun()
         else:
-            st.warning("⚠️ Sæt mindst ét flueben på kuponen for at beregne odds og spille.")
+            st.warning("Sæt mindst ét flueben.")
