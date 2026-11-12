@@ -56,20 +56,24 @@ def _hent_vejr_direkte(hj, by, dt_iso):
     try:
         koord = HOLD_KOORD.get(hj)
         if not koord and by:
-            g = requests.get(GEO_URL, params={"name": by, "count": 1, "format": "json"}, timeout=4).json()
+            g = requests.get(GEO_URL, params={"name": by, "count": 1, "format": "json"}, timeout=5).json()
             res = g.get("results") or []
             if res:
-                koord = (res[0].get("latitude"), res[0].get("longitude"))
+                f0 = res[0]
+                koord = (f0.get("latitude"), f0.get("longitude"))
         if not koord:
             return None
         lat, lon = koord
         dk_dt = datetime.fromisoformat(dt_iso.replace("Z", "+00:00")).astimezone(ZoneInfo("Europe/Copenhagen"))
         t_str = dk_dt.strftime("%Y-%m-%dT%H:00")
-        w = requests.get(WX_URL, params={"latitude": lat, "longitude": lon, "hourly": "temperature_2m,precipitation,windspeed_10m", "timezone": "Europe/Copenhagen"}, timeout=4).json()
+        w = requests.get(WX_URL, params={"latitude": lat, "longitude": lon, "hourly": "temperature_2m,precipitation,windspeed_10m", "timezone": "Europe/Copenhagen"}, timeout=5).json()
         h = w.get("hourly") or {}
-        if t_str in (h.get("time") or []):
-            idx = h["time"].index(t_str)
-            tp, regn, vind = h["temperature_2m"][idx], h["precipitation"][idx], h["windspeed_10m"][idx]
+        tider = h.get("time") or []
+        if t_str in tider:
+            idx = tider.index(t_str)
+            tp = h["temperature_2m"][idx]
+            regn = h["precipitation"][idx]
+            vind = h["windspeed_10m"][idx]
             eff = "Kraftig regn/blæst" if (regn >= 1.5 or vind >= 10) else ("Vådt/frisk vind" if (regn > 0.2 or vind >= 6.5) else "Tørt & roligt")
             return {"temp": round(tp, 1), "regn": round(regn, 1), "vind": round(vind / 3.6, 1), "effekt": eff}
     except Exception:
@@ -78,18 +82,21 @@ def _hent_vejr_direkte(hj, by, dt_iso):
 
 def _find_dommer(obj):
     if isinstance(obj, dict):
-        if "officials" in obj and isinstance(obj["officials"], list) and obj["officials"]:
-            o0 = obj["officials"][0]
+        offs = obj.get("officials")
+        if isinstance(offs, list) and len(offs) > 0:
+            o0 = offs[0]
             if isinstance(o0, dict):
-                n = o0.get("displayName") or (o0.get("athlete") or {}).get("displayName")
+                n = o0.get("displayName") or o0.get("fullName") or (o0.get("athlete") or {}).get("displayName")
                 if n:
                     return n
         for v in obj.values():
-            if res := _find_dommer(v):
+            res = _find_dommer(v)
+            if res:
                 return res
     elif isinstance(obj, list):
         for item in obj:
-            if res := _find_dommer(item):
+            res = _find_dommer(item)
+            if res:
                 return res
     return None
 
@@ -101,19 +108,20 @@ def berig_valgte_kampe(kampe):
         slug = ctx.get("slug") or "uefa.nations"
         by = ctx.get("by") or k.get("hj", "")
         dt_iso = ctx.get("dt_iso") or (k.get("dk_dt").isoformat() if k.get("dk_dt") else "")
-        if ev_id and ctx.get("dommer") in (None, "", "Ikke udpeget endnu"):
+        if ev_id:
             for s_try in list(dict.fromkeys([slug, "uefa.nations", "all"])):
                 try:
-                    s = requests.get(SUM_URL.format(s_try, ev_id), headers=HDR, timeout=4).json()
-                    if dom := _find_dommer(s):
+                    s = requests.get(SUM_URL.format(s_try, ev_id), headers=HDR, timeout=5).json()
+                    dom = _find_dommer(s)
+                    if dom:
                         ctx["dommer"] = dom
                     ctx["skader"] = sum(len(x.get("injuries") or []) for x in (s.get("injuries") or []))
-                    if ctx["dommer"] != "Ikke udpeget endnu":
+                    if ctx.get("dommer") not in (None, "", "Ikke udpeget endnu"):
                         break
                 except Exception:
                     continue
-        if not ctx.get("vejr"):
-            ctx["vejr"] = _hent_vejr_direkte(k.get("hj", ""), by, dt_iso)
+        ctx["vejr"] = _hent_vejr_direkte(k.get("hj", ""), by, dt_iso)
         just = (1.5 if ctx["vejr"] and ctx["vejr"]["effekt"] != "Tørt & roligt" else 0.0) + (1.0 if ctx["dommer"] != "Ikke udpeget endnu" else 0.0) + min(3.0, ctx.get("skader", 0) * 0.5)
         ctx["justering_pct"] = round(just, 1)
+        k["ctx"] = ctx
     return kampe
