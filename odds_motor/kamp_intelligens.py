@@ -93,13 +93,13 @@ def _find_dommer(obj):
     return None
 
 def berig_valgte_kampe(kampe):
-    for k in kampe:
+    for k in (kampe or []):
         ctx = k.get("ctx") or {}
         ev_id = str(ctx.get("ev_id") or k.get("id") or "")
         slug = ctx.get("slug") or "uefa.nations"
         by = ctx.get("by") or k.get("hj", "")
         dt_iso = ctx.get("dt_iso") or (k.get("dk_dt").isoformat() if k.get("dk_dt") else "")
-        if ev_id:
+        if ev_id and ctx.get("dommer") in (None, "", "Ikke udpeget endnu"):
             for s_try in list(dict.fromkeys([slug, "uefa.nations", "all"])):
                 try:
                     s = requests.get(SUM_URL.format(s_try, ev_id), headers=HDR, timeout=4).json()
@@ -110,6 +110,7 @@ def berig_valgte_kampe(kampe):
                         break
                 except Exception:
                     continue
-        ctx["vejr"] = _hent_vejr_direkte(k.get("hj", ""), by, dt_iso)
+        if not ctx.get("vejr"):
+            ctx["vejr"] = _hent_vejr_direkte(k.get("hj", ""), by, dt_iso)
         just = (1.5 if ctx["vejr"] and ctx["vejr"]["effekt"] != "Tørt & roligt" else 0.0) + (1.0 if ctx["dommer"] != "Ikke udpeget endnu" else 0.0) + min(3.0, ctx.get("skader", 0) * 0.5)
         ctx["justering_pct"] = round(just, 1)
