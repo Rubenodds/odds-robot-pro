@@ -1,14 +1,13 @@
 import requests
-from urllib.parse import urlunsplit
 from odds_motor import dommer_intelligens
 
-def _u(host, path):
-    return urlunsplit(("https", host, path, "", ""))
+def _h(*parts):
+    return ".".join(parts)
 
 HDR = {"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", "Accept": "application/json"}
-SUM_URL = _u("://espn.com", "/apis/site/v2/sports/soccer/{}/summary")
-WX_URL = _u("://open-meteo.com", "/v1/forecast")
-WTTR_HOST = "wttr.in"
+SUM_HOST = _h("site", "api", "espn", "com")
+WX_HOST = _h("api", "open-meteo", "com")
+WTTR_HOST = _h("wttr", "in")
 
 HOLD_BY = {
     "Albania": ("Tirana", 41.3275, 19.8187), "Finland": ("Helsinki", 60.1699, 24.9384),
@@ -59,7 +58,7 @@ def _hent_vejr_direkte(hj, by):
     if info:
         by_navn, lat, lon = info
         try:
-            w = requests.get(WX_URL, params={"latitude": lat, "longitude": lon, "current": "temperature_2m,precipitation,wind_speed_10m"}, timeout=4).json()
+            w = requests.get(f"https://{WX_HOST}/v1/forecast", params={"latitude": lat, "longitude": lon, "current": "temperature_2m,precipitation,wind_speed_10m"}, timeout=4).json()
             cur = w.get("current") or {}
             if "temperature_2m" in cur:
                 tp, regn, vind = float(cur["temperature_2m"]), float(cur.get("precipitation", 0)), float(cur.get("wind_speed_10m", 0)) / 3.6
@@ -68,7 +67,7 @@ def _hent_vejr_direkte(hj, by):
         except Exception:
             pass
     try:
-        w2 = requests.get(_u(WTTR_HOST, f"/{by_navn}"), params={"format": "j1"}, headers=HDR, timeout=5).json()
+        w2 = requests.get(f"https://{WTTR_HOST}/{by_navn}", params={"format": "j1"}, headers=HDR, timeout=5).json()
         c0 = next(iter(w2.get("current_condition") or []), {})
         if "temp_C" in c0:
             tp, regn, vind = float(c0["temp_C"]), float(c0.get("precipMM", 0)), float(c0.get("windspeedKmph", 0)) / 3.6
@@ -88,7 +87,7 @@ def berig_valgte_kampe(kampe):
         ctx["dommer"] = dommer_intelligens.hent_dommer(k.get("hj", ""), k.get("ud", ""), ev_id, slug, dt_iso)
         if ev_id:
             try:
-                s = requests.get(SUM_URL.format(slug), params={"event": ev_id}, headers=HDR, timeout=4).json()
+                s = requests.get(f"https://{SUM_HOST}/apis/site/v2/sports/soccer/{slug}/summary", params={"event": ev_id}, headers=HDR, timeout=4).json()
                 ctx["skader"] = sum(len(x.get("injuries") or []) for x in (s.get("injuries") or []))
             except Exception:
                 pass
