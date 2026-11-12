@@ -24,7 +24,7 @@ SLUGS = {
     "Japan - J1 League": "jpn.1", "Japan - J2 League": "jpn.2",
     "UEFA - Champions League": "uefa.champions", "UEFA - Europa League": "uefa.europa",
     "UEFA - Conference League": "uefa.europa.conf", "UEFA - Nations League": "uefa.nations",
-    "UEFA - VM Kvalifikation": "fifa.worldq.uefa",
+    "UEFA - VM Kvalifikation": "fifa.worldq.uefa", "FIFA - Venskabskampe": "fifa.friendly",
 }
 MARKEDER = [
     "Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Flest)", "Spillerskud & Skud på mål",
@@ -57,7 +57,7 @@ def _parse_event(ev, liga, slug, nu, dk_tz, sete):
 def _hent_kampe_v9(ligaer_tuple, timer_maks=24):
     dk_tz = ZoneInfo("Europe/Copenhagen")
     nu = datetime.now(dk_tz)
-    datoer = [(nu + timedelta(days=d)).strftime("%Y%m%d") for d in range(4)]
+    datoer = [(nu + timedelta(days=d)).strftime("%Y%m%d") for d in range(5)]
     kampe, sete = [], set()
     for liga in (set(ligaer_tuple) | set(SLUGS.keys())) - {"Landskampe - FIFA / UEFA"}:
         slug = SLUGS.get(liga) or SLUGS.get(liga_favoritter.normaliser_liga_navn(liga))
@@ -82,7 +82,9 @@ def _vurder_kupon(valgte):
     side = max(prof, key=prof.get)
     bo = prof[side]
     sp = round(max(1.0, min(95.0, math.prod(float(k.get("vinderchance_pct", 55.0)) / 100.0 for k in valgte) * 100.0)), 1)
-    stj = 5 if sp >= 45 else (4 if sp >= 30 else (3 if sp >= 18 else (2 if sp >= 10 else 1)))
+    vp = round(sp - round(100.0 / max(bo, 1.01), 1), 1)
+    ev = (sp / 100.0) * bo
+    stj = 5 if (ev >= 1.35 or vp >= 12.0) else (4 if (ev >= 1.20 or vp >= 8.0) else (3 if (ev >= 1.10 or vp >= 4.0) else (2 if (ev >= 1.02 or vp >= 1.0) else 1)))
     flm = 1 if bo < 4 else (2 if bo < 12 else (3 if bo < 30 else (4 if bo < 65 else 5)))
     return side, bo, o2, o3, sp, stj, flm
 
@@ -97,6 +99,7 @@ def vis_autopilot_scanner():
 
     alle = _hent_kampe_v9(tuple(favs), timer)
     aktive = [k for k in alle if 0 < k["timer"] <= timer]
+    senere = [k for k in alle if k["timer"] > timer]
     ligaer = sorted({k["liga"] for k in aktive})
 
     if ligaer:
@@ -108,10 +111,13 @@ def vis_autopilot_scanner():
             kandidater = [k for k in filt if k["label"] in v_labels]
         else:
             kandidater = filt
+        if senere:
+            n1 = senere
+            st.caption(f"⏭️ Næste kamp efter {timer}T: **{n1['hj']} vs {n1['ud']}** ({n1['liga']} | {n1['start']} — om **{n1['timer']}T**)")
     else:
         kandidater = []
         f1 = next(iter(alle), None)
-        st.info(f"📭 Ingen kampe inden for **{timer} timer**." + (f" Næste: **{f1['hj']} vs {f1['ud']}** ({f1['start']})." if f1 else ""))
+        st.info(f"📭 Ingen kampe inden for **{timer} timer**." + (f" Næste: **{f1['hj']} vs {f1['ud']}** ({f1['start']} — om **{f1['timer']}T**)." if f1 else ""))
 
     markeder = st.multiselect("📊 Specialmarkeder:", MARKEDER, default=MARKEDER[:3], key="auto_mark")
     b1, b2 = st.columns(2)
