@@ -3,6 +3,11 @@
 **Opdateret:** Torsdag d. 12. november 2026 kl. 19:20 (Dansk normaltid)
 **Arkitekturstatus:** `app.py` 100 % LÅST | Supabase Cloud aktiv | Alle motorer samlet i `odds_motor/`
 
+## 📅 Log: 12-11-2026 kl. 20:00 (Dansk tid)
+- **Status ved samtaleskift:**
+  - `tidsstyring/dansk_tid.py`, `odds_motor/autopilot_scanner.py`, `odds_motor/manuel_scanner.py` og `odds_motor/manuel_hjaelp.py` er opgraderet med `3T/6T/9T/12T` + frit timefelt, ubegrænsede `Min. odds` / `Maks. odds` talfelter og 2-trins lyn-indlæsning.
+  - Rettelse klar til `odds_motor/kamp_intelligens.py` og `odds_motor/byg_kupon.py` (konvertering af amerikanske ESPN-odds `+310` → `4.10` + sikker koordinat-udpakning `lat, lon = koord` til Open-Meteo vejr og rekursiv dommersøgning).
+  - **Næste i køen:** Verificer `kamp_intelligens.py` + `byg_kupon.py` live, og gennemgå derefter **Mappe 3 (`odds_motor/billed_parser.py`)** inkl. live dommer/vejr og **Mappe 4 (`historik/regnskab_visning.py`)**.
 ---
 
 ## 📅 Log: 12-11-2026 kl. 19:20 (Dansk tid)
