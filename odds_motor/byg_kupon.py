@@ -1,4 +1,4 @@
-from odds_motor.kamp_intelligens import til_decimal_odds
+from odds_motor.kamp_intelligens import til_decimal_odds, berig_valgte_kampe
 
 def beregn_sandsynlighed_fra_odds(odds):
     try:
@@ -33,10 +33,15 @@ def _udtraek_espn_odds(ctx):
                 return h_dec, u_dec
     return None, None
 
-def byg_kombineret_kupon(udvalgte, markeder, maal):
+def byg_kombineret_kupon(udvalgte, markeder=None, maal=2.0):
+    udvalgte = list(udvalgte) if udvalgte else []
+    markeder = list(markeder) if markeder else []
+    if not udvalgte:
+        return {"kampe": []}
+    berig_valgte_kampe(udvalgte)
     kampe_out = []
     n_kampe = max(1, len(udvalgte))
-    maal_pr_kamp = max(1.30, float(maal) ** (1.0 / n_kampe))
+    maal_pr_kamp = max(1.30, float(maal or 2.0) ** (1.0 / n_kampe))
     for u in udvalgte:
         ctx = u.get("ctx") or {}
         hj, ud = u["hj"], u["ud"]
@@ -49,17 +54,14 @@ def byg_kombineret_kupon(udvalgte, markeder, maal):
         if pct >= 57.0:
             valg.append(f"Kampvinder: {hj}")
             od = round(h_od, 2) if (h_od and h_od > 1.05) else round(max(1.25, min(3.40, (100.0 / pct) * 1.03)), 2)
-            ctx["favorit_navn"] = hj
         elif pct <= 44.0:
             pct = round(100.0 - pct, 1)
             valg.append(f"Kampvinder: {ud}")
             od = round(u_od, 2) if (u_od and u_od > 1.05) else round(max(1.28, min(3.60, (100.0 / pct) * 1.03)), 2)
-            ctx["favorit_navn"] = ud
         else:
             valg.append("Mål: Over 1.5 mål i kampen")
             pct = round(min(78.0, 58.0 + cj), 1)
             od = round(max(1.30, min(2.15, (100.0 / pct) * 1.03)), 2)
-            ctx["favorit_navn"] = "Begge hold"
         if od < maal_pr_kamp and any("Hjørnespark" in m for m in markeder):
             valg.append("Hjørnespark: Over 9.5 total")
             od = round(od * 1.48, 2)
