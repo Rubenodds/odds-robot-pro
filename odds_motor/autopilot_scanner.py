@@ -31,7 +31,7 @@ MARKEDER = [
     "Tacklinger & Målmandsredninger", "Kort-sandsynlighed (Gule/Røde)", "Målscorer (Anytime/Første)", "Offsides",
 ]
 
-def _parse_event(ev, liga, nu, dk_tz, sete):
+def _parse_event(ev, liga, slug, nu, dk_tz, sete):
     ev_id = ev.get("id")
     if not ev_id or ev_id in sete or (ev.get("status") or {}).get("type", {}).get("state") == "post":
         return None
@@ -50,7 +50,7 @@ def _parse_event(ev, liga, nu, dk_tz, sete):
     if not (hj and ud):
         return None
     sete.add(ev_id)
-    ctx = kamp_intelligens.hurtig_kontekst(comp, hj, ud)
+    ctx = kamp_intelligens.hurtig_kontekst(comp, hj, ud, slug)
     return {"id": ev_id, "label": f"{hj} vs {ud} ({liga} | {dk_dt.strftime('%d-%m %H:%M')})", "liga": liga, "hj": hj, "ud": ud, "dk_dt": dk_dt, "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"), "timer": round(max(0.1, diff), 2), "pct": 55.0, "ctx": ctx}
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -69,7 +69,7 @@ def _hent_kampe_v9(ligaer_tuple, timer_maks=24):
                 r = requests.get(f"{API.format(slug)}?dates={d_str}", headers=HDR, timeout=4)
                 if r.status_code == 200:
                     for ev in r.json().get("events", []):
-                        if k := _parse_event(ev, liga, nu, dk_tz, sete):
+                        if k := _parse_event(ev, liga, slug, nu, dk_tz, sete):
                             kampe.append(k)
             except Exception:
                 continue
@@ -134,7 +134,7 @@ def vis_autopilot_scanner():
         for i, k in enumerate(kupon["kampe"]):
             ctx = k.get("ctx", {})
             v = ctx.get("vejr")
-            v_txt = f"{v['temp']}°C, {v['vind']} m/s ({v['effekt']})" if v else "Afventer"
+            v_txt = f"{v['temp']}°C, {v['vind']} m/s ({v['effekt']})" if v else "Ikke tilgængeligt"
             if st.checkbox(f"{i+1}. {k['hj']} vs {k['ud']} — {', '.join(k['kombinationer'])} (Odds: {k['b365']} | Chance: {k['vinderchance_pct']}%)", value=True, key=f"kupon_chk_{i}_{k['hj']}_{k['ud']}"):
                 valgte.append(k)
             st.caption(f"📍 {k['liga']} | **{k['start']}** | Form: {ctx.get('hj_form')} vs {ctx.get('ud_form')} | Dommer: {ctx.get('dommer')} | Vejr: {v_txt}")
