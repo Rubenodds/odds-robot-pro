@@ -44,25 +44,22 @@ def _parse_event(ev, liga, nu, dk_tz, sete):
     if diff <= -0.25:
         return None
     comp = next(iter(ev.get("competitions") or []), {})
+    comp["id"] = ev_id
     teams = comp.get("competitors") or []
     hj = next((c["team"]["displayName"] for c in teams if c.get("homeAway") == "home"), None)
     ud = next((c["team"]["displayName"] for c in teams if c.get("homeAway") == "away"), None)
     if not (hj and ud):
         return None
     sete.add(ev_id)
-    try:
-        ctx = kamp_intelligens.analyser_kamp_kontekst(comp, hj, ud)
-        pct = round(max(35.0, min(95.0, byg_kupon.beregn_sandsynlighed_fra_odds(1.85) + ctx.get("justering_pct", 0.0))), 1)
-    except Exception:
-        ctx = {"justering_pct": 0.0, "hj_form": "Ukendt", "ud_form": "Ukendt", "dommer": "Ikke udpeget endnu", "vejr": None}
-        pct = 54.0
-    return {"id": ev_id, "label": f"{hj} vs {ud} ({liga} | {dk_dt.strftime('%d-%m %H:%M')})", "liga": liga, "hj": hj, "ud": ud, "dk_dt": dk_dt, "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"), "timer": round(max(0.1, diff), 2), "pct": pct, "ctx": ctx}
+    ctx = kamp_intelligens.hurtig_kontekst(comp, hj, ud)
+    return {"id": ev_id, "label": f"{hj} vs {ud} ({liga} | {dk_dt.strftime('%d-%m %H:%M')})", "liga": liga, "hj": hj, "ud": ud, "dk_dt": dk_dt, "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"), "timer": round(max(0.1, diff), 2), "pct": 55.0, "ctx": ctx}
 
 @st.cache_data(ttl=120, show_spinner=False)
-def _hent_kampe_v9(ligaer_tuple):
+def _hent_kampe_v9(ligaer_tuple, timer_maks=24):
     dk_tz = ZoneInfo("Europe/Copenhagen")
     nu = datetime.now(dk_tz)
-    datoer = [(nu + timedelta(days=d)).strftime("%Y%m%d") for d in range(5)]
+    dage = max(1, min(6, int((timer_maks // 24) + 2)))
+    datoer = [(nu + timedelta(days=d)).strftime("%Y%m%d") for d in range(dage)]
     kampe, sete = [], set()
     for liga in (set(ligaer_tuple) | set(SLUGS.keys())) - {"Landskampe - FIFA / UEFA"}:
         slug = SLUGS.get(liga) or SLUGS.get(liga_favoritter.normaliser_liga_navn(liga))
@@ -70,24 +67,13 @@ def _hent_kampe_v9(ligaer_tuple):
             continue
         for d_str in datoer:
             try:
-                r = requests.get(f"{API.format(slug)}?dates={d_str}", headers=HDR, timeout=5)
+                r = requests.get(f"{API.format(slug)}?dates={d_str}", headers=HDR, timeout=4)
                 if r.status_code == 200:
                     for ev in r.json().get("events", []):
                         if k := _parse_event(ev, liga, nu, dk_tz, sete):
                             kampe.append(k)
             except Exception:
                 continue
-    for d_str in datoer:
-        try:
-            r = requests.get(f"{API.format('all')}?dates={d_str}", headers=HDR, timeout=6)
-            if r.status_code == 200:
-                for ev in r.json().get("events", []):
-                    links_txt = " ".join(lk.get("href", "") for lk in ev.get("links") or []).lower()
-                    match_liga = next((orig for slug, orig in SLUG_TIL_LIGA.items() if f"/{slug}/" in links_txt or slug in links_txt), None)
-                    if match_liga and (k := _parse_event(ev, match_liga, nu, dk_tz, sete)):
-                        kampe.append(k)
-        except Exception:
-            continue
     return sorted(kampe, key=lambda x: x["dk_dt"])
 
 def _vurder_kupon(valgte):
@@ -110,7 +96,7 @@ def vis_autopilot_scanner():
     min_o, max_o = c1.slider("🎯 Ønsket odds-lag:", 2.0, 200.0, (20.0, 50.0), key="auto_odds")
     max_kampe = c2.number_input("🎫 Maks. kampe:", min_value=1, max_value=12, value=4, step=1, key="auto_max_kampe")
 
-    alle = _hent_kampe_v9(tuple(favs))
+    alle = _hent_kampe_v9(tuple(favs), timer)
     aktive = [k for k in alle if 0 < k["timer"] <= timer]
     ligaer = sorted({k["liga"] for k in aktive})
 
@@ -124,25 +110,15 @@ def vis_autopilot_scanner():
         f1 = next(iter(alle), None)
         st.info(f"📭 Ingen kampe inden for **{timer} timer**." + (f" Næste: **{f1['hj']} vs {f1['ud']}** ({f1['start']})." if f1 else ""))
 
-    with st.expander(f"⚙️ Administrer favoritter ({len(favs)} aktive)"):
-        ny = st.text_input("➕ Ny favoritliga:", key="auto_ny")
-        if st.button("Gem favorit", key="auto_add") and liga_favoritter.tilfoej_ny_favorit_liga(ny):
-            st.cache_data.clear()
-            st.rerun()
-        fjern = st.selectbox("🗑️ Fjern liga:", favs, key="auto_del_sel")
-        if st.button("Fjern liga", key="auto_del") and liga_favoritter.fjern_favorit_liga(fjern):
-            st.cache_data.clear()
-            st.rerun()
-
     markeder = st.multiselect("📊 Specialmarkeder:", MARKEDER, default=MARKEDER[:3], key="auto_mark")
     b1, b2 = st.columns(2)
     if b1.button("🔍 FIND MEST SANDSYNLIGE KUPON", type="primary", key="btn_scan") or b2.button("⚡ SCAN ALLE VALGTE KAMPE", key="btn_scan_alle"):
         if not kandidater or not markeder:
             st.warning("⚠️ Vælg både kampe og specialmarkeder.")
         else:
-            sort_k = sorted(kandidater, key=lambda x: x["pct"], reverse=True)
             maal = round((min_o + max_o) / 2.0, 2)
-            udv = sort_k if st.session_state.get("btn_scan_alle") else sort_k[:next((n for n in range(1, min(len(sort_k), max_kampe) + 1) if 1.45 <= maal ** (1.0 / n) <= 3.20), min(len(sort_k), max_kampe))]
+            udv = kandidater if st.session_state.get("btn_scan_alle") else kandidater[:next((n for n in range(1, min(len(kandidater), max_kampe) + 1) if 1.45 <= maal ** (1.0 / n) <= 3.20), min(len(kandidater), max_kampe))]
+            udv = kamp_intelligens.berig_valgte_kampe(udv)
             kupon = byg_kupon.byg_kombineret_kupon(udv, markeder, maal)
             for ko, uo in zip(kupon["kampe"], udv):
                 ko["ctx"] = uo["ctx"]
@@ -165,3 +141,8 @@ def vis_autopilot_scanner():
             st.info(f"📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Odds: **{bo}** ({side}) | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}")
             st.success(f"🧠 **Robottens vurdering:** **{len(valgte)} spil** til samlet odds **{bo:.2f}** ({side}) med **{sp:.1f}%** modelchance ({vp:+.1f}% edge).")
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
+            if st.button("🚀 SPILLET (Gem valgte i Supabase)", type="primary", key="btn_auto_spillet"):
+                if gem_data.gem_kupon_i_historik(list({k["liga"] for k in valgte}), [f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])}) [{k['start']}]" for k in valgte], bo, uo, oo, side, stj, kr):
+                    st.success("Kupon gemt i Supabase!")
+        else:
+            st.warning("Vælg mindst 1 kamp.")
