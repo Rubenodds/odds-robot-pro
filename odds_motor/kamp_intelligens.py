@@ -51,52 +51,52 @@ def hurtig_kontekst(comp, hj, ud, slug="all"):
     }
 
 def _hent_vejr_direkte(hj, by, dt_iso):
-    if not dt_iso:
-        return None
     try:
         koord = HOLD_KOORD.get(hj)
         if not koord and by:
             g = requests.get(GEO_URL, params={"name": by, "count": 1, "format": "json"}, timeout=5).json()
-            res = g.get("results") or []
-            if res:
-                f0 = res[0]
+            f0 = next(iter(g.get("results") or []), None)
+            if f0:
                 koord = (f0.get("latitude"), f0.get("longitude"))
         if not koord:
             return None
         lat, lon = koord
-        dk_dt = datetime.fromisoformat(dt_iso.replace("Z", "+00:00")).astimezone(ZoneInfo("Europe/Copenhagen"))
-        t_str = dk_dt.strftime("%Y-%m-%dT%H:00")
-        w = requests.get(WX_URL, params={"latitude": lat, "longitude": lon, "hourly": "temperature_2m,precipitation,windspeed_10m", "timezone": "Europe/Copenhagen"}, timeout=5).json()
+        w = requests.get(WX_URL, params={"latitude": lat, "longitude": lon, "hourly": "temperature_2m,precipitation,wind_speed_10m", "current": "temperature_2m,precipitation,wind_speed_10m", "timezone": "Europe/Copenhagen", "forecast_days": 3}, timeout=5).json()
         h = w.get("hourly") or {}
         tider = h.get("time") or []
-        if t_str in tider:
-            idx = tider.index(t_str)
-            tp = h["temperature_2m"][idx]
-            regn = h["precipitation"][idx]
-            vind = h["windspeed_10m"][idx]
-            eff = "Kraftig regn/blæst" if (regn >= 1.5 or vind >= 10) else ("Vådt/frisk vind" if (regn > 0.2 or vind >= 6.5) else "Tørt & roligt")
-            return {"temp": round(tp, 1), "regn": round(regn, 1), "vind": round(vind / 3.6, 1), "effekt": eff}
+        idx = 0
+        if dt_iso and tider:
+            dk_dt = datetime.fromisoformat(dt_iso.replace("Z", "+00:00")).astimezone(ZoneInfo("Europe/Copenhagen"))
+            t_str = dk_dt.strftime("%Y-%m-%dT%H:00")
+            if t_str in tider:
+                idx = tider.index(t_str)
+        temps = h.get("temperature_2m") or []
+        regns = h.get("precipitation") or []
+        vinds = h.get("wind_speed_10m") or h.get("windspeed_10m") or []
+        cur = w.get("current") or {}
+        tp = temps[idx] if idx < len(temps) else cur.get("temperature_2m", 10.0)
+        regn = regns[idx] if idx < len(regns) else cur.get("precipitation", 0.0)
+        vind = vinds[idx] if idx < len(vinds) else cur.get("wind_speed_10m", 5.0)
+        eff = "Kraftig regn/blæst" if (regn >= 1.5 or vind >= 35) else ("Vådt/frisk vind" if (regn > 0.2 or vind >= 22) else "Tørt & roligt")
+        return {"temp": round(float(tp), 1), "regn": round(float(regn), 1), "vind": round(float(vind) / 3.6, 1), "effekt": eff}
     except Exception:
-        pass
-    return None
+        return None
 
 def _find_dommer(obj):
     if isinstance(obj, dict):
         offs = obj.get("officials")
-        if isinstance(offs, list) and len(offs) > 0:
-            o0 = offs[0]
-            if isinstance(o0, dict):
-                n = o0.get("displayName") or o0.get("fullName") or (o0.get("athlete") or {}).get("displayName")
-                if n:
-                    return n
+        if isinstance(offs, list) and offs:
+            for o in offs:
+                if isinstance(o, dict):
+                    n = o.get("displayName") or o.get("fullName") or (o.get("athlete") or {}).get("displayName")
+                    if n:
+                        return n
         for v in obj.values():
-            res = _find_dommer(v)
-            if res:
+            if res := _find_dommer(v):
                 return res
     elif isinstance(obj, list):
         for item in obj:
-            res = _find_dommer(item)
-            if res:
+            if res := _find_dommer(item):
                 return res
     return None
 
@@ -112,8 +112,7 @@ def berig_valgte_kampe(kampe):
             for s_try in list(dict.fromkeys([slug, "uefa.nations", "all"])):
                 try:
                     s = requests.get(SUM_URL.format(s_try, ev_id), headers=HDR, timeout=5).json()
-                    dom = _find_dommer(s)
-                    if dom:
+                    if dom := _find_dommer(s):
                         ctx["dommer"] = dom
                     ctx["skader"] = sum(len(x.get("injuries") or []) for x in (s.get("injuries") or []))
                     if ctx.get("dommer") not in (None, "", "Ikke udpeget endnu"):
