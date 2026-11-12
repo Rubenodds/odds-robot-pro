@@ -37,14 +37,17 @@ def _hent_vejr(by, land, dt_iso):
         return None
     try:
         q = f"{by}, {land}" if land else by
-        g = requests.get("https://open-meteo.com", params={"name": q, "count": 1, "format": "json"}, timeout=3).json()
-        res = (g.get("results") or [{}])
-        lat, lon = res.get("latitude"), res.get("longitude")
-        if lat is None or lon is None:
+        g = requests.get("https://open-meteo.com", params={"name": q, "count": 1, "format": "json"}, timeout=4).json()
+        res_list = g.get("results") or []
+        if not res_list and land:
+            g = requests.get("https://open-meteo.com", params={"name": by, "count": 1, "format": "json"}, timeout=4).json()
+            res_list = g.get("results") or []
+        if not res_list:
             return None
+        lat, lon = res_list[0].get("latitude"), res_list[0].get("longitude")
         dk_dt = datetime.fromisoformat(dt_iso.replace("Z", "+00:00")).astimezone(ZoneInfo("Europe/Copenhagen"))
         t_str = dk_dt.strftime("%Y-%m-%dT%H:00")
-        w = requests.get("https://open-meteo.com", params={"latitude": lat, "longitude": lon, "hourly": "temperature_2m,precipitation,windspeed_10m", "timezone": "Europe/Copenhagen"}, timeout=3).json()
+        w = requests.get("https://open-meteo.com", params={"latitude": lat, "longitude": lon, "hourly": "temperature_2m,precipitation,windspeed_10m", "timezone": "Europe/Copenhagen"}, timeout=4).json()
         h = w.get("hourly") or {}
         if t_str in (h.get("time") or []):
             idx = h["time"].index(t_str)
@@ -66,8 +69,8 @@ def berig_valgte_kampe(kampe):
                     s = requests.get(SUM_URL.format(s_try, ev_id), headers=HDR, timeout=4).json()
                     gi = s.get("gameInfo") or {}
                     offs = gi.get("officials") or []
-                    if offs and isinstance(offs, dict) and offs.get("displayName"):
-                        ctx["dommer"] = offs["displayName"]
+                    if offs and isinstance(offs[0], dict) and offs[0].get("displayName"):
+                        ctx["dommer"] = offs[0]["displayName"]
                     addr2 = (gi.get("venue") or {}).get("address") or {}
                     by = addr2.get("city") or by
                     land = addr2.get("country") or land
