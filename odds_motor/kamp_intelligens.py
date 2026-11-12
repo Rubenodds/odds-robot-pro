@@ -1,11 +1,11 @@
 import requests
 
-HDR = {"User-Agent": "Mozilla/5.0"}
-SUM_URL = "https://" + "site.api.espn.com" + "/apis/site/v2/sports/soccer/{}/summary?event={}"
-WX_URL = "https://" + "api.open-meteo.com" + "/v1/forecast"
-WTTR_BASE = "https://wttr." + "in/"
-SOFA_SEARCH = "https://" + "api.sofascore.com" + "/api/v1/search/events?q={}&page=0"
-SOFA_EV = "https://" + "api.sofascore.com" + "/api/v1/event/{}"
+HDR = {"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15", "Accept": "application/json"}
+SUM_URL = "https://espn.com{}/summary?event={}"
+WX_URL = "https://open-meteo.com"
+WTTR_BASE = "https://wttr.in"
+FOT_S = "https://fotmob.com{}"
+FOT_M = "https://fotmob.com{}"
 
 HOLD_BY = {
     "Albania": ("Tirana", 41.3275, 19.8187), "Finland": ("Helsinki", 60.1699, 24.9384),
@@ -54,15 +54,14 @@ def _find_dommer(obj):
 
 def _hent_dommer_backup(hj, ud):
     try:
-        r = requests.get(SOFA_SEARCH.format(f"{hj} {ud}"), headers=HDR, timeout=4).json()
-        for item in (r.get("results") or []):
-            ev = item.get("entity") or item
-            eid = ev.get("id")
-            if eid and (ev.get("status") or {}).get("type") != "finished":
-                d = requests.get(SOFA_EV.format(eid), headers=HDR, timeout=4).json()
-                ref = ((d.get("event") or {}).get("referee") or {}).get("name")
-                if ref:
-                    return str(ref)
+        r = requests.get(FOT_S.format(f"{hj} {ud}"), headers=HDR, timeout=4).json()
+        for grp in (r if isinstance(r, list) else []):
+            for sug in (grp.get("suggestions") or []):
+                if sug.get("type") == "match" and sug.get("id"):
+                    m = requests.get(FOT_M.format(sug["id"]), headers=HDR, timeout=4).json()
+                    ref = (((m.get("content") or {}).get("matchFacts") or {}).get("infoBox") or {}).get("Referee") or {}
+                    if ref.get("text"):
+                        return str(ref["text"])
     except Exception:
         pass
     return None
