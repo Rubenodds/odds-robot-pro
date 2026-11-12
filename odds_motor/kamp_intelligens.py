@@ -4,6 +4,8 @@ HDR = {"User-Agent": "Mozilla/5.0"}
 SUM_URL = "https://" + "site.api.espn.com" + "/apis/site/v2/sports/soccer/{}/summary?event={}"
 WX_URL = "https://" + "api.open-meteo.com" + "/v1/forecast"
 WTTR_BASE = "https://wttr." + "in/"
+SOFA_SEARCH = "https://" + "api.sofascore.com" + "/api/v1/search/events?q={}&page=0"
+SOFA_EV = "https://" + "api.sofascore.com" + "/api/v1/event/{}"
 
 HOLD_BY = {
     "Albania": ("Tirana", 41.3275, 19.8187), "Finland": ("Helsinki", 60.1699, 24.9384),
@@ -50,6 +52,21 @@ def _find_dommer(obj):
                 return res
     return None
 
+def _hent_dommer_backup(hj, ud):
+    try:
+        r = requests.get(SOFA_SEARCH.format(f"{hj} {ud}"), headers=HDR, timeout=4).json()
+        for item in (r.get("results") or []):
+            ev = item.get("entity") or item
+            eid = ev.get("id")
+            if eid and (ev.get("status") or {}).get("type") != "finished":
+                d = requests.get(SOFA_EV.format(eid), headers=HDR, timeout=4).json()
+                ref = ((d.get("event") or {}).get("referee") or {}).get("name")
+                if ref:
+                    return str(ref)
+    except Exception:
+        pass
+    return None
+
 def hurtig_kontekst(comp, hj, ud, slug="all"):
     teams = comp.get("competitors") or []
     h_obj = next((c for c in teams if c.get("homeAway") == "home"), {})
@@ -58,7 +75,7 @@ def hurtig_kontekst(comp, hj, ud, slug="all"):
     ud_form = u_obj.get("form") or next((r.get("summary") for r in (u_obj.get("records") or []) if r.get("type") == "total"), "Ukendt")
     venue = comp.get("venue") or {}
     addr = venue.get("address") or {}
-    by_navn = addr.get("city") or (HOLD_BY[hj][0] if hj in HOLD_BY else hj)
+    by_navn = addr.get("city") or (next(iter(HOLD_BY[hj])) if hj in HOLD_BY else hj)
     return {
         "ev_id": str(comp.get("id") or ""), "slug": slug,
         "dt_iso": comp.get("date") or comp.get("startDate") or "",
@@ -101,7 +118,7 @@ def berig_valgte_kampe(kampe):
         if ev_id:
             for s_try in list(dict.fromkeys([slug, "uefa.nations", "all"])):
                 try:
-                    s = requests.get(SUM_URL.format(s_try, ev_id), headers=HDR, timeout=5).json()
+                    s = requests.get(SUM_URL.format(s_try, ev_id), headers=HDR, timeout=4).json()
                     if dom := _find_dommer(s):
                         ctx["dommer"] = dom
                     ctx["skader"] = sum(len(x.get("injuries") or []) for x in (s.get("injuries") or []))
@@ -109,6 +126,9 @@ def berig_valgte_kampe(kampe):
                         break
                 except Exception:
                     continue
+        if ctx.get("dommer") in (None, "", "Ikke udpeget endnu"):
+            if dom_b := _hent_dommer_backup(k.get("hj", ""), k.get("ud", "")):
+                ctx["dommer"] = dom_b
         ctx["vejr"] = _hent_vejr_direkte(k.get("hj", ""), ctx.get("by", ""))
         just = (1.5 if ctx["vejr"] and ctx["vejr"]["effekt"] != "Tørt & roligt" else 0.0) + (1.0 if ctx["dommer"] != "Ikke udpeget endnu" else 0.0) + min(3.0, ctx.get("skader", 0) * 0.5)
         ctx["justering_pct"] = round(just, 1)
