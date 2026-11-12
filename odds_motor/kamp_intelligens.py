@@ -36,15 +36,11 @@ def _hent_vejr(by, land, dt_iso):
     if not by or not dt_iso:
         return None
     try:
-        q = f"{by}, {land}" if land else by
-        g = requests.get("https://open-meteo.com", params={"name": q, "count": 1, "format": "json"}, timeout=4).json()
+        g = requests.get("https://open-meteo.com", params={"name": by, "count": 1, "format": "json"}, timeout=4).json()
         res_list = g.get("results") or []
-        if not res_list and land:
-            g = requests.get("https://open-meteo.com", params={"name": by, "count": 1, "format": "json"}, timeout=4).json()
-            res_list = g.get("results") or []
         if not res_list:
             return None
-        lat, lon = res_list[0].get("latitude"), res_list[0].get("longitude")
+        lat, lon = res_list.get("latitude"), res_list.get("longitude")
         dk_dt = datetime.fromisoformat(dt_iso.replace("Z", "+00:00")).astimezone(ZoneInfo("Europe/Copenhagen"))
         t_str = dk_dt.strftime("%Y-%m-%dT%H:00")
         w = requests.get("https://open-meteo.com", params={"latitude": lat, "longitude": lon, "hourly": "temperature_2m,precipitation,windspeed_10m", "timezone": "Europe/Copenhagen"}, timeout=4).json()
@@ -58,28 +54,39 @@ def _hent_vejr(by, land, dt_iso):
         pass
     return None
 
+def _find_dommer(s):
+    gi = s.get("gameInfo") or {}
+    h_comp = next(iter((s.get("header") or {}).get("competitions") or []), {})
+    for offs in (gi.get("officials") or [], h_comp.get("officials") or []):
+        if isinstance(offs, list) and offs and isinstance(offs, dict):
+            navn = offs.get("displayName") or (offs.get("athlete") or {}).get("displayName")
+            if navn:
+                return navn
+    return None
+
 def berig_valgte_kampe(kampe):
     for k in kampe:
         ctx = k.get("ctx") or {}
-        ev_id, slug = ctx.get("ev_id"), ctx.get("slug") or "all"
-        by, land = ctx.get("by", ""), ctx.get("land", "")
+        ev_id = str(ctx.get("ev_id") or k.get("id") or "")
+        slug = ctx.get("slug") or "uefa.nations"
+        by = ctx.get("by") or HOLD_BYER.get(k.get("hj", "")) or k.get("hj", "")
+        dt_iso = ctx.get("dt_iso") or (k.get("dk_dt").isoformat() if k.get("dk_dt") else "")
         if ev_id:
-            for s_try in ([slug, "all"] if slug != "all" else ["all"]):
+            for s_try in list(dict.fromkeys([slug, "uefa.nations", "all"])):
                 try:
                     s = requests.get(SUM_URL.format(s_try, ev_id), headers=HDR, timeout=4).json()
-                    gi = s.get("gameInfo") or {}
-                    offs = gi.get("officials") or []
-                    if offs and isinstance(offs[0], dict) and offs[0].get("displayName"):
-                        ctx["dommer"] = offs[0]["displayName"]
-                    addr2 = (gi.get("venue") or {}).get("address") or {}
-                    by = addr2.get("city") or by
-                    land = addr2.get("country") or land
+                    if dom := _find_dommer(s):
+                        ctx["dommer"] = dom
+                    addr2 = ((s.get("gameInfo") or {}).get("venue") or {}).get("address") or {}
+                    if addr2.get("city"):
+                        by = addr2["city"]
                     ctx["skader"] = sum(len(x.get("injuries") or []) for x in (s.get("injuries") or []))
                     if ctx["dommer"] != "Ikke udpeget endnu":
                         break
                 except Exception:
                     continue
-        ctx["vejr"] = _hent_vejr(by, land, ctx.get("dt_iso"))
+        ctx["by"] = by
+        ctx["vejr"] = _hent_vejr(by, "", dt_iso)
         just = (1.5 if ctx["vejr"] and ctx["vejr"]["effekt"] != "Tørt & roligt" else 0.0) + (1.0 if ctx["dommer"] != "Ikke udpeget endnu" else 0.0) + min(3.0, ctx.get("skader", 0) * 0.5)
         ctx["justering_pct"] = round(just, 1)
         k["ctx"] = ctx
