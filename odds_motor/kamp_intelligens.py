@@ -46,12 +46,12 @@ def _hent_vejr_direkte(hj, by, dt_iso):
             g = requests.get("https://open-meteo.com", params={"name": by, "count": 1, "format": "json"}, timeout=4).json()
             res = g.get("results") or []
             if res:
-                koord = (res.get("latitude"), res.get("longitude"))
+                koord = (res[0].get("latitude"), res[0].get("longitude"))
         if not koord:
             return None
         dk_dt = datetime.fromisoformat(dt_iso.replace("Z", "+00:00")).astimezone(ZoneInfo("Europe/Copenhagen"))
         t_str = dk_dt.strftime("%Y-%m-%dT%H:00")
-        w = requests.get("https://open-meteo.com", params={"latitude": koord, "longitude": koord, "hourly": "temperature_2m,precipitation,windspeed_10m", "timezone": "Europe/Copenhagen"}, timeout=4).json()
+        w = requests.get("https://open-meteo.com", params={"latitude": koord[0], "longitude": koord[1], "hourly": "temperature_2m,precipitation,windspeed_10m", "timezone": "Europe/Copenhagen"}, timeout=4).json()
         h = w.get("hourly") or {}
         if t_str in (h.get("time") or []):
             idx = h["time"].index(t_str)
@@ -65,7 +65,7 @@ def _hent_vejr_direkte(hj, by, dt_iso):
 def _find_dommer(obj):
     if isinstance(obj, dict):
         if "officials" in obj and isinstance(obj["officials"], list) and obj["officials"]:
-            o0 = obj["officials"]
+            o0 = obj["officials"][0]
             if isinstance(o0, dict):
                 n = o0.get("displayName") or (o0.get("athlete") or {}).get("displayName")
                 if n:
