@@ -62,9 +62,10 @@ def _hent_vejr_direkte(hj, by, dt_iso):
                 koord = (res[0].get("latitude"), res[0].get("longitude"))
         if not koord:
             return None
+        lat, lon = koord
         dk_dt = datetime.fromisoformat(dt_iso.replace("Z", "+00:00")).astimezone(ZoneInfo("Europe/Copenhagen"))
         t_str = dk_dt.strftime("%Y-%m-%dT%H:00")
-        w = requests.get(WX_URL, params={"latitude": koord[0], "longitude": koord[1], "hourly": "temperature_2m,precipitation,windspeed_10m", "timezone": "Europe/Copenhagen"}, timeout=4).json()
+        w = requests.get(WX_URL, params={"latitude": lat, "longitude": lon, "hourly": "temperature_2m,precipitation,windspeed_10m", "timezone": "Europe/Copenhagen"}, timeout=4).json()
         h = w.get("hourly") or {}
         if t_str in (h.get("time") or []):
             idx = h["time"].index(t_str)
@@ -93,7 +94,8 @@ def _find_dommer(obj):
     return None
 
 def berig_valgte_kampe(kampe):
-    for k in (kampe or []):
+    kampe = list(kampe) if kampe else []
+    for k in kampe:
         ctx = k.get("ctx") or {}
         ev_id = str(ctx.get("ev_id") or k.get("id") or "")
         slug = ctx.get("slug") or "uefa.nations"
@@ -114,3 +116,4 @@ def berig_valgte_kampe(kampe):
             ctx["vejr"] = _hent_vejr_direkte(k.get("hj", ""), by, dt_iso)
         just = (1.5 if ctx["vejr"] and ctx["vejr"]["effekt"] != "Tørt & roligt" else 0.0) + (1.0 if ctx["dommer"] != "Ikke udpeget endnu" else 0.0) + min(3.0, ctx.get("skader", 0) * 0.5)
         ctx["justering_pct"] = round(just, 1)
+    return kampe
