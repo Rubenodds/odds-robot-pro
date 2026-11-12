@@ -15,15 +15,21 @@ def _form_delta(f):
     return (d[0] * 1.8 - d[2] * 1.5) if len(d) >= 3 else 0.0
 
 def _udtraek_espn_odds(ctx):
-    for o in (ctx.get("odds_raw") or []):
-        ml = o.get("moneyline") or {}
-        h_dec = ((ml.get("home") or {}).get("close") or {}).get("odds") or ((ml.get("home") or {}).get("open") or {}).get("odds")
-        u_dec = ((ml.get("away") or {}).get("close") or {}).get("odds") or ((ml.get("away") or {}).get("open") or {}).get("odds")
-        if h_dec and u_dec:
-            try:
-                return float(h_dec), float(u_dec)
-            except Exception:
-                pass
+    raw = ctx.get("odds_raw")
+    if not isinstance(raw, list):
+        return None, None
+    for o in raw:
+        if not isinstance(o, dict):
+            continue
+        ml = o.get("moneyline")
+        if isinstance(ml, dict):
+            h_dec = ((ml.get("home") or {}).get("close") or {}).get("odds") or ((ml.get("home") or {}).get("open") or {}).get("odds")
+            u_dec = ((ml.get("away") or {}).get("close") or {}).get("odds") or ((ml.get("away") or {}).get("open") or {}).get("odds")
+            if h_dec and u_dec:
+                try:
+                    return float(h_dec), float(u_dec)
+                except Exception:
+                    pass
     return None, None
 
 def byg_kombineret_kupon(udvalgte, markeder, maal):
@@ -65,3 +71,4 @@ def byg_kombineret_kupon(udvalgte, markeder, maal):
             "b365": od, "unibet": od, "oddset": od, "ctx": ctx
         })
     return {"kampe": kampe_out}
+
