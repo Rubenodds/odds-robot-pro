@@ -4,6 +4,8 @@ from zoneinfo import ZoneInfo
 
 HDR = {"User-Agent": "Mozilla/5.0"}
 SUM_URL = "https://espn.com{}/summary?event={}"
+GEO_URL = "https://open-meteo.com"
+WX_URL = "https://open-meteo.com"
 
 HOLD_KOORD = {
     "Albania": (41.3275, 19.8187), "Finland": (60.1699, 24.9384),
@@ -20,6 +22,17 @@ HOLD_KOORD = {
     "Switzerland": (46.9480, 7.4474), "Serbia": (44.7866, 20.4489),
     "Ukraine": (50.4501, 30.5234), "Greece": (37.9838, 23.7275),
 }
+
+def til_decimal_odds(val):
+    try:
+        o = float(str(val).replace(",", ".").replace("+", "").strip())
+        if o <= -100:
+            return round(1.0 + (100.0 / abs(o)), 2)
+        if o >= 100:
+            return round(1.0 + (o / 100.0), 2)
+        return round(o, 2) if o > 1.0 else 0.0
+    except Exception:
+        return 0.0
 
 def hurtig_kontekst(comp, hj, ud, slug="all"):
     teams = comp.get("competitors") or []
@@ -43,7 +56,7 @@ def _hent_vejr_direkte(hj, by, dt_iso):
     try:
         koord = HOLD_KOORD.get(hj)
         if not koord and by:
-            g = requests.get("https://open-meteo.com", params={"name": by, "count": 1, "format": "json"}, timeout=4).json()
+            g = requests.get(GEO_URL, params={"name": by, "count": 1, "format": "json"}, timeout=4).json()
             res = g.get("results") or []
             if res:
                 koord = (res[0].get("latitude"), res[0].get("longitude"))
@@ -51,7 +64,7 @@ def _hent_vejr_direkte(hj, by, dt_iso):
             return None
         dk_dt = datetime.fromisoformat(dt_iso.replace("Z", "+00:00")).astimezone(ZoneInfo("Europe/Copenhagen"))
         t_str = dk_dt.strftime("%Y-%m-%dT%H:00")
-        w = requests.get("https://open-meteo.com", params={"latitude": koord[0], "longitude": koord[1], "hourly": "temperature_2m,precipitation,windspeed_10m", "timezone": "Europe/Copenhagen"}, timeout=4).json()
+        w = requests.get(WX_URL, params={"latitude": koord[0], "longitude": koord[1], "hourly": "temperature_2m,precipitation,windspeed_10m", "timezone": "Europe/Copenhagen"}, timeout=4).json()
         h = w.get("hourly") or {}
         if t_str in (h.get("time") or []):
             idx = h["time"].index(t_str)
@@ -100,5 +113,3 @@ def berig_valgte_kampe(kampe):
         ctx["vejr"] = _hent_vejr_direkte(k.get("hj", ""), by, dt_iso)
         just = (1.5 if ctx["vejr"] and ctx["vejr"]["effekt"] != "Tørt & roligt" else 0.0) + (1.0 if ctx["dommer"] != "Ikke udpeget endnu" else 0.0) + min(3.0, ctx.get("skader", 0) * 0.5)
         ctx["justering_pct"] = round(just, 1)
-        k["ctx"] = ctx
-    return kampe
