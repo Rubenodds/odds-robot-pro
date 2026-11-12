@@ -32,16 +32,16 @@ def vis_manuel_scanner():
         return
 
     all_klubber = sorted({k["hj"] for k in filt} | {k["ud"] for k in filt})
-    allerede = [h for h in st.session_state.get("man_klubber", []) if h in all_klubber]
+    st.session_state["man_klubber"] = [h for h in st.session_state.get("man_klubber", []) if h in all_klubber]
     blokeret = set()
-    for h in allerede:
+    for h in st.session_state["man_klubber"]:
         for k in filt:
             if k["hj"] == h:
                 blokeret.add(k["ud"])
             elif k["ud"] == h:
                 blokeret.add(k["hj"])
-    tilgaengelige = [h for h in all_klubber if h in allerede or h not in blokeret]
-    valgte_klubber = st.multiselect("🔍 Søg og vælg hold (modstander fjernes automatisk):", tilgaengelige, default=allerede, key="man_klubber")
+    tilgaengelige = [h for h in all_klubber if h in st.session_state["man_klubber"] or h not in blokeret]
+    valgte_klubber = st.multiselect("🔍 Søg og vælg hold (modstander fjernes automatisk):", tilgaengelige, key="man_klubber")
 
     udvalgte, sete_kampe = [], set()
     for hold in valgte_klubber:
