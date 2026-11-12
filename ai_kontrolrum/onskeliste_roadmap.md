@@ -1,6 +1,12 @@
 # 🤖 Odds Robot Pro – Systemstatus & Roadmap
 
-
+### 📅 Log: 12-11-2026 kl. 22:46 (Dansk tid) — Hertil er vi nået
+* **Mappe 1 (`odds_motor/autopilot_scanner.py`) — 100 % FÆRDIG & LÅST:** Henter 5 dage frem (`range(5)` inkl. `fifa.friendly`), viser næste kamp uden for valgt tidsramme, konverterer amerikanske odds (`+310` → `4.10`), beregner stjerner (⭐ 1–5) ud fra reel spilværdi (EV-ratio & Edge) og gemmer i Supabase ved **🚀 SPILLET**.
+* **Mappe 2 (`odds_motor/manuel_scanner.py` + `odds_motor/manuel_hjaelp.py`) — 100 % FÆRDIG & LÅST:** Verificeret live med ægte anti-dobbeltvalg (modstander fjernes øjeblikkeligt ved valg af hold), live vejr/dommer-berigelse via `kamp_intelligens.berig_valgte_kampe()`, `📌 Fastgør valgte`, `Kun Resultatspil`, `⚡ TILFØJ ALLE KAMPE I LIGAER`, `🥇🥈🥉` og **🚀 SPILLET**.
+* **Live Kontekst & Dommermodul (`odds_motor/kamp_intelligens.py` + `odds_motor/dommer_intelligens.py` + `odds_motor/byg_kupon.py`):** Kører stabilt med Open-Meteo + `wttr.in` vejr, m/s vind-tærskler, ESPN Site + Core Officials API samt global liga-profil.
+* **Næste i køen:**
+  1. **Mappe 3 (`odds_motor/billed_parser.py`):** Gennemgå, opgrader og kobl aflæste kuponkampe på `kamp_intelligens.py` (live vejr, dommer og kampkontekst før **🚀 SPILLET**).
+  2. **Mappe 4 (`historik/regnskab_visning.py`):** Kontroller og opgrader årsregnskab, permanent TOTAL SUM, hitrate og tilbagebetalingsprocent.
 ### 📅 Log: 12-11-2026 kl. 22:35 (Dansk tid) — Her til er vi nået
 * **Mappe 1 (`odds_motor/autopilot_scanner.py`):** 100 % køreklar og verificeret live. Henter 5 dage frem (`range(5)` inkl. `fifa.friendly`), viser næste kamp uden for valgt tidsramme, konverterer amerikanske odds (`+310` → `4.10`), beregner stjerner (⭐ 1–5) ud fra reel spilværdi (EV-ratio & Edge) og gemmer til Supabase ved **🚀 SPILLET**.
 * **Live Kontekst & Dommermodul (`odds_motor/kamp_intelligens.py` + `odds_motor/dommer_intelligens.py` + `odds_motor/byg_kupon.py`):** Live Open-Meteo + `wttr.in` vejr med rigtige m/s vind-tærskler kører live. Dommermodul udskilt i `dommer_intelligens.py` (ESPN Site + Core Officials API + global liga-profil).
