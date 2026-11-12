@@ -57,21 +57,22 @@ def _parse_event(ev, liga, slug, nu, dk_tz, sete):
 def _hent_kampe_v9(ligaer_tuple, timer_maks=24):
     dk_tz = ZoneInfo("Europe/Copenhagen")
     nu = datetime.now(dk_tz)
-    d_start = (nu - timedelta(days=1)).strftime("%Y%m%d")
-    d_slut = (nu + timedelta(days=4)).strftime("%Y%m%d")
+    dage = max(2, min(5, int((timer_maks // 24) + 2)))
+    datoer = [(nu + timedelta(days=d)).strftime("%Y%m%d") for d in range(dage)]
     kampe, sete = [], set()
     for liga in (set(ligaer_tuple) | set(SLUGS.keys())) - {"Landskampe - FIFA / UEFA"}:
         slug = SLUGS.get(liga) or SLUGS.get(liga_favoritter.normaliser_liga_navn(liga))
         if not slug:
             continue
-        try:
-            r = requests.get(f"{API.format(slug)}?dates={d_start}-{d_slut}", headers=HDR, timeout=5)
-            if r.status_code == 200:
-                for ev in r.json().get("events", []):
-                    if k := _parse_event(ev, liga, slug, nu, dk_tz, sete):
-                        kampe.append(k)
-        except Exception:
-            continue
+        for d_str in datoer:
+            try:
+                r = requests.get(f"{API.format(slug)}?dates={d_str}", headers=HDR, timeout=4)
+                if r.status_code == 200:
+                    for ev in r.json().get("events", []):
+                        if k := _parse_event(ev, liga, slug, nu, dk_tz, sete):
+                            kampe.append(k)
+            except Exception:
+                continue
     return sorted(kampe, key=lambda x: x["dk_dt"])
 
 def _vurder_kupon(valgte):
