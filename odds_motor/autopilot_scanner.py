@@ -54,7 +54,7 @@ def _parse_event(ev, liga, slug, nu, dk_tz, sete):
     return {"id": ev_id, "label": f"{hj} vs {ud} ({liga} | {dk_dt.strftime('%d-%m %H:%M')})", "liga": liga, "hj": hj, "ud": ud, "dk_dt": dk_dt, "start": dk_dt.strftime("%d-%m-%Y kl. %H:%M"), "timer": round(max(0.1, diff), 2), "pct": 55.0, "ctx": ctx}
 
 @st.cache_data(ttl=90, show_spinner=False)
-def _hent_kampe_v10(ligaer_tuple):
+def _hent_kampe_v9(ligaer_tuple, timer_maks=24):
     dk_tz = ZoneInfo("Europe/Copenhagen")
     nu = datetime.now(dk_tz)
     d_start = (nu - timedelta(days=1)).strftime("%Y%m%d")
@@ -95,7 +95,7 @@ def vis_autopilot_scanner():
     max_o = c2.number_input("🎯 Maks. odds:", min_value=1.5, value=50.0, step=5.0, key="auto_max_o")
     max_kampe = c3.number_input("🎫 Maks. kampe:", min_value=1, max_value=20, value=4, step=1, key="auto_max_kampe")
 
-    alle = _hent_kampe_v10(tuple(favs))
+    alle = _hent_kampe_v9(tuple(favs), timer)
     aktive = [k for k in alle if 0 < k["timer"] <= timer]
     ligaer = sorted({k["liga"] for k in aktive})
 
