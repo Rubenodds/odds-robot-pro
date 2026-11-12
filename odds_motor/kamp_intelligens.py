@@ -1,11 +1,15 @@
 import requests
+from urllib.parse import urlunsplit
 
-HDR = {"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15", "Accept": "application/json"}
-SUM_URL = "https://espn.com{}/summary?event={}"
-WX_URL = "https://open-meteo.com"
-WTTR_BASE = "https://wttr.in"
-FOT_S = "https://fotmob.com{}"
-FOT_M = "https://fotmob.com{}"
+def _u(host, path):
+    return urlunsplit(("https", host, path, "", ""))
+
+HDR = {"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", "Accept": "application/json"}
+SUM_URL = _u("site.api.espn.com", "/apis/site/v2/sports/soccer/{}/summary?event={}")
+WX_URL = _u("api.open-meteo.com", "/v1/forecast")
+WTTR_HOST = "wttr.in"
+FOT_S = _u("www.fotmob.com", "/api/search/suggest?term={}")
+FOT_M = _u("www.fotmob.com", "/api/matchDetails?matchId={}")
 
 HOLD_BY = {
     "Albania": ("Tirana", 41.3275, 19.8187), "Finland": ("Helsinki", 60.1699, 24.9384),
@@ -98,7 +102,7 @@ def _hent_vejr_direkte(hj, by):
         except Exception:
             pass
     try:
-        w2 = requests.get(f"{WTTR_BASE}{by_navn}?format=j1", headers=HDR, timeout=5).json()
+        w2 = requests.get(_u(WTTR_HOST, f"/{by_navn}"), params={"format": "j1"}, headers=HDR, timeout=5).json()
         c0 = next(iter(w2.get("current_condition") or []), {})
         if "temp_C" in c0:
             tp, regn, vind = float(c0["temp_C"]), float(c0.get("precipMM", 0)), float(c0.get("windspeedKmph", 0)) / 3.6
