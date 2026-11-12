@@ -5,13 +5,36 @@ from zoneinfo import ZoneInfo
 HDR = {"User-Agent": "Mozilla/5.0"}
 SUM_URL = "https://espn.com{}"
 
+def hurtig_kontekst(comp, hj, ud):
+    teams = comp.get("competitors") or []
+    h_obj = next((c for c in teams if c.get("homeAway") == "home"), {})
+    u_obj = next((c for c in teams if c.get("homeAway") == "away"), {})
+    hj_form = h_obj.get("form") or next((r.get("summary") for r in (h_obj.get("records") or []) if r.get("type") == "total"), "Ukendt")
+    ud_form = u_obj.get("form") or next((r.get("summary") for r in (u_obj.get("records") or []) if r.get("type") == "total"), "Ukendt")
+    venue = comp.get("venue") or {}
+    addr = venue.get("address") or {}
+    return {
+        "ev_id": str(comp.get("id") or ""),
+        "dt_iso": comp.get("date") or comp.get("startDate") or "",
+        "by": addr.get("city") or "",
+        "land": addr.get("country") or "",
+        "stadion": venue.get("fullName", ""),
+        "hj_form": hj_form,
+        "ud_form": ud_form,
+        "dommer": "Ikke udpeget endnu",
+        "vejr": None,
+        "skader": 0,
+        "justering_pct": 0.0,
+        "odds_raw": comp.get("odds") or [],
+    }
+
 def _hent_vejr(by, land, dt_iso):
     if not by or not dt_iso:
         return None
     try:
         q = f"{by}, {land}" if land else by
         g = requests.get("https://open-meteo.com", params={"name": q, "count": 1, "format": "json"}, timeout=3).json()
-        res = (g.get("results") or [{}])[0]
+        res = (g.get("results") or [{}])
         lat, lon = res.get("latitude"), res.get("longitude")
         if lat is None or lon is None:
             return None
@@ -28,38 +51,25 @@ def _hent_vejr(by, land, dt_iso):
         pass
     return None
 
-def analyser_kamp_kontekst(comp, hj, ud):
-    ev_id = str(comp.get("id") or "")
-    dt_iso = comp.get("date") or comp.get("startDate") or ""
-    teams = comp.get("competitors") or []
-    h_obj = next((c for c in teams if c.get("homeAway") == "home"), {})
-    u_obj = next((c for c in teams if c.get("homeAway") == "away"), {})
-    hj_form = h_obj.get("form") or next((r.get("summary") for r in (h_obj.get("records") or []) if r.get("type") == "total"), "Ukendt")
-    ud_form = u_obj.get("form") or next((r.get("summary") for r in (u_obj.get("records") or []) if r.get("type") == "total"), "Ukendt")
-    venue = comp.get("venue") or {}
-    by = (venue.get("address") or {}).get("city") or ""
-    land = (venue.get("address") or {}).get("country") or ""
-    dommer = "Ikke udpeget endnu"
-    skader_cnt = 0
-    if ev_id:
-        try:
-            s = requests.get(SUM_URL.format(ev_id), headers=HDR, timeout=4).json()
-            gi = s.get("gameInfo") or {}
-            offs = gi.get("officials") or []
-            if offs and offs[0].get("displayName"):
-                dommer = offs[0]["displayName"]
-            v2 = gi.get("venue") or {}
-            by = (v2.get("address") or {}).get("city") or by
-            land = (v2.get("address") or {}).get("country") or land
-            skader_cnt = sum(len(x.get("injuries") or []) for x in (s.get("injuries") or []))
-        except Exception:
-            pass
-    vejr = _hent_vejr(by, land, dt_iso)
-    just = 0.0
-    if vejr and vejr["effekt"] != "Tørt & roligt":
-        just += 1.5
-    if dommer != "Ikke udpeget endnu":
-        just += 1.0
-    if skader_cnt > 0:
-        just += min(3.0, skader_cnt * 0.5)
-    return {"hj_form": hj_form, "ud_form": ud_form, "dommer": dommer, "vejr": vejr, "stadion": venue.get("fullName", ""), "skader": skader_cnt, "justering_pct": round(just, 1), "odds_raw": comp.get("odds") or []}
+def berig_valgte_kampe(kampe):
+    for k in kampe:
+        ctx = k.get("ctx") or {}
+        ev_id, by, land = ctx.get("ev_id"), ctx.get("by", ""), ctx.get("land", "")
+        if ev_id:
+            try:
+                s = requests.get(SUM_URL.format(ev_id), headers=HDR, timeout=3).json()
+                gi = s.get("gameInfo") or {}
+                offs = gi.get("officials") or []
+                if offs and offs.get("displayName"):
+                    ctx["dommer"] = offs["displayName"]
+                addr2 = (gi.get("venue") or {}).get("address") or {}
+                by = addr2.get("city") or by
+                land = addr2.get("country") or land
+                ctx["skader"] = sum(len(x.get("injuries") or []) for x in (s.get("injuries") or []))
+            except Exception:
+                pass
+        ctx["vejr"] = _hent_vejr(by, land, ctx.get("dt_iso"))
+        just = (1.5 if ctx["vejr"] and ctx["vejr"]["effekt"] != "Tørt & roligt" else 0.0) + (1.0 if ctx["dommer"] != "Ikke udpeget endnu" else 0.0) + min(3.0, ctx.get("skader", 0) * 0.5)
+        ctx["justering_pct"] = round(just, 1)
+        k["ctx"] = ctx
+    return kampe
