@@ -57,8 +57,7 @@ def _parse_event(ev, liga, slug, nu, dk_tz, sete):
 def _hent_kampe_v9(ligaer_tuple, timer_maks=24):
     dk_tz = ZoneInfo("Europe/Copenhagen")
     nu = datetime.now(dk_tz)
-    dage = max(2, min(5, int((timer_maks // 24) + 2)))
-    datoer = [(nu + timedelta(days=d)).strftime("%Y%m%d") for d in range(dage)]
+    datoer = [(nu + timedelta(days=d)).strftime("%Y%m%d") for d in range(4)]
     kampe, sete = [], set()
     for liga in (set(ligaer_tuple) | set(SLUGS.keys())) - {"Landskampe - FIFA / UEFA"}:
         slug = SLUGS.get(liga) or SLUGS.get(liga_favoritter.normaliser_liga_navn(liga))
