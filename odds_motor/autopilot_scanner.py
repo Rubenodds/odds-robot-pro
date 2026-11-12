@@ -112,7 +112,7 @@ def vis_autopilot_scanner():
         else:
             kandidater = filt
         if senere:
-            n1 = senere
+            n1 = next(iter(senere))
             st.caption(f"⏭️ Næste kamp efter {timer}T: **{n1['hj']} vs {n1['ud']}** ({n1['liga']} | {n1['start']} — om **{n1['timer']}T**)")
     else:
         kandidater = []
