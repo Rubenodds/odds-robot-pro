@@ -22,8 +22,11 @@ def begrundelse(k, res=False):
     dele = [f"Fokus på **{fok}** ({pct:.1f}% chance)" if fok else (f"**{k['hj']}** har statistisk overtag ({pct:.1f}%)" if pct >= 58 else (f"**{k['ud']}** stærkest ude ({pct:.1f}%)" if pct <= 44 else f"Jævnbyrdigt opgør ({pct:.1f}% chance)"))]
     if hf and uf and not any(w in (hf + uf).lower() for w in ("ingen", "ukendt")):
         dele.append(f"form {hf} mod {uf}")
-    if not res and dom and not any(w in dom.lower() for w in ("afventer", "ikke offentliggjort")):
+    if not res and dom and not any(w in dom.lower() for w in ("afventer", "ikke offentliggjort", "ikke udpeget")):
         dele.append(f"dommer {dom} trækker kort op")
+    vejr = ctx.get("vejr")
+    if isinstance(vejr, dict) and vejr.get("effekt") and vejr["effekt"] != "Tørt & roligt":
+        dele.append(f"vejr ({vejr['effekt'].lower()}) påvirker tempoet")
     return "💡 *Begrundelse:* " + ", ".join(dele) + "."
 
 def byg_forslag(udvalgte, maal, kun_res=False):
@@ -71,11 +74,11 @@ def byg_forslag(udvalgte, maal, kun_res=False):
             if cj >= 1.5:
                 f_txt.append("Hjørnespark: Over 8.5 total")
             dom = str(ctx.get("dommer", ""))
-            if dom and not any(w in dom.lower() for w in ("afventer", "ikke offentliggjort")):
+            if dom and not any(w in dom.lower() for w in ("afventer", "ikke offentliggjort", "ikke udpeget")):
                 f_txt.append("Kort: Over 3.5 kort")
             od = round(max(1.35, min(3.6, (100.0 / max(st_pct, 30.0)) * 1.04)), 2)
             kp["vinderchance_pct"] = round(st_pct, 1)
-        kp["b365"], kp["unibet"], kp["oddset"] = od, round(od * 0.98, 2), round(od * 0.95, 2)
+        kp["b365"], kp["unibet"], kp["oddset"] = od, od, od
         kp["kombinationer"], kp["begrundelse"] = f_txt, begrundelse(kp, kun_res)
         out.append(kp)
     return {"kampe": out}
