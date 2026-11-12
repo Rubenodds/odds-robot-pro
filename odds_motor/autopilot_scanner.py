@@ -91,9 +91,10 @@ def vis_autopilot_scanner():
     st.subheader("🌐 1. Autopilot Scanner (Form, H2H, Dommer & Vejr)")
     favs = list(liga_favoritter.hent_favorit_ligaer())
     timer = dansk_tid.vaelg_tidsramme("auto", standard=12)
-    c1, c2 = st.columns(2)
-    min_o, max_o = c1.slider("🎯 Ønsket odds-lag:", 2.0, 200.0, (20.0, 50.0), key="auto_odds")
-    max_kampe = c2.number_input("🎫 Maks. kampe:", min_value=1, max_value=12, value=4, step=1, key="auto_max_kampe")
+    c1, c2, c3 = st.columns(3)
+    min_o = c1.number_input("🎯 Min. odds:", min_value=1.2, value=10.0, step=1.0, key="auto_min_o")
+    max_o = c2.number_input("🎯 Maks. odds:", min_value=1.5, value=50.0, step=5.0, key="auto_max_o")
+    max_kampe = c3.number_input("🎫 Maks. kampe:", min_value=1, max_value=20, value=4, step=1, key="auto_max_kampe")
 
     alle = _hent_kampe_v9(tuple(favs), timer)
     aktive = [k for k in alle if 0 < k["timer"] <= timer]
@@ -119,7 +120,7 @@ def vis_autopilot_scanner():
         if not kandidater or not markeder:
             st.warning("⚠️ Vælg både kampe og specialmarkeder.")
         else:
-            maal = round((min_o + max_o) / 2.0, 2)
+            maal = round((min_o + max(min_o, max_o)) / 2.0, 2)
             udv = kandidater if st.session_state.get("btn_scan_alle") else kandidater[:next((n for n in range(1, min(len(kandidater), max_kampe) + 1) if 1.45 <= maal ** (1.0 / n) <= 3.20), min(len(kandidater), max_kampe))]
             udv = kamp_intelligens.berig_valgte_kampe(udv)
             kupon = byg_kupon.byg_kombineret_kupon(udv, markeder, maal)
