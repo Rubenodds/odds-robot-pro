@@ -26,7 +26,6 @@ SLUGS = {
     "UEFA - Conference League": "uefa.europa.conf", "UEFA - Nations League": "uefa.nations",
     "UEFA - VM Kvalifikation": "fifa.worldq.uefa",
 }
-SLUG_TIL_LIGA = {v: k for k, v in SLUGS.items()}
 MARKEDER = [
     "Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Flest)", "Spillerskud & Skud på mål",
     "Tacklinger & Målmandsredninger", "Kort-sandsynlighed (Gule/Røde)", "Målscorer (Anytime/Første)", "Offsides",
@@ -101,10 +100,14 @@ def vis_autopilot_scanner():
     ligaer = sorted({k["liga"] for k in aktive})
 
     if ligaer:
-        v_ligaer = st.multiselect(f"🏆 Aktive turneringer ({len(ligaer)} i {timer}T):", ligaer, default=ligaer, key="auto_ligaer")
+        v_ligaer = st.multiselect(f"🏆 Aktive turneringer ({len(ligaer)} i {timer}T):", ligaer, default=ligaer, key=f"auto_ligaer_{timer}")
         filt = [k for k in aktive if k["liga"] in v_ligaer]
         valg_mode = st.radio("🎯 Kampvalg:", [f"Alle kampe i valgte ligaer ({len(filt)} stk.)", "Håndpluk bestemte kampe"], horizontal=True, key="auto_mode")
-        kandidater = [k for k in filt if k["label"] in st.multiselect("⚽ Søg kampe:", [k["label"] for k in filt], key="auto_k_v")] if valg_mode == "Håndpluk bestemte kampe" else filt
+        if valg_mode == "Håndpluk bestemte kampe":
+            v_labels = st.multiselect("⚽ Søg kampe:", [k["label"] for k in filt], key=f"auto_kv_{timer}")
+            kandidater = [k for k in filt if k["label"] in v_labels]
+        else:
+            kandidater = filt
     else:
         kandidater = []
         f1 = next(iter(alle), None)
