@@ -1,5 +1,13 @@
 # 🤖 Odds Robot Pro – Systemstatus & Roadmap
 
+
+### 📅 Log: 12-11-2026 kl. 22:35 (Dansk tid) — Her til er vi nået
+* **Mappe 1 (`odds_motor/autopilot_scanner.py`):** 100 % køreklar og verificeret live. Henter 5 dage frem (`range(5)` inkl. `fifa.friendly`), viser næste kamp uden for valgt tidsramme, konverterer amerikanske odds (`+310` → `4.10`), beregner stjerner (⭐ 1–5) ud fra reel spilværdi (EV-ratio & Edge) og gemmer til Supabase ved **🚀 SPILLET**.
+* **Live Kontekst & Dommermodul (`odds_motor/kamp_intelligens.py` + `odds_motor/dommer_intelligens.py` + `odds_motor/byg_kupon.py`):** Live Open-Meteo + `wttr.in` vejr med rigtige m/s vind-tærskler kører live. Dommermodul udskilt i `dommer_intelligens.py` (ESPN Site + Core Officials API + global liga-profil).
+* **Mappe 2 (`odds_motor/manuel_scanner.py` + `odds_motor/manuel_hjaelp.py`):** Opgraderet med ægte anti-dobbeltvalg (modstander fjernes automatisk fra dropdown ved valg af hold), live vejr/dommer-berigelse via `kamp_intelligens.berig_valgte_kampe()`, `⚡ TILFØJ ALLE KAMPE I LIGAER`, `Kun Resultatspil`, `🥇🥈🥉` og **🚀 SPILLET**.
+* **Næste i køen:**
+  1. **Mappe 3 (`odds_motor/billed_parser.py`):** Kobl aflæste kuponkampe på `kamp_intelligens.py` (live vejr, dommer og kampkontekst før **🚀 SPILLET**).
+  2. **Mappe 4 (`historik/regnskab_visning.py`):** Gennemgå og opgrader årsregnskab, permanent TOTAL SUM og hitrate.
 **Opdateret:** Torsdag d. 12. november 2026 kl. 19:20 (Dansk normaltid)
 **Arkitekturstatus:** `app.py` 100 % LÅST | Supabase Cloud aktiv | Alle motorer samlet i `odds_motor/`
 
