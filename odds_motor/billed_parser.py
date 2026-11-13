@@ -15,10 +15,10 @@ def _koer_ocr(b_data):
     if OCR_MOTOR is not None:
         try:
             res, _ = OCR_MOTOR(ren_bytes)
-            linjer = [str(p[1] if isinstance(p, (list, tuple)) and len(p) >= 2 else p).strip() for p in (res or [])]
+            linjer = [str(p if isinstance(p, (list, tuple)) and len(p) >= 2 else p).strip() for p in (res or [])]
             linjer = [l for l in linjer if l]
             if linjer:
-                return linjer
+                return linjer, ""
         except Exception:
             pass
     return billed_hjaelp.aflaes_via_cloud_ocr(ren_bytes)
@@ -31,17 +31,16 @@ def vis_billed_scanner():
         fid = f"{up.name}_{len(b_data)}"
         if st.session_state.get("sidst_scannede_fil_id") != fid:
             with st.spinner("🔍 Aflæser kupon og analyserer kampe..."):
-                linjer = _koer_ocr(b_data)
+                linjer, fejl = _koer_ocr(b_data)
                 k_liste, s_odds, s_ind = billed_hjaelp.udtraek_kupon_liste(linjer)
-                st.session_state.update({"sidst_scannede_fil_id": fid, "scan_liste": k_liste, "scan_odds": float(s_odds), "scan_indsats": float(s_ind), "scan_raa": "\n".join(linjer), "ny_kupon_klar": False})
+                st.session_state.update({"sidst_scannede_fil_id": fid, "scan_liste": k_liste, "scan_odds": float(s_odds), "scan_indsats": float(s_ind), "scan_raa": "\n".join(linjer), "scan_fejl": fejl, "ny_kupon_klar": False})
 
     kampe_liste = st.session_state.get("scan_liste", [])
     if not kampe_liste:
         if up is not None:
-            st.warning("Billedet blev indlæst, men ingen kampnavne blev genkendt. Tjek råteksten herunder eller prøv et skarpere udsnit.")
+            st.warning(f"OCR-status: {st.session_state.get('scan_fejl') or 'Ingen kampe parret'}")
             if st.session_state.get("scan_raa"):
-                with st.expander("Se rå aflæsning fra billedet"):
-                    st.text(st.session_state["scan_raa"])
+                st.code(st.session_state["scan_raa"])
         else:
             st.info("Upload et kupon-screenshot ovenfor, så analyserer robotten hver enkelt kamp med stjerner, flammer, % og ændringsforslag.")
         return
