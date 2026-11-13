@@ -1,28 +1,52 @@
-import io, re, requests
+import io, re
+import numpy as np
 from PIL import Image, ImageOps, ImageStat
 
-def _h(*p): return ".".join(p)
-OCR_URL = f"https://{_h('api', 'ocr', 'space')}/parse/image"
+try:
+    from rapidocr_onnxruntime import RapidOCR
+    _RAPID = RapidOCR()
+except Exception as _e:
+    _RAPID = None
+
+try:
+    import pytesseract
+    _TESS = True
+except Exception:
+    _TESS = False
 
 def klargoer_billede(b_data):
     img = Image.open(io.BytesIO(b_data)).convert("L")
     try:
-        if next(iter(ImageStat.Stat(img).mean), 255) < 128: img = ImageOps.invert(img)
+        if next(iter(ImageStat.Stat(img).mean), 255) < 128:
+            img = ImageOps.invert(img)
     except Exception:
         pass
-    if img.width > 1200: img = img.resize((1200, int(img.height * (1200 / float(img.width)))))
-    buf = io.BytesIO()
-    ImageOps.autocontrast(img).save(buf, format="PNG")
-    return buf.getvalue()
+    if img.width > 1200:
+        img = img.resize((1200, int(img.height * (1200 / float(img.width)))))
+    return ImageOps.autocontrast(img)
 
-def aflaes_via_cloud_ocr(ren_bytes):
-    try:
-        r = requests.post(OCR_URL, files={"file": ("k.png", ren_bytes, "image/png")}, data={"apikey": "helloworld", "language": "eng", "OCREngine": "2"}, timeout=15).json()
-        txt = "\n".join(p.get("ParsedText", "") for p in (r.get("ParsedResults") or []))
-        linjer = [l.strip() for l in txt.splitlines() if l.strip()]
-        return (linjer, "") if linjer else ([], "Ingen tekst")
-    except Exception as e:
-        return [], str(e)
+def laes_tekst_lokalt(b_data):
+    orig_img = Image.open(io.BytesIO(b_data)).convert("RGB")
+    kontrast_img = klargoer_billede(b_data).convert("RGB")
+    if _RAPID is not None:
+        for im in (orig_img, kontrast_img):
+            try:
+                res, _ = _RAPID(np.array(im))
+                linjer = [str(p[1]).strip() for p in (res or []) if isinstance(p, (list, tuple)) and len(p) >= 2 and str(p[1]).strip()]
+                if linjer:
+                    return linjer, ""
+            except Exception:
+                pass
+    if _TESS:
+        for im in (kontrast_img, orig_img):
+            try:
+                txt = pytesseract.image_to_string(im)
+                linjer = [l.strip() for l in txt.splitlines() if l.strip()]
+                if linjer:
+                    return linjer, ""
+            except Exception:
+                pass
+    return [], "Lokal OCR ikke klar endnu (tjek packages.txt + requirements.txt)"
 
 def udtraek_kupon_liste(linjer):
     kampe, indsats = [], 100.0
@@ -32,7 +56,7 @@ def udtraek_kupon_liste(linjer):
     stop = ("indsats", "gevinst", "udbetaling", "fuldtid", "resultat", "tidlig", "byg væddemål", "byg vaeddemal", "begge hold", "sport", "live", "væddemål", "casino", "share", "kr.", "angreb", "farligt", "placer", "samlede", "unibet", "luk")
     spil_buf, odds_buf, alle_odds, hold_buf, alle_hold = [], [], [], [], []
 
-    def _ren_hold(t):
+    def _ren(t):
         t = re.sub(r"^[^A-Za-zÆØÅæøå]+", "", t).strip()
         return t if 2 <= len(t) <= 26 and not any(w in t.lower() for w in stop) and not re.search(r"\d", t) else ""
 
@@ -55,7 +79,7 @@ def udtraek_kupon_liste(linjer):
             kampe.append({"kamp": f"{hold_buf[-2]} - {hold_buf[-1]}", "spil": " + ".join(dict.fromkeys(spil_buf)) or "1X2 / Resultat", "odds": odds_buf[-1] if odds_buf else 2.00})
             spil_buf, odds_buf, hold_buf = [], [], []
         elif not dato_re.match(l) and not live_re.match(l):
-            h = _ren_hold(l)
+            h = _ren(l)
             if h: hold_buf.append(h); alle_hold.append(h)
 
     if not kampe and len(alle_hold) >= 2:
