@@ -42,15 +42,16 @@ def vis_billed_scanner():
             st.markdown(f"**{idx+1}. {item['kamp']}** | Odds: `{item['odds']:.2f}` | **{res['pct']}%** | {'⭐'*res['stj']} | {'🔥'*res['flm']}")
             st.caption(res["tekst"])
             opts = [f"Behold oprindelig: {item['spil']} @ {item['odds']:.2f} ({res['pct']}%)"] + [f"{f['txt']} @ {f['odds']:.2f} ({f['pct']}%)" for f in res["forslag"]]
-            if res["erstat_raad"]: opts.append(f"⚠️ Helt på månen (🔥5): Find erstatningskamp @ {item['odds']:.2f}")
             valg_i = st.radio("Vælg strategi for denne kamp:", opts, key=f"rad_k_{idx}")
             if valg_i.startswith("Behold"):
                 valgt_s, valgt_o, valgt_p = f"{item['kamp']} ({item['spil']})", float(item["odds"]), res["pct"]
-            elif valg_i.startswith("⚠️"):
-                valgt_s, valgt_o, valgt_p = f"[Erstatningskamp for {item['kamp']}]", float(item["odds"]), res["pct"]
             else:
                 f_obj = res["forslag"][opts.index(valg_i) - 1]
                 valgt_s, valgt_o, valgt_p = f_obj["txt"], float(f_obj["odds"]), f_obj["pct"]
+            if res["svaer_match"]:
+                st.caption("💬 *Jeg har svært ved at finde et alternativt odds på denne kamp der matcher kuponens niveau – skal vi finde en helt anden kamp til dig?*")
+                if st.checkbox("Ja, find en anden kamp i stedet for denne", key=f"chk_alt_{idx}"):
+                    valgt_s = f"[Bed robotten finde erstatningskamp for {item['kamp']}]"
             nye_valg.append(f"{valgt_s} @ {valgt_o:.2f} ({valgt_p}%)")
             ny_odds = round(ny_odds * valgt_o, 2)
 
