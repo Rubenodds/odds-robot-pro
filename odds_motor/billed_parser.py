@@ -10,16 +10,16 @@ except Exception:
     OCR_MOTOR = None
 
 def _koer_ocr(b_data):
-    ren = billed_hjaelp.klargoer_billede(b_data)
     if OCR_MOTOR is not None:
-        try:
-            res, _ = OCR_MOTOR(ren)
-            linjer = [str(p[1] if isinstance(p, (list, tuple)) and len(p) >= 2 else p).strip() for p in (res or [])]
-            linjer = [l for l in linjer if l]
-            if linjer: return linjer, ""
-        except Exception:
-            pass
-    return billed_hjaelp.aflaes_via_cloud_ocr(ren)
+        for img_bytes in (b_data, billed_hjaelp.klargoer_billede(b_data)):
+            try:
+                res, _ = OCR_MOTOR(img_bytes)
+                linjer = [str(p[1] if isinstance(p, (list, tuple)) and len(p) >= 2 else p).strip() for p in (res or [])]
+                linjer = [l for l in linjer if l]
+                if linjer: return linjer, ""
+            except Exception:
+                pass
+    return billed_hjaelp.aflaes_via_cloud_ocr(billed_hjaelp.klargoer_billede(b_data))
 
 def _vurder_kupon(odds_v):
     pct = round(max(3.0, min(92.0, (100.0 / max(1.01, odds_v)) * 0.94)), 1)
