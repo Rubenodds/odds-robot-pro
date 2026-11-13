@@ -30,9 +30,20 @@ def vis_billed_scanner():
                 except Exception as e:
                     print(f"[OCR-Advarsel]: {e}")
             k_liste, s_odds, s_ind = billed_hjaelp.udtraek_kupon_liste(linjer)
-            st.session_state.update({"sidst_scannede_fil_id": fid, "scan_liste": k_liste, "scan_odds": float(s_odds), "scan_indsats": float(s_ind), "ny_kupon_klar": False})
+            st.session_state.update({"sidst_scannede_fil_id": fid, "scan_liste": k_liste, "scan_odds": float(s_odds), "scan_indsats": float(s_ind), "scan_raa": "\n".join(linjer), "ny_kupon_klar": False})
+
+        if st.session_state.get("scan_raa"):
+            with st.expander("Vis aflæst råtekst fra billedet"):
+                st.text(st.session_state["scan_raa"])
 
     kampe_liste = st.session_state.get("scan_liste", [])
+    if up is not None and not kampe_liste:
+        st.warning("Ingen kampe kunne parres automatisk – tilføj kampene manuelt herunder:")
+        if st.button("➕ Tilføj tom kamp-række", key="btn_add_k"):
+            kampe_liste.append({"kamp": "Hjemmehold - Udehold", "spil": "1X2", "odds": 1.85})
+            st.session_state["scan_liste"] = kampe_liste
+            st.rerun()
+
     if not kampe_liste:
         st.info("Upload et kupon-screenshot ovenfor, så analyserer robotten hver enkelt kamp med stjerner, flammer, % og ændringsforslag.")
         return
@@ -44,13 +55,11 @@ def vis_billed_scanner():
         with st.container(border=True):
             st.markdown(f"**{idx+1}. {item['kamp']}** — Odds: `{item['odds']:.2f}` | Chance: **{res['pct']}%** | {'⭐'*res['stj']} | {'🔥'*res['flm']}")
             st.caption(f"🧠 {res['analyse']}")
-            brug_forslag = False
-            if res["forslag"]:
-                brug_forslag = st.checkbox(f"💡 Robot-forslag: Skift til '{res['forslag']}'", key=f"chk_f_{idx}")
-            standard_tekst = res["forslag"] if brug_forslag else f"{item['kamp']} ({item['spil']})"
-            egen_tekst = st.text_input("Dit spil på denne kamp (ret eller skriv eget):", value=standard_tekst, key=f"txt_k_{idx}")
-            if egen_tekst.strip():
-                valgte_linjer.append(egen_tekst.strip())
+            brug_forslag = st.checkbox(f"💡 Robot-forslag: Skift til '{res['forslag']}'", key=f"chk_f_{idx}") if res["forslag"] else False
+            std_txt = res["forslag"] if brug_forslag else f"{item['kamp']} ({item['spil']})"
+            egen_txt = st.text_input("Dit spil på denne kamp (ret eller skriv eget):", value=std_txt, key=f"txt_k_{idx}")
+            if egen_txt.strip():
+                valgte_linjer.append(egen_txt.strip())
 
     col1, col2 = st.columns(2)
     with col1:
