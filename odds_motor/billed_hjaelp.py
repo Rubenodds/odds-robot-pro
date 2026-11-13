@@ -7,7 +7,11 @@ OCR_URL = f"https://{_h('api', 'ocr', 'space')}/parse/image"
 
 def klargoer_billede(b_data):
     img = Image.open(io.BytesIO(b_data)).convert("L")
-    if ImageStat.Stat(img).mean[0] < 128: img = ImageOps.invert(img)
+    try:
+        middel = next(iter(ImageStat.Stat(img).mean), 255)
+        if middel < 128: img = ImageOps.invert(img)
+    except Exception:
+        pass
     if img.width > 1000: img = img.resize((1000, int(img.height * (1000 / float(img.width)))))
     buf = io.BytesIO()
     ImageOps.autocontrast(img).save(buf, format="PNG")
@@ -59,7 +63,8 @@ def udtraek_kupon_liste(linjer):
 
 def analyser_kamp_med_maalzone(kamp_str, spil_str, odds_val, faktor=1.0):
     dele = re.split(r"\s+(?:-|–|vs\.?|v)\s+", kamp_str, maxsplit=1, flags=re.I)
-    hj, ud = dele[0].strip(), (dele[1].strip() if len(dele) > 1 else "")
+    hj = dele[0].strip() if dele else kamp_str
+    ud = dele[1].strip() if len(dele) > 1 else ""
     beriget = kamp_intelligens.berig_valgte_kampe([{"hj": hj, "ud": ud, "ctx": {"by": hj}}])
     ctx = (beriget[0].get("ctx") or {}) if beriget else {}
     v, dom = ctx.get("vejr"), ctx.get("dommer", "")
