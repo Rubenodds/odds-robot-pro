@@ -5,7 +5,7 @@ from PIL import Image, ImageOps, ImageStat
 try:
     from rapidocr_onnxruntime import RapidOCR
     _RAPID = RapidOCR()
-except Exception as _e:
+except Exception:
     _RAPID = None
 
 try:
@@ -46,19 +46,21 @@ def laes_tekst_lokalt(b_data):
                     return linjer, ""
             except Exception:
                 pass
-    return [], "Lokal OCR ikke klar endnu (tjek packages.txt + requirements.txt)"
+    return [], "Lokal OCR ikke klar endnu"
 
 def udtraek_kupon_liste(linjer):
     kampe, indsats = [], 100.0
     kamp_re = re.compile(r"^([A-Za-zÆØÅæøå0-9\.\s]{2,26})\s+(?:-|–|vs\.?|v)\s+([A-Za-zÆØÅæøå0-9\.\s]{2,26})$", re.I)
     dato_re = re.compile(r"^(?:man|tir|ons|tor|fre|lør|lor|søn|son|mon|tue|wed|thu|fri|sat|sun)\s+\d{1,2}", re.I)
     live_re = re.compile(r"^\d{1,3}[:.]\d{2}$")
-    stop = ("indsats", "gevinst", "udbetaling", "fuldtid", "resultat", "tidlig", "byg væddemål", "byg vaeddemal", "begge hold", "sport", "live", "væddemål", "casino", "share", "kr.", "angreb", "farligt", "placer", "samlede", "unibet", "luk")
+    stop = ("indsats", "gevinst", "udbetaling", "fuldtid", "resultat", "tidlig", "byg", "vaddemal", "væddemål", "begge hold", "sport", "live", "casino", "share", "kr.", "angreb", "farligt", "placer", "samlede", "unibet", "luk", "indskiftning", "spil", "hjørne", "hjornespark", "skud", "kort", "over", "under")
     spil_buf, odds_buf, alle_odds, hold_buf, alle_hold = [], [], [], [], []
 
     def _ren(t):
         t = re.sub(r"^[^A-Za-zÆØÅæøå]+", "", t).strip()
-        return t if 2 <= len(t) <= 26 and not any(w in t.lower() for w in stop) and not re.search(r"\d", t) else ""
+        if len(t) < 2 or len(t) > 26 or re.search(r"[\d:+]", t):
+            return ""
+        return "" if any(w in t.lower() for w in stop) else t
 
     for i, l in enumerate(linjer):
         low = l.lower()
@@ -69,7 +71,7 @@ def udtraek_kupon_liste(linjer):
             for mo in re.findall(r"\b(\d{1,3}[.,]\d{2})\b", l):
                 t = float(mo.replace(",", "."))
                 if 1.05 <= t <= 99.0: odds_buf.append(t); alle_odds.append(t)
-        if any(w in low for w in ("over ", "under ", "begge hold", "f - resultat", "hjørne", "skud", "kort", "handicap", "målscorer", "byg væddemål")) and "fuldtid - resultat" not in low:
+        if any(w in low for w in ("over ", "under ", "begge hold", "f - resultat", "hjørne", "hjornespark", "skud", "kort", "handicap", "målscorer")) and "fuldtid - resultat" not in low:
             spil_buf.append(re.sub(r"^[o°•\-\s]+", "", l).strip())
         elif kamp_re.match(l) and not any(w in low for w in stop):
             m1 = kamp_re.match(l)
