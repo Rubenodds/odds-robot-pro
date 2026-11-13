@@ -2,6 +2,14 @@
 
 📅 Log: 13-11-2026 kl. 23:05 (Dansk tid) — Færdiggjort selvstændig Mappe 3 (`billed_hjaelp.py`) & sat Specialmarkeds-mappe på ønskelisten
 
+📅 Log: 13-11-2026 kl. 23:34 (Dansk tid) — Opdateret alle 3 Mappe 3-filer med realistiske odds (1.22–1.68) & naturligt erstatningsspørgsmål
+
+- **Opdateret `billed_ocr.py`, `billed_hjaelp.py` og `billed_parser.py` (< 2.900 tegn pr. fil):** Fjernet falske holdnavne (`BYG VADDEMAL`, `INDSKIFTNING+`), rettet Dobbeltchance-odds til realistiske **1.22–1.68** (frem for 5.00), og erstattet boksen med et naturligt spørgsmål under kampen (*"Jeg har svært ved at finde et alternativt odds på denne kamp der matcher kuponens niveau – skal vi finde en helt anden kamp til dig?"*).
+- **Næste i køen:**
+  1. Gem de 3 opdaterede filer i `odds_motor/` på GitHub, gen-upload billedet og godkend **Mappe 3** live.
+  2. **Ønskeliste – Isoleret Specialmarkeds-mappe (`udvidelser/special_markeder.py`):** Tilføj spillerskud på mål, målscorere, målmandsredninger, frispark, tacklinger, kort og målspark til alle 3 mapper uden at røre de låste filer.
+  3. **Mappe 4 (`historik/regnskab_visning.py`):** Kontroller og opgrader årsregnskab, permanent TOTAL SUM, hitrate og tilbagebetalingsprocent.
+
 - **Mappe 3 (`odds_motor/billed_hjaelp.py` + `odds_motor/billed_parser.py`) — SELVSTÆNDIG & KLAR (< 2.950 tegn pr. fil):** Fanger alle kampe på kuponen på tværs af bookmakere, giver konkret kampanalyse + 3 forslag med `%` pr. kamp, sammenligner Gammel vs. Ny Kupon med analyse + `%/⭐/🔥` og gemmer i Supabase via `🚀 SPILLET`.
 - **Næste i køen (i rækkefølge):**
   1. Verificer **Mappe 3** live på Streamlit, så den kører 100 % som ønsket.
