@@ -23,11 +23,12 @@ def aflaes_via_cloud_ocr(ren_bytes):
         return [], str(e)
 
 def udtraek_kupon_liste(linjer):
-    kampe, odds_l, indsats = [], [], 100.0
+    kampe, indsats = [], 100.0
+    kamp_re = re.compile(r"^([A-Za-zÆØÅæøå0-9\.\s]{3,26})\s+(?:-|–|vs\.?|v)\s+([A-Za-zÆØÅæøå0-9\.\s]{3,26})$", re.I)
     dato_re = re.compile(r"^(?:man|tir|ons|tor|fre|lør|søn|mon|tue|wed|thu|fri|sat|sun)\s+\d{1,2}", re.I)
-    odds_re = re.compile(r"\b(\d{1,2}[.,]\d{2})\b")
-    stop = ("indsats", "gevinst", "udbetaling", "fuldtid", "resultat", "tidlig", "byg væddemål", "total antal", "udehold", "hjemmehold", "sport", "live", "væddemål", "casino", "share", "kr.")
-    aktuelle_spil, brugt_idx = [], set()
+    live_re = re.compile(r"^\d{1,3}[:.]\d{2}$")
+    stop = ("indsats", "gevinst", "udbetaling", "fuldtid", "resultat", "tidlig", "byg væddemål", "sport", "live", "væddemål", "casino", "share", "kr.", "angreb", "farligt")
+    spil_buf, odds_buf = [], []
 
     for i, l in enumerate(linjer):
         low = l.lower()
@@ -35,44 +36,40 @@ def udtraek_kupon_liste(linjer):
             m = re.search(r"(\d+(?:[.,]\d{1,2})?)", linjer[i + 1])
             if m: indsats = float(m.group(1).replace(",", "."))
         if "kr" not in low:
-            for mo in odds_re.findall(l):
+            for mo in re.findall(r"\b(\d{1,2}[.,]\d{2})\b", l):
                 t = float(mo.replace(",", "."))
-                if 1.05 <= t <= 99.0: odds_l.append(t)
-        if any(w in low for w in ("over ", "under ", "begge hold", "f - resultat", "hjørne", "skud", "kort", "handicap")) and not any(s in low for s in ("fuldtid - resultat", "total antal", "antal hjørne")):
-            aktuelle_spil.append(re.sub(r"^[o°•\-\s]+", "", l).strip())
-        if dato_re.match(l) and i >= 1 and i + 1 < len(linjer):
-            hj = re.sub(r"^[^A-Za-zÆØÅæøå]+", "", linjer[i - 1]).strip()
-            ud = re.sub(r"^[^A-Za-zÆØÅæøå]+", "", linjer[i + 1]).strip()
+                if 1.05 <= t <= 99.0: odds_buf.append(t)
+        if any(w in low for w in ("over ", "under ", "begge hold", "f - resultat", "hjørne", "skud", "kort", "handicap", "målscorer", "byg væddemål")) and "fuldtid - resultat" not in low:
+            spil_buf.append(re.sub(r"^[o°•\-\s]+", "", l).strip())
+        m_1linje = kamp_re.match(l)
+        if m_1linje and not any(w in low for w in stop):
+            kampe.append({"kamp": f"{m_1linje.group(1).strip()} - {m_1linje.group(2).strip()}", "spil": " + ".join(dict.fromkeys(spil_buf)) or "1X2 / Resultat", "odds": odds_buf[-1] if odds_buf else 2.00})
+            spil_buf, odds_buf = [], []
+        elif dato_re.match(l) and i >= 1 and i + 1 < len(linjer):
+            hj, ud = re.sub(r"^[^A-Za-zÆØÅæøå]+", "", linjer[i - 1]).strip(), re.sub(r"^[^A-Za-zÆØÅæøå]+", "", linjer[i + 1]).strip()
             if len(hj) >= 3 and len(ud) >= 3 and not any(w in hj.lower() + ud.lower() for w in stop):
-                o_val = odds_l[-1] if odds_l else 1.85
-                spil_txt = " + ".join(dict.fromkeys(aktuelle_spil)) if aktuelle_spil else "1X2 / Resultat"
-                kampe.append({"kamp": f"{hj} - {ud}", "spil": spil_txt, "odds": o_val})
-                aktuelle_spil, brugt_idx = [], brugt_idx | {i - 1, i, i + 1}
+                kampe.append({"kamp": f"{hj} - {ud}", "spil": " + ".join(dict.fromkeys(spil_buf)) or "1X2 / Resultat", "odds": odds_buf[-1] if odds_buf else 2.00})
+                spil_buf, odds_buf = [], []
+        elif live_re.match(l) and i >= 2 and ":" not in linjer[i - 1] and ":" not in linjer[i - 2]:
+            hj, ud = re.sub(r"^[^A-Za-zÆØÅæøå]+", "", linjer[i - 2]).strip(), re.sub(r"^[^A-Za-zÆØÅæøå]+", "", linjer[i - 1]).strip()
+            if len(hj) >= 3 and len(ud) >= 3 and not any(w in hj.lower() + ud.lower() for w in stop):
+                kampe.append({"kamp": f"{hj} - {ud}", "spil": "Live 1X2 / Resultat", "odds": odds_buf[-1] if odds_buf else 2.00})
+                spil_buf, odds_buf = [], []
+    return kampe, indsats
 
-    if not kampe:
-        ren_hold = [re.sub(r"^[^A-Za-zÆØÅæøå]+", "", l).strip() for idx, l in enumerate(linjer) if idx not in brugt_idx and 3 <= len(l) <= 26 and not any(w in l.lower() for w in stop) and not re.search(r"\d", l)]
-        for i in range(0, len(ren_hold) - 1, 2):
-            kampe.append({"kamp": f"{ren_hold[i]} - {ren_hold[i+1]}", "spil": "1X2 / Resultat", "odds": odds_l[i//2] if i//2 < len(odds_l) else 1.85})
-    samlet = round(eval("*".join(str(k["odds"]) for k in kampe)), 2) if kampe else 2.00
-    return kampe, samlet, indsats
-
-def analyser_enkelt_kamp(kamp_str, spil_str, odds_val):
+def analyser_kamp_med_maalzone(kamp_str, spil_str, odds_val, faktor=1.0):
     dele = re.split(r"\s+(?:-|–|vs\.?|v)\s+", kamp_str, maxsplit=1, flags=re.I)
-    hj, ud = dele.strip(), (dele.strip() if len(dele) > 1 else "")
+    hj, ud = dele[0].strip(), (dele[1].strip() if len(dele) > 1 else "")
     beriget = kamp_intelligens.berig_valgte_kampe([{"hj": hj, "ud": ud, "ctx": {"by": hj}}])
-    ctx = (beriget.get("ctx") or {}) if beriget else {}
-    v = ctx.get("vejr")
-    dom = ctx.get("dommer", "")
-    info_dele = [f"Valgt spil: **{spil_str}**"]
-    if dom and "ukendt" not in dom.lower() and "ikke udpeget" not in dom.lower(): info_dele.append(f"Dommer: {dom}")
-    if v: info_dele.append(f"Vejr: {v['temp']}°C, {v['vind']} m/s ({v['effekt']})")
+    ctx = (beriget[0].get("ctx") or {}) if beriget else {}
+    v, dom = ctx.get("vejr"), ctx.get("dommer", "")
+    ekstra = ([f"Dommer: {dom}"] if dom and "ukendt" not in dom.lower() and "ikke udpeget" not in dom.lower() else []) + ([f"Vejr: {v['temp']}°C, {v['vind']} m/s ({v['effekt']})"] if v else [])
     pct = round(max(10.0, min(90.0, (100.0 / max(1.01, odds_val)) * 0.93)), 1)
-    stj = max(1, min(5, int(round((pct * odds_val) / 21.0))))
-    flm = max(1, min(5, int(round((100.0 - pct) / 17.0))))
-    vurd = "Høj risiko på kombineret linje – overvej at skære den svageste del fra." if flm >= 4 else "Fin balance mellem sandsynlighed og odds."
+    stj, flm = max(1, min(5, int(round((pct * odds_val) / 21.0)))), max(1, min(5, int(round((100.0 - pct) / 17.0))))
     forslag = [
-        f"{kamp_str} (Sikker: Dobbeltchance 1X / X2)",
-        f"{kamp_str} (Mål-fokus: Over 1.5 mål i kampen)",
-        f"{kamp_str} (Hjørne/Tempo: Over 8.5 hjørnespark)" if "hjørne" in spil_str.lower() else f"{kamp_str} (Reduceret linje: Fjern højrisiko-ben)"
+        {"txt": f"{kamp_str} — Sikker Dobbeltchance (1X / X2)", "odds": max(1.18, round(odds_val * 0.72 * faktor, 2))},
+        {"txt": f"{kamp_str} — Mål/Hjørne-linje (Over 1.5 mål / Over 8.5 hjørner)", "odds": max(1.30, round(odds_val * 0.88 * faktor, 2))},
+        {"txt": f"{kamp_str} — Value-linje (Sejr + Over 1.5 mål)", "odds": max(1.50, round(odds_val * 1.15 * faktor, 2))},
     ]
-    return {"pct": pct, "stj": stj, "flm": flm, "analyse": " | ".join(info_dele) + f". {vurd}", "forslag": forslag}
+    tekst = f"**Spil:** {spil_str}" + (f" | {' | '.join(ekstra)}" if ekstra else "")
+    return {"pct": pct, "stj": stj, "flm": flm, "tekst": tekst, "forslag": forslag, "erstat_raad": (flm == 5 or odds_val >= 6.5)}
