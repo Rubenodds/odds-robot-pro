@@ -16,12 +16,10 @@ except Exception:
     OCR_MOTOR = None
 
 def vis_billed_scanner():
-    st.markdown("<style>.kupon-stamme{background:linear-gradient(145deg,#161b22,#1f2630);border:1px solid #00E676;border-radius:12px;padding:14px;margin:10px 0;color:#f0f6fc}</style>", unsafe_allow_html=True)
-
     up = st.file_uploader("📸 Upload kupon-screenshot (PNG, JPG):", type=["png", "jpg", "jpeg"], key="scan_up")
     if up is not None:
         b_data = up.getvalue()
-        st.image(Image.open(io.BytesIO(b_data)) if PIL_OK else b_data, caption="Indlæst kupon (Afventer SPILLET)", use_container_width=True)
+        st.image(Image.open(io.BytesIO(b_data)) if PIL_OK else b_data, caption="Indlæst kupon (0,00 kr. gemt før SPILLET)", use_container_width=True)
         fid = f"{up.name}_{len(b_data)}"
         if st.session_state.get("sidst_scannede_fil_id") != fid:
             linjer = []
@@ -31,37 +29,46 @@ def vis_billed_scanner():
                     linjer = billed_hjaelp.parse_ocr_resultat(res)
                 except Exception as e:
                     print(f"[OCR-Advarsel]: {e}")
-            k_str, o_val, i_val = billed_hjaelp.udtraek_kupon_moenstre(linjer)
-            st.session_state.update({"sidst_scannede_fil_id": fid, "scan_kampe": k_str, "scan_odds": float(o_val), "scan_indsats": float(i_val), "scan_raatekst": "\n".join(linjer)})
+            k_liste, s_odds, s_ind = billed_hjaelp.udtraek_kupon_liste(linjer)
+            st.session_state.update({"sidst_scannede_fil_id": fid, "scan_liste": k_liste, "scan_odds": float(s_odds), "scan_indsats": float(s_ind), "ny_kupon_klar": False})
 
-        if st.session_state.get("scan_raatekst"):
-            with st.expander("Vis rå aflæst tekst fra billedet"):
-                st.text(st.session_state["scan_raatekst"])
+    kampe_liste = st.session_state.get("scan_liste", [])
+    if not kampe_liste:
+        st.info("Upload et kupon-screenshot ovenfor, så analyserer robotten hver enkelt kamp med stjerner, flammer, % og ændringsforslag.")
+        return
 
-    st.markdown('<div class="kupon-stamme"><h4>🎯 Aktiv Kuponstamme (100 % Universel)</h4><p style="margin:0;font-size:0.9em;color:#8b949e">Ret aflæste kampe eller tilføj egne valg før SPILLET.</p></div>', unsafe_allow_html=True)
-
-    marked = st.selectbox("Markedstype:", ["Standard (1X2 / Mål)", "Hjørnespark (Over/Under/Flest)", "Spillerskud & Skud på mål", "Tacklinger & Målmandsredninger", "Kort-sandsynlighed (Gule/Røde)", "Målscorere (Anytime/Første)", "Kombinationskupon"], key="scan_marked_type")
-    kampe_txt = st.text_input("Kampe & udfald (adskil med komma):", value=st.session_state.get("scan_kampe", ""), placeholder="F.eks. FCK - AGF (1), Arsenal - Chelsea (Over 2.5 mål)", key="input_scan_kampe")
+    st.subheader("🔍 Robottens Kamp-for-Kamp Analyse & Tilpasning")
+    valgte_linjer = []
+    for idx, item in enumerate(kampe_liste):
+        res = billed_hjaelp.analyser_enkelt_kamp(item["kamp"], item["spil"], item["odds"])
+        with st.container(border=True):
+            st.markdown(f"**{idx+1}. {item['kamp']}** — Odds: `{item['odds']:.2f}` | Chance: **{res['pct']}%** | {'⭐'*res['stj']} | {'🔥'*res['flm']}")
+            st.caption(f"🧠 {res['analyse']}")
+            brug_forslag = False
+            if res["forslag"]:
+                brug_forslag = st.checkbox(f"💡 Robot-forslag: Skift til '{res['forslag']}'", key=f"chk_f_{idx}")
+            standard_tekst = res["forslag"] if brug_forslag else f"{item['kamp']} ({item['spil']})"
+            egen_tekst = st.text_input("Dit spil på denne kamp (ret eller skriv eget):", value=standard_tekst, key=f"txt_k_{idx}")
+            if egen_tekst.strip():
+                valgte_linjer.append(egen_tekst.strip())
 
     col1, col2 = st.columns(2)
     with col1:
-        odds_val = st.number_input("Samlet odds:", min_value=1.01, value=max(1.01, float(st.session_state.get("scan_odds", 2.00))), step=0.10, key="input_scan_odds")
+        samlet_odds = st.number_input("Samlet kupon-odds:", min_value=1.01, value=max(1.01, float(st.session_state.get("scan_odds", 2.00))), step=0.10, key="in_s_odds")
     with col2:
-        indsats_val = st.number_input("Indsats kr. (Std. 100 kr.):", min_value=1.0, value=max(1.0, float(st.session_state.get("scan_indsats", 100.0))), step=10.0, key="input_scan_indsats")
+        indsats = st.number_input("Indsats kr. (Std. 100 kr.):", min_value=1.0, value=max(1.0, float(st.session_state.get("scan_indsats", 100.0))), step=10.0, key="in_s_ind")
 
-    if kampe_txt.strip():
-        berigede, chance_pct, stjerner, flammer = billed_hjaelp.analyser_kupon_kampe(kampe_txt, odds_val)
-        st.info(f"📊 **Vurdering:** {chance_pct}% chance | Værdi: {'⭐'*stjerner} | Risiko: {'🔥'*flammer} | Potentiel gevinst: **{odds_val * indsats_val:.2f} kr.**")
-        for bk in berigede:
-            ctx = bk.get("ctx") or {}
-            v = ctx.get("vejr")
-            v_txt = f"{v['temp']}°C, {v['vind']} m/s ({v['effekt']})" if v else "Vejr ukendt"
-            st.caption(f"⚽ **{bk.get('hj')} vs {bk.get('ud')}** | 👨‍⚖️ Dommer: {ctx.get('dommer')} | 🌦️ {v_txt}")
+    if st.button("✅ AKTIVER OK (Dan ny kupon & samlet analyse)", use_container_width=True, key="btn_aktiver_ok"):
+        st.session_state["ny_kupon_klar"] = True
 
-    if st.button("🚀 SPILLET (Godkend & send til statistik + Supabase)", type="primary", key="btn_spillet_billede"):
-        if not kampe_txt.strip():
-            st.warning("Skriv mindst én kamp før du trykker SPILLET.")
-        elif gem_data.gem_kupon_i_historik(["Universel Kupon", marked], [kampe_txt.strip()], odds_val, odds_val, odds_val, "Agnostisk Kupon", 5, indsats_val):
-            st.session_state["scan_kampe"] = ""
-            st.success("✓ Kuponen er markeret som SPILLET og gemt i Supabase!")
-            st.rerun()
+    if st.session_state.get("ny_kupon_klar") and valgte_linjer:
+        ny_kupon_str = ", ".join(valgte_linjer)
+        samlet_pct = round(max(4.0, min(92.0, (100.0 / samlet_odds) * 0.94)), 1)
+        stj_tot = max(1, min(5, int(round((samlet_pct * samlet_odds) / 21.0))))
+        flm_tot = max(1, min(5, int(round((100.0 - samlet_pct) / 17.0))))
+        st.success(f"🎯 **Ny Kupon Klar:** {ny_kupon_str}\n\n📊 **Samlet Vurdering:** {samlet_pct}% chance | Værdi: {'⭐'*stj_tot} | Risiko: {'🔥'*flm_tot} | Potentiel gevinst: **{samlet_odds * indsats:.2f} kr.**")
+        if st.button("🚀 SPILLET (Godkend & send til statistik + Supabase)", type="primary", use_container_width=True, key="btn_spillet_billede"):
+            if gem_data.gem_kupon_i_historik(["Universel Billed-Kupon"], [ny_kupon_str], samlet_odds, samlet_odds, samlet_odds, "Billed-Scanner", stj_tot, indsats):
+                st.session_state["ny_kupon_klar"] = False
+                st.success("✓ Kuponen er markeret som SPILLET og gemt i Supabase!")
+                st.rerun()
