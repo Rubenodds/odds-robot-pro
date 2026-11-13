@@ -7,7 +7,7 @@ OCR_URL = f"https://{_h('api', 'ocr', 'space')}/parse/image"
 
 def klargoer_billede(b_data):
     img = Image.open(io.BytesIO(b_data)).convert("L")
-    if ImageStat.Stat(img).mean < 128: img = ImageOps.invert(img)
+    if ImageStat.Stat(img).mean[0] < 128: img = ImageOps.invert(img)
     if img.width > 1000: img = img.resize((1000, int(img.height * (1000 / float(img.width)))))
     buf = io.BytesIO()
     ImageOps.autocontrast(img).save(buf, format="PNG")
