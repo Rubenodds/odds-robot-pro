@@ -2,10 +2,15 @@ import json, sqlite3
 from collections import defaultdict
 import pandas as pd
 import streamlit as st
-from historik.gem_data import DB_STI, TABEL, hent_alle_kuponer
+from historik.gem_data import DB_STI, TABEL, hent_alle_kuponer, _sb_req
 
 def _opdater_status(kid, ny_status):
     st.cache_data.clear()
+    try:
+        if _sb_req(f"{TABEL}?id=eq.{kid}", "PATCH", {"status": ny_status}):
+            return
+    except Exception:
+        pass
     con = sqlite3.connect(DB_STI)
     con.execute(f"UPDATE {TABEL} SET status=? WHERE id=?", (ny_status, kid))
     con.commit()
@@ -13,6 +18,11 @@ def _opdater_status(kid, ny_status):
 
 def _slet_kupon(kid):
     st.cache_data.clear()
+    try:
+        if _sb_req(f"{TABEL}?id=eq.{kid}", "DELETE"):
+            return
+    except Exception:
+        pass
     con = sqlite3.connect(DB_STI)
     con.execute(f"DELETE FROM {TABEL} WHERE id=?", (kid,))
     con.commit()
