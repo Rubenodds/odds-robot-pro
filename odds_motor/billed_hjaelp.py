@@ -16,6 +16,8 @@ def analyser_kupon_kamp(k):
     odds = float(k.get("odds", 1.80))
     spil = k.get("spil", "")
     kamp = k.get("kamp", "")
+    hjemme = k.get("hjemme", "Hjemmehold")
+    ude = k.get("ude", "Udehold")
     ctx = _hent_kontekst(kamp)
     vejr = ctx.get("vejr", "")
     dommer = ctx.get("dommer", "")
@@ -29,22 +31,29 @@ def analyser_kupon_kamp(k):
 
     stjerner = 5 if edge >= 0.08 else (4 if edge >= 0.02 else (3 if edge >= -0.03 else (2 if edge >= -0.08 else 1)))
     risiko = 1 if odds <= 1.45 else (2 if odds <= 1.85 else (3 if odds <= 2.30 else (4 if odds <= 3.00 else 5)))
-
     er_staerk = (risiko <= 2 and stjerner >= 4 and antal_ben == 1)
+
+    if antal_ben >= 2:
+        ulempe = f"Ulempe: Kombinationsspil ({antal_ben} ben) kræver at alt klapper — ét målløst halvlegspres eller 1-0 resultat vælter hele væddemålet."
+    elif odds >= 2.35:
+        ulempe = f"Ulempe: Højt odds ({odds:.2f}) giver kun {reel_pct}% teoretisk træfchance, og et tidligt føringsmål til {ude} gør spillet meget sårbart."
+    elif odds >= 1.85:
+        ulempe = f"Ulempe: Tæt opgør (markedet giver kun {imp_pct}%), hvor uafgjort (0-0 / 1-1) er den største faldgrube for {hjemme}."
+    else:
+        ulempe = f"Ulempe: Lav odds-margin ({odds:.2f}) giver begrænset betaling i forhold til risikoen ved rødt kort eller sene udsving."
+
     if er_staerk:
-        begrundelse = (
-            f"Stærkt og velafbalanceret anker på {kamp} (@ {odds:.2f}). "
-            f"Implikation på {imp_pct}% matcher markedets sandsynlighed ({reel_pct}%)"
-            + (f" — {form_tekst}" if form_tekst else ".")
-        )
+        begrundelse = f"{ulempe} ✅ Samlet vurdering: Alligevel et stærkt anker med god balance mellem risiko og betaling."
         alternativer = []
     else:
-        aarsag = "flere kombinerede ben øger variansen" if antal_ben >= 2 else "højt odds giver stram træfsikkerhed"
-        begrundelse = (
-            f"Vurdering af {kamp} (@ {odds:.2f}): {aarsag} "
-            f"(reel chance ca. {reel_pct}%). Se mulige optimeringer nedenfor."
-        )
         alternativer = _byg_intelligente_alternativer(k, odds, reel_pct)
+        anbefaling = (
+            f"💡 Hvorfor alternativer: Ved at sikre mod uafgjort (1X/DNB) eller flytte fokus til kampens måltotal "
+            f"løfter du træfsikkerheden fra {reel_pct}% til ca. {alternativer[0]['pct']}%."
+            if alternativer else ""
+        )
+        extra = f" ({form_tekst})" if form_tekst else ""
+        begrundelse = f"{ulempe}{extra} {anbefaling}".strip()
 
     meta = " | ".join([x for x in [vejr, dommer] if x])
     return {
