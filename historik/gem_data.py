@@ -86,8 +86,7 @@ def gem_kupon_i_historik(*args, **kwargs):
                     (post["dato"], post["kilde"], post["kampe"], post["detaljer"], post["odds"], post["indsats"], post["mulig_gevinst"], post["status"]))
         con.commit()
         con.close()
-    st.success(f"✅ SPILLET REGISTRERET! ({len(kampe)} kampe @ {odds} | Mulig gevinst: {post['mulig_gevinst']} kr.)")
-    st.toast(f"✅ SPILLET REGISTRERET! ({len(kampe)} kampe @ {odds})", icon="✅")
+    st.toast("OK – tilføjet til historikken")
     return True
 
 gem_kupon = gem_kupon_i_historik
