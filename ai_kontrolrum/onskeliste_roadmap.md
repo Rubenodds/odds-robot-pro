@@ -1,5 +1,16 @@
 # 🤖 Odds Robot Pro – Systemstatus & Roadmap
 
+📅 Log: 14-11-2026 kl. 22:39 (Dansk tid) — Mappe 4 FÆRDIG & LÅST (Permanent GitHub-lagring + Måneds- & Statusfaner) + Manuel Hjælp gendannet
+
+- **Mappe 4 (`historik/gem_data.py` & `historik/regnskab_visning.py`) — 100 % FÆRDIG & LÅST (< 3.000 tegn pr. fil):**
+  - Koblet på permanent **GitHub API-lagring** (`historik/gemte_kuponer.json` via eksisterende GitHub-token i Secrets), så alle kuponer, regnskaber og statusser overlever **Reboot** på Streamlit Cloud uden tab af data.
+  - Opgraderet Fane 4 (`📊 4. Statistik & Regnskab`) med **TOTAL SUM**, **Hitrate**, **ROI**, 3 statusfaner (`⏳ Afventer`, `✅ Afgjorte`, `🗂️ Alle`), **Måneds-mapper** og kompakt mobil-dropdown til 1-kliks afgørelse (`✅ Vundet / ❌ Tabt / ⏳ Afventer / 🗑️ Slet`).
+  - Giver ren, kort oversigtslinje under scannerne og kvitterer med `"OK – tilføjet til historikken"` ved gem.
+- **Mappe 2 (`odds_motor/manuel_hjaelp.py`) — Gendannet & Verificeret:** Gendannet med `begrundelse(k)` og fuld nøgle-sikring (`b365`, `unibet`, `ds`, `kombinationer`, `vinderchance_pct`), så både Mappe 1 (Autopilot) og Mappe 2 (Manuel) kører fejlfrit sammen med de låste filer.
+- **Næste i køen:**
+  1. **Mappe 5 (`udvidelser/historik_statistik.py`):** Selvlærende historisk kamp-, dommer- og kortdatabase (sæson 25/26 + fremadrettet) inkl. holdnavne-oversætter (`Sheff Wed` → `Sheffield Wednesday`) koblet isoleret på alle 3 scannere.
+  2. **Mappe 6 (`udvidelser/special_markeder.py`):** Isoleret specialmarkeds-scanner (spillerskud på mål, målscorere, målmandsredninger, frispark, tacklinger, kort og målspark).
+
 ### 📅 Log: 14-11-2026 kl. 16:43 (Dansk tid) — Bygget Mappe 4 (`historik/regnskab_visning.py`) & opgraderet `historik/gem_data.py`
 * **Oprettet `historik/regnskab_visning.py` (2.890 tegn) & opgraderet `historik/gem_data.py` (2.860 tegn)**:
   * Fane 4 (`📊 4. Statistik & Regnskab`) viser nu **Permanent TOTAL SUM**, **Årsregnskab år for år**, **Hitrate**, **Tilbagebetalingsprocent (ROI)**, **1-kliks afgørelse (`✅ Vundet` / `❌ Tabt` / `⏳ Afventer`)** samt **CSV-import** af tidligere sæsoner (Krav 6 & 12).
