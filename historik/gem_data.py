@@ -11,9 +11,11 @@ def _dansk_tid_str():
 def _groen_knap_css():
     if st.session_state.get("spil_registreret"):
         st.markdown(
-            "<style>button[data-testid='stBaseButton-primary'],button[kind='primary']{"
+            "<style>.stButton button[kind='primary'],.stButton button[data-testid='stBaseButton-primary'],"
+            ".stButton button[data-testid='baseButton-primary'],.stButton button[kind='primary']:focus,"
+            ".stButton button[kind='primary']:active,.stButton button[kind='primary']:hover{"
             "background-color:#16a34a!important;background-image:none!important;"
-            "border-color:#15803d!important;color:#ffffff!important;}</style>",
+            "border-color:#15803d!important;color:#ffffff!important;box-shadow:none!important;}</style>",
             unsafe_allow_html=True,
         )
 
