@@ -18,6 +18,19 @@ def _supabase_cfg():
         pass
     return None, None
 
+def _sb_req(sti, metode="GET", data=None):
+    url, key = _supabase_cfg()
+    if not url or not key:
+        return None
+    headers = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    if metode == "POST":
+        headers["Prefer"] = "return=representation"
+    body = json.dumps(data).encode("utf-8") if data is not None else None
+    req = urllib.request.Request(f"{url}/rest/v1/{sti}", data=body, headers=headers, method=metode)
+    with urllib.request.urlopen(req, timeout=3) as res:
+        txt = res.read().decode("utf-8")
+        return json.loads(txt) if txt else True
+
 def _init_sqlite():
     os.makedirs("historik", exist_ok=True)
     con = sqlite3.connect(DB_STI)
@@ -30,16 +43,12 @@ def _init_sqlite():
 
 @st.cache_data(ttl=15, show_spinner=False)
 def hent_alle_kuponer():
-    url, key = _supabase_cfg()
-    if url and key:
-        try:
-            req = urllib.request.Request(
-                f"{url}/rest/v1/{TABEL}?select=*&order=id.desc",
-                headers={"apikey": key, "Authorization": f"Bearer {key}"})
-            with urllib.request.urlopen(req, timeout=2) as res:
-                return json.loads(res.read().decode("utf-8"))
-        except Exception:
-            pass
+    try:
+        res = _sb_req(f"{TABEL}?select=*&order=id.desc")
+        if isinstance(res, list):
+            return res
+    except Exception:
+        pass
     _init_sqlite()
     con = sqlite3.connect(DB_STI)
     con.row_factory = sqlite3.Row
@@ -59,25 +68,28 @@ def gem_kupon_i_historik(*args, **kwargs):
             kampe = list(a)
         elif isinstance(a, (int, float)) and odds is None:
             odds = float(a)
+    if isinstance(kampe, str):
+        kampe = [x.strip() for x in kampe.replace("•", "|").split("|") if x.strip()]
     odds = round(float(odds or 1.0), 2)
     indsats = float(kwargs.get("indsats", 100.0))
-    gevinst = round(odds * indsats, 2)
-    antal = len(kampe) if isinstance(kampe, (list, tuple)) else 1
     dato = _dansk_tid_str()
-    kort_titel = f"{antal} kampe ({dato})"
-    detaljer_json = json.dumps(kampe, ensure_ascii=False)
     post = {
-        "dato": dato, "kilde": kilde, "kampe": kort_titel,
-        "detaljer": detaljer_json, "odds": odds, "indsats": indsats,
-        "mulig_gevinst": gevinst, "status": "[AFVENTER]"
+        "dato": dato, "kilde": kilde, "kampe": f"{len(kampe)} kampe ({dato})",
+        "detaljer": json.dumps(kampe, ensure_ascii=False), "odds": odds,
+        "indsats": indsats, "mulig_gevinst": round(odds * indsats, 2), "status": "[AFVENTER]"
     }
+    try:
+        if _sb_req(TABEL, "POST", post):
+            return True, "✅ Gemt permanent i Supabase Cloud!"
+    except Exception:
+        pass
     _init_sqlite()
     con = sqlite3.connect(DB_STI)
     con.execute(f"INSERT INTO {TABEL} (dato,kilde,kampe,detaljer,odds,indsats,mulig_gevinst,status) VALUES (?,?,?,?,?,?,?,?)",
                 (post["dato"], post["kilde"], post["kampe"], post["detaljer"], post["odds"], post["indsats"], post["mulig_gevinst"], post["status"]))
     con.commit()
     con.close()
-    return True, "✅ Kupon gemt!"
+    return True, "✅ Gemt lokalt (tilføj Supabase Secrets for Reboot-sikring)!"
 
 gem_kupon = gem_kupon_i_historik
 gem_spil = gem_kupon_i_historik
