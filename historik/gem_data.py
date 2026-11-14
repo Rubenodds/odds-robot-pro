@@ -1,23 +1,13 @@
 import os, json, sqlite3, urllib.request
 from datetime import datetime, timedelta
 import streamlit as st
+import streamlit.components.v1 as components
 
 DB_STI = os.path.join("historik", "kuponer.db")
 TABEL = "kuponer"
 
 def _dansk_tid_str():
     return (datetime.utcnow() + timedelta(hours=1)).strftime("%d-%m-%Y %H:%M")
-
-def _groen_knap_css():
-    if st.session_state.get("spil_registreret"):
-        st.markdown(
-            "<style>.stButton button[kind='primary'],.stButton button[data-testid='stBaseButton-primary'],"
-            ".stButton button[data-testid='baseButton-primary'],.stButton button[kind='primary']:focus,"
-            ".stButton button[kind='primary']:active,.stButton button[kind='primary']:hover{"
-            "background-color:#16a34a!important;background-image:none!important;"
-            "border-color:#15803d!important;color:#ffffff!important;box-shadow:none!important;}</style>",
-            unsafe_allow_html=True,
-        )
 
 def _supabase_cfg():
     try:
@@ -53,7 +43,7 @@ def _init_sqlite():
     con.close()
 
 @st.cache_data(ttl=15, show_spinner=False)
-def _hent_raekker():
+def hent_alle_kuponer():
     try:
         res = _sb_req(f"{TABEL}?select=*&order=id.desc")
         if isinstance(res, list):
@@ -66,10 +56,6 @@ def _hent_raekker():
     rows = [dict(r) for r in con.execute(f"SELECT * FROM {TABEL} ORDER BY id DESC").fetchall()]
     con.close()
     return rows
-
-def hent_alle_kuponer():
-    _groen_knap_css()
-    return _hent_raekker()
 
 def gem_kupon_i_historik(*args, **kwargs):
     st.cache_data.clear()
@@ -101,8 +87,15 @@ def gem_kupon_i_historik(*args, **kwargs):
                     (post["dato"], post["kilde"], post["kampe"], post["detaljer"], post["odds"], post["indsats"], post["mulig_gevinst"], post["status"]))
         con.commit()
         con.close()
-    st.session_state["spil_registreret"] = True
-    _groen_knap_css()
+    components.html("""<script>
+    window.parent.document.querySelectorAll('button').forEach(b=>{
+      if(b.innerText && b.innerText.includes('SPILLET')){
+        b.style.setProperty('background-color','#16a34a','important');
+        b.style.setProperty('border-color','#15803d','important');
+        b.style.setProperty('color','#ffffff','important');
+        b.innerText = '✅ SPILLET REGISTRERET!';
+      }
+    });</script>""", height=0)
     st.toast(f"✅ SPILLET REGISTRERET! ({len(kampe)} kampe @ {odds})", icon="✅")
     return True
 
