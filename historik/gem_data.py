@@ -62,14 +62,14 @@ def gem_kupon_i_historik(*args, **kwargs):
     kampe = kwargs.get("kampe") or kwargs.get("kampe_liste") or []
     odds = kwargs.get("odds") or kwargs.get("total_odds") or kwargs.get("samlet_odds")
     for a in args:
-        if isinstance(a, str) and not kampe:
-            kilde = a
-        elif isinstance(a, (list, tuple)) and not kampe:
+        if isinstance(a, (list, tuple)):
             kampe = list(a)
         elif isinstance(a, (int, float)) and odds is None:
             odds = float(a)
-    if isinstance(kampe, str):
-        kampe = [x.strip() for x in kampe.replace("•", "|").split("|") if x.strip()]
+        elif isinstance(a, str) and "|" in a:
+            kampe = [x.strip() for x in a.split("|") if x.strip()]
+        elif isinstance(a, str):
+            kilde = a
     odds = round(float(odds or 1.0), 2)
     indsats = float(kwargs.get("indsats", 100.0))
     dato = _dansk_tid_str()
@@ -89,7 +89,7 @@ def gem_kupon_i_historik(*args, **kwargs):
                 (post["dato"], post["kilde"], post["kampe"], post["detaljer"], post["odds"], post["indsats"], post["mulig_gevinst"], post["status"]))
     con.commit()
     con.close()
-    return True, "✅ Gemt lokalt (tilføj Supabase Secrets for Reboot-sikring)!"
+    return True, "✅ Gemt lokalt!"
 
 gem_kupon = gem_kupon_i_historik
 gem_spil = gem_kupon_i_historik
