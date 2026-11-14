@@ -1,26 +1,20 @@
-import json, sqlite3
+import json
 from collections import defaultdict
 import pandas as pd
 import streamlit as st
-from historik.gem_data import DB_STI, TABEL, hent_alle_kuponer, _sb_req
+from historik.gem_data import hent_alle_kuponer, _gh_laes, _gh_skriv
 
 def _handling(kid, valg):
     st.cache_data.clear()
+    raekker, sha = _gh_laes()
     ny = {"✅ Vundet": "VUNDET", "❌ Tabt": "TABT", "⏳ Afventer": "[AFVENTER]"}.get(valg)
-    try:
-        if valg == "🗑️ Slet" and _sb_req(f"{TABEL}?id=eq.{kid}", "DELETE"):
-            return
-        if ny and _sb_req(f"{TABEL}?id=eq.{kid}", "PATCH", {"status": ny}):
-            return
-    except Exception:
-        pass
-    con = sqlite3.connect(DB_STI)
     if valg == "🗑️ Slet":
-        con.execute(f"DELETE FROM {TABEL} WHERE id=?", (kid,))
+        raekker = [r for r in raekker if r.get("id") != kid]
     elif ny:
-        con.execute(f"UPDATE {TABEL} SET status=? WHERE id=?", (ny, kid))
-    con.commit()
-    con.close()
+        for r in raekker:
+            if r.get("id") == kid:
+                r["status"] = ny
+    _gh_skriv(raekker, sha)
 
 def _tegn_kuponer(liste_r):
     if not liste_r:
