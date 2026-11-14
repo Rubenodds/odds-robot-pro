@@ -4,13 +4,15 @@ from odds_motor import billed_hjaelp as bh
 
 def _gem_til_supabase(kampe, odds, indsats):
     try:
-        from historik import supabase_klient as sb
-        if hasattr(sb, "gem_spil"):
-            sb.gem_spil(kampe, odds, indsats, kilde="Billed Scanner")
-            return True
-    except Exception:
-        pass
-    return False
+        from historik import gem_data as gd
+        forslag = [f"{k['kamp']}: {k['spil']} (@ {k['odds']:.2f})" for k in kampe]
+        return gd.gem_kupon_i_historik(
+            ["Billed Scanner"], forslag, odds, odds, odds,
+            "Kupon Scanner", 4, indsats=indsats, kilde="Mine Egne"
+        )
+    except Exception as e:
+        st.error(f"Kunne ikke gemme i Supabase: {e}")
+        return False
 
 def vis_billed_scanner():
     st.markdown("### 🧾 Kupon & Billed Scanner")
@@ -52,8 +54,7 @@ def vis_billed_scanner():
                 if valgte_alt:
                     v_spil = " + ".join(x["label"].split(": ")[-1] for x in valgte_alt)
                     rabat = 0.90 if len(valgte_alt) > 1 else 1.0
-                    komb_o = 1.0
-                    komb_p = 1.0
+                    komb_o, komb_p = 1.0, 1.0
                     for x in valgte_alt:
                         komb_o *= x["odds"]
                         komb_p *= (x["pct"] / 100.0)
@@ -80,8 +81,9 @@ def vis_billed_scanner():
 
     c1, c2 = st.columns(2)
     if c1.button("🚀 SPILLET — Gem kupon", type="primary", use_container_width=True):
-        _gem_til_supabase(aktive_valg, ny_a["odds"], indsats)
-        st.success(f"Gemt i Supabase ({indsats:.2f} kr. @ {ny_a['odds']:.2f})!")
+        if _gem_til_supabase(aktive_valg, ny_a["odds"], indsats):
+            st.success(f"Gemt i Supabase ({indsats:.2f} kr. @ {ny_a['odds']:.2f})!")
+            st.rerun()
     if c2.button("🗑️ Ryd kupon", use_container_width=True):
         st.session_state.pop("kupon_kampe", None)
         st.session_state.pop("sidste_fil_navn", None)
