@@ -15,20 +15,21 @@ def begrundelse(k):
     return f"📊 {hj} vs {ud} ({spil} @ {odds}) | 🏁 Dommer: {dommer} | 🌤️ {v_txt} | 🏥 {skader}"
 
 def byg_forslag(maal_liste, maks_odds=25.0, kun_res=False):
-    if not maal_liste:
-        return []
     if hasattr(byg_kupon, "byg_forslag"):
-        return byg_kupon.byg_forslag(maal_liste, maks_odds, kun_res=kun_res)
-    forslag = []
-    for k in maal_liste:
+        res = byg_kupon.byg_forslag(maal_liste, maks_odds, kun_res=kun_res)
+        if isinstance(res, dict):
+            return res
+    forslag, samlet = [], 1.0
+    for k in (maal_liste or []):
         valg = k.get("valg") or k.get("spil") or ("1X2" if kun_res else "Over 1.5 mål")
         odds = float(k.get("odds") or 1.85)
-        if odds <= float(maks_odds):
+        if samlet * odds <= float(maks_odds):
             ny = dict(k)
             ny["spil"] = valg
             ny["odds"] = odds
             forslag.append(ny)
-    return forslag
+            samlet *= odds
+    return {"kampe": forslag, "total_odds": round(samlet, 2), "odds": round(samlet, 2)}
 
 def beregn_kort(k):
     odds = float(k.get("odds", 1.85))
@@ -38,11 +39,3 @@ def beregn_kort(k):
     stj = max(1, min(5, int(round((pct * odds) / 21.0))))
     flm = max(1, min(5, int(round((100.0 - pct) / 17.0))))
     return pct, stj, flm
-
-def vis_kamp_kort(k, idx=0):
-    pct, stj, flm = beregn_kort(k)
-    medalje = ["🥇 ", "🥈 ", "🥉 "][idx] if idx < 3 else ""
-    with st.container(border=True):
-        st.markdown(f"**{medalje}{k.get('hj','')} - {k.get('ud','')}** | **{k.get('spil','')}** @ **{k.get('odds','')}**")
-        st.caption(f"📊 Chance: **{pct}%** | {'⭐' * stj} | {'🔥' * flm}")
-        st.caption(begrundelse(k))
