@@ -1,5 +1,21 @@
 # 🤖 Odds Robot Pro – Systemstatus & Roadmap
 
+🤖 Odds Robot Pro – Systemstatus & Roadmap
+
+📅 Log: 14-11-2026 kl. 22:54 (Dansk tid) — Mappe 4 FÆRDIG & LÅST (Permanent GitHub-lagring, lyn-RAM-cache & mobil-regnskab) + Mappe 2 gendannet
+
+- **Arkitektur & Hovedfil (`app.py`):** 100 % LÅST og urørt. Live på `a4fvsw9j8o.streamlit.app`. Alle kodeblokke overholder strengt reglen om maks. 3.000 tegn.
+- **Mappe 1 (`odds_motor/autopilot_scanner.py`) — 100 % FÆRDIG & LÅST:** Henter kampe 5 dage frem, bruger 2-trins lyn-indlæsning, 3T/6T/9T/12T + frit timefelt, stjerner (⭐ 1–5), flammer (🔥 1–5) og gemmer ved `🚀 SPILLET`.
+- **Mappe 2 (`odds_motor/manuel_scanner.py` + `odds_motor/manuel_hjaelp.py`) — 100 % FÆRDIG & LÅST:** `manuel_hjaelp.py` er gendannet og verificeret med `begrundelse(k)` og fuld nøgle-sikring (`b365`, `unibet`, `ds`, `kombinationer`, `vinderchance_pct`).
+- **Mappe 3 (`odds_motor/billed_ocr.py`, `billed_hjaelp.py`, `billed_parser.py`) — 100 % FÆRDIG & LÅST:** Universel kupon-scanner med kampblok-OCR, multivalg, Open-Meteo vejr og live Før/Nu-kuponanalyse.
+- **Mappe 4 (`historik/gem_data.py` & `historik/regnskab_visning.py`) — 100 % FÆRDIG & LÅST (< 3.000 tegn pr. fil):**
+  - Koblet på permanent **GitHub API-lagring** (`historik/gemte_kuponer.json` via GitHub-token i Streamlit Secrets), så alle kuponer gemmes én for én uden overskrivning og overlever **Reboot**.
+  - Indbygget **0-sekunders RAM-cache (`kupon_ram_cache`)** i `st.session_state`, så appen reagerer øjeblikkeligt ved faneskift og klik.
+  - Kompakt mobil-regnskab i Fane 4 med samlet statusbjælke (`TOTAL SUM`, `Hitrate`, `ROI`), 3 statusfaner (`⏳ Afventer`, `✅ Afgjorte`, `🗂️ Alle`), klikbare **dato-mapper (`📁 DD-MM-YYYY`)** og 1-kliks status-dropdown + `Gem`-knap.
+- **Næste i køen:**
+  1. **Mappe 5 (`udvidelser/historik_statistik.py`):** Selvlærende historisk kamp-, dommer- og kortdatabase (sæson 25/26 + fremadrettet) inkl. holdnavne-oversætter (`Sheff Wed` → `Sheffield Wednesday`) koblet isoleret på alle 3 scannere.
+  2. **Mappe 6 (`udvidelser/special_markeder.py`):** Isoleret specialmarkeds-scanner (spillerskud på mål, målscorere, målmandsredninger, frispark, tacklinger, kort og målspark).
+
 📅 Log: 14-11-2026 kl. 22:39 (Dansk tid) — Mappe 4 FÆRDIG & LÅST (Permanent GitHub-lagring + Måneds- & Statusfaner) + Manuel Hjælp gendannet
 
 - **Mappe 4 (`historik/gem_data.py` & `historik/regnskab_visning.py`) — 100 % FÆRDIG & LÅST (< 3.000 tegn pr. fil):**
