@@ -9,7 +9,7 @@ def _hent_kontekst(k):
         try:
             obj = [{"kamp": k.get("kamp", ""), "hjemme": k.get("hjemme", ""), "ude": k.get("ude", "")}]
             res = ki.berig_valgte_kampe(obj)
-            if res and isinstance(res, list):
+            if res and isinstance(res, list) and len(res) > 0:
                 return res[0]
         except Exception:
             pass
@@ -51,7 +51,7 @@ def analyser_kupon_kamp(k):
 
     alternativer = [] if er_staerk else _byg_intelligente_alternativer(k, odds, reel_pct)
     anbefaling = (
-        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer['pct']}%."
+        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer[0]['pct']}%."
         if alternativer else "✅ Stærkt anker med god balance."
     )
     begrundelse = f"{kamp_billede}<br>{ulempe} {anbefaling}"
