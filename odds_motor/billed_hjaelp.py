@@ -30,10 +30,10 @@ def analyser_kupon_kamp(k):
     stjerner = 5 if edge >= 0.08 else (4 if edge >= 0.02 else (3 if edge >= -0.03 else (2 if edge >= -0.08 else 1)))
     risiko = 1 if odds <= 1.45 else (2 if odds <= 1.85 else (3 if odds <= 2.30 else (4 if odds <= 3.00 else 5)))
 
-    er_staerk = (risiko <= 3 and stjerner >= 3 and antal_ben <= 2)
+    er_staerk = (risiko <= 2 and stjerner >= 4 and antal_ben == 1)
     if er_staerk:
         begrundelse = (
-            f"Stærkt og velafbalanceret valg på {kamp} (@ {odds:.2f}). "
+            f"Stærkt og velafbalanceret anker på {kamp} (@ {odds:.2f}). "
             f"Implikation på {imp_pct}% matcher markedets sandsynlighed ({reel_pct}%)"
             + (f" — {form_tekst}" if form_tekst else ".")
         )
@@ -41,8 +41,8 @@ def analyser_kupon_kamp(k):
     else:
         aarsag = "flere kombinerede ben øger variansen" if antal_ben >= 2 else "højt odds giver stram træfsikkerhed"
         begrundelse = (
-            f"Sårbarhed på {kamp} (@ {odds:.2f}): {aarsag} "
-            f"(reel chance ca. {reel_pct}%). Overvej sikkerhed eller enklere linje."
+            f"Vurdering af {kamp} (@ {odds:.2f}): {aarsag} "
+            f"(reel chance ca. {reel_pct}%). Se mulige optimeringer nedenfor."
         )
         alternativer = _byg_intelligente_alternativer(k, odds, reel_pct)
 
@@ -57,15 +57,15 @@ def _byg_intelligente_alternativer(k, odds, reel_pct):
     hjemme = k.get("hjemme", "Hjemmehold")
     spil = k.get("spil", "").lower()
     forslag = []
-    if "+" in spil or odds >= 2.25:
-        o1 = round(max(1.32, min(1.68, odds * 0.62)), 2)
-        forslag.append({"label": f"Sikrere linje: {hjemme} eller uafgjort (1X)", "odds": o1, "pct": round(min(76.0, reel_pct + 18.0), 1)})
-    if "over" in spil or odds >= 2.00:
-        o2 = round(max(1.28, min(1.58, odds * 0.58)), 2)
-        forslag.append({"label": "Målsikring: Over 1.5 mål i kampen", "odds": o2, "pct": round(min(79.0, reel_pct + 21.0), 1)})
-    if odds >= 2.50:
-        o3 = round(max(1.65, min(2.15, odds * 0.80)), 2)
-        forslag.append({"label": f"Ren favorit: {hjemme} DNB (indsats retur ved X)", "odds": o3, "pct": round(min(65.0, reel_pct + 10.0), 1)})
+    if "+" in spil or odds >= 1.90:
+        o1 = round(max(1.28, min(1.65, odds * 0.62)), 2)
+        forslag.append({"label": f"Sikrere linje: {hjemme} eller uafgjort (1X)", "odds": o1, "pct": round(min(77.0, reel_pct + 18.0), 1)})
+    if "over" in spil or odds >= 1.85:
+        o2 = round(max(1.25, min(1.56, odds * 0.58)), 2)
+        forslag.append({"label": "Målsikring: Over 1.5 mål i kampen", "odds": o2, "pct": round(min(80.0, reel_pct + 21.0), 1)})
+    if odds >= 2.05:
+        o3 = round(max(1.50, min(2.15, odds * 0.78)), 2)
+        forslag.append({"label": f"DNB-sikring: {hjemme} (indsats retur ved X)", "odds": o3, "pct": round(min(68.0, reel_pct + 11.0), 1)})
     return forslag[:3]
 
 def samlet_kupon_analyse(analyser, indsats):
