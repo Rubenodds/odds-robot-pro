@@ -1,56 +1,60 @@
-import math, re, requests
+import datetime, math, re, requests
+
+BY_MAP = {"mallorca": "Palma", "sheff wed": "Sheffield", "sheff utd": "Sheffield", "man utd": "Manchester", "man city": "Manchester", "wolves": "Wolverhampton", "west ham": "London", "arsenal": "London", "chelsea": "London", "tottenham": "London", "real oviedo": "Oviedo", "real madrid": "Madrid", "atletico": "Madrid", "betis": "Sevilla"}
+LIGAER = ["esp.1", "esp.2", "eng.1", "eng.2", "eng.3", "ger.1", "ger.2", "ita.1", "ita.2", "fra.1", "den.1", "uefa.champions"]
 
 def _rens_holdnavn(navn):
     t = re.sub(r"^[^a-zA-ZæøåÆØÅ]+", "", str(navn)).strip()
     t = re.sub(r"^(ap|fc|cf)\s+", "", t, flags=re.I).strip()
     return t or "Hold"
 
-def _hent_live_vejr(by_navn):
+def _hent_live_vejr(klub):
+    by = BY_MAP.get(klub.lower(), klub)
     try:
-        g = requests.get(f"https://open-meteo.com{by_navn}&count=1&language=da", timeout=4).json()
+        g = requests.get(f"https://open-meteo.com{by}&count=1&language=da", timeout=3).json()
         res = g.get("results") or []
         if res:
-            lat, lon = res[0]["latitude"], res[0]["longitude"]
-            w = requests.get(f"https://open-meteo.com{lat}&longitude={lon}&current=temperature_2m,wind_speed_10m&wind_speed_unit=ms", timeout=4).json()
+            lat, lon = res["latitude"], res["longitude"]
+            w = requests.get(f"https://open-meteo.com{lat}&longitude={lon}&current=temperature_2m,wind_speed_10m&wind_speed_unit=ms", timeout=3).json()
             cur = w.get("current") or {}
-            temp, vind = cur.get("temperature_2m"), cur.get("wind_speed_10m")
-            if temp is not None and vind is not None:
-                return f"Stadionvejr ({by_navn}): {temp}°C, vind {vind} m/s"
+            if cur.get("temperature_2m") is not None:
+                return f"Stadionvejr ({by}): {cur['temperature_2m']}°C, vind {cur['wind_speed_10m']} m/s"
     except Exception:
         pass
     return ""
 
-def _hent_espn_kort_og_dommer(hjemme, ude):
-    ligaer = ["esp.1", "esp.2", "eng.1", "eng.2", "eng.3", "ger.1", "ita.1", "fra.1", "den.1", "uefa.champions"]
-    h_kort, u_kort, dommer = None, None, ""
-    for lg in ligaer:
+def _hent_historik_kort_og_dommer(hjemme, ude):
+    nu = datetime.date.today()
+    dato_sp = f"{(nu - datetime.timedelta(days=14)).strftime('%Y%m%d')}-{(nu + datetime.timedelta(days=3)).strftime('%Y%m%d')}"
+    h_kort, u_kort, dommer = [], [], ""
+    for lg in LIGAER:
         try:
-            url = f"https://espn.com{lg}/scoreboard"
-            data = requests.get(url, timeout=3).json()
-            for ev in data.get("events") or []:
+            url = f"https://espn.com{lg}/scoreboard?dates={dato_sp}"
+            for ev in (requests.get(url, timeout=3).json().get("events") or []):
                 comps = ev.get("competitions") or []
                 if not comps:
                     continue
-                comp = comps[0]
+                comp = comps
                 teams = comp.get("competitors") or []
                 navne = [t.get("team", {}).get("displayName", "").lower() for t in teams]
-                if any(hjemme.lower()[:5] in n for n in navne) or any(ude.lower()[:5] in n for n in navne):
+                if any(hjemme.lower()[:5] in n for n in navne) and any(ude.lower()[:5] in n for n in navne):
                     offs = comp.get("officials") or []
                     if offs:
-                        dommer = offs[0].get("displayName", "")
-                    for t in teams:
-                        t_navn = t.get("team", {}).get("displayName", "")
-                        stats = {s.get("name"): s.get("displayValue") for s in (t.get("statistics") or [])}
-                        yc = stats.get("yellowCards")
-                        if yc and hjemme.lower()[:5] in t_navn.lower():
-                            h_kort = yc
-                        elif yc and ude.lower()[:5] in t_navn.lower():
-                            u_kort = yc
-                    if dommer or h_kort or u_kort:
-                        return h_kort, u_kort, dommer
+                        dommer = offs.get("displayName", "")
+                for t in teams:
+                    tn = t.get("team", {}).get("displayName", "").lower()
+                    stats = {s.get("name"): s.get("displayValue") for s in (t.get("statistics") or [])}
+                    if stats.get("yellowCards") is not None:
+                        val = float(stats["yellowCards"]) + float(stats.get("redCards") or 0)
+                        if hjemme.lower()[:5] in tn:
+                            h_kort.append(val)
+                        elif ude.lower()[:5] in tn:
+                            u_kort.append(val)
         except Exception:
             continue
-    return h_kort, u_kort, dommer
+    h_snit = round(sum(h_kort) / len(h_kort), 1) if h_kort else None
+    u_snit = round(sum(u_kort) / len(u_kort), 1) if u_kort else None
+    return h_snit, u_snit, dommer
 
 def analyser_kupon_kamp(k):
     odds = float(k.get("odds", 1.80))
@@ -60,14 +64,15 @@ def analyser_kupon_kamp(k):
     kamp = f"{hjemme} - {ude}"
 
     vejr = _hent_live_vejr(hjemme)
-    vejr_txt = f"🌤️ {vejr}" if vejr else f"🌤️ Stadionvejr ({hjemme}): Ingen live-måling fundet for bynavn"
+    vejr_txt = f"🌤️ {vejr}" if vejr else f"🌤️ Stadionvejr ({hjemme}): Ikke tilgængeligt for lokation"
 
-    h_kort, u_kort, dommer = _hent_espn_kort_og_dommer(hjemme, ude)
-    d_del = f"Dommer: <b>{dommer}</b> | " if dommer else "Dommer: Afventer offentliggørelse | "
-    if h_kort or u_kort:
-        kort_txt = f"🟨 {d_del}Kort i seneste kampdata: {hjemme} ({h_kort or '?'}) & {ude} ({u_kort or '?'})"
+    h_snit, u_snit, dommer = _hent_historik_kort_og_dommer(hjemme, ude)
+    d_del = f"Dommer: <b>{dommer}</b> | " if dommer else "Dommer: Ikke offentliggjort | "
+    if h_snit is not None or u_snit is not None:
+        tot = f" (samlet ~{round((h_snit or 0) + (u_snit or 0), 1)}/kamp)" if (h_snit is not None and u_snit is not None) else ""
+        kort_txt = f"🟨 {d_del}Historisk kortsnit: {hjemme} {h_snit if h_snit is not None else '?'}/kamp & {ude} {u_snit if u_snit is not None else '?'}/kamp{tot}"
     else:
-        kort_txt = f"🟨 {d_del}Ingen offentliggjort kortstatistik i live-feed for {hjemme} vs. {ude} endnu"
+        kort_txt = f"🟨 {d_del}Ingen nylig kort-historik fundet i ESPN for {hjemme} / {ude}"
 
     imp_pct = round(100.0 / odds, 1)
     antal_ben = spil.count("+") + 1
@@ -90,7 +95,7 @@ def analyser_kupon_kamp(k):
     )
     alternativer = [] if er_staerk else _byg_intelligente_alternativer(hjemme, spil, odds, reel_pct)
     anbefaling = (
-        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer[0]['pct']}%."
+        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer['pct']}%."
         if alternativer else "✅ Stærkt anker."
     )
     return {
