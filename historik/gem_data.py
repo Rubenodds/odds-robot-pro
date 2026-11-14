@@ -1,4 +1,4 @@
-import os, json, sqlite3, urllib.request, urllib.error
+import os, json, sqlite3, urllib.request
 from datetime import datetime, timedelta
 import streamlit as st
 
@@ -47,7 +47,7 @@ def hent_alle_kuponer():
     con.close()
     return rows
 
-def gem_kupon(kampe_liste, total_odds, indsats=100.0):
+def gem_kupon_i_historik(kampe_liste, total_odds=1.0, indsats=100.0, **kwargs):
     st.cache_data.clear()
     post = {
         "dato": _dansk_tid_str(),
@@ -78,5 +78,6 @@ def gem_kupon(kampe_liste, total_odds, indsats=100.0):
     con.close()
     return True, "✅ Kupon gemt i lokal SQLite-hukommelse!"
 
-gem_spil = gem_kupon
+gem_kupon = gem_kupon_i_historik
+gem_spil = gem_kupon_i_historik
 hent_spil = hent_alle_kuponer
