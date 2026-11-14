@@ -1,5 +1,13 @@
 # 🤖 Odds Robot Pro – Systemstatus & Roadmap
 
+### 📅 Log: 14-11-2026 kl. 15:47 (Dansk tid) — Mappe 3 GODKENDT & LÅST + tjek af Resultatspil i Mappe 2
+* **Mappe 3 (`odds_motor/billed_ocr.py`, `billed_hjaelp.py`, `billed_parser.py`) — 100 % FÆRDIG & LÅST**:
+  * Verificeret med kampblok-OCR, mørk kuponstamme, kampbillede-analyse, Open-Meteo stadionvejr, multivalg (flueben) pr. kamp og live Før/Nu-kuponanalyse.
+* **I gang**: Kontrol og eventuel synliggørelse/udbygning af **Resultatspil** i Mappe 2 (`odds_motor/manuel_scanner.py` + `manuel_hjaelp.py`) inden opbygning af **Mappe 4 (`historik/`)**.
+* **Næste i køen**:
+  1. Verificer **Resultatspil** i Mappe 2.
+  2. **Ønskeliste – Isoleret Specialmarkeds-mappe (`udvidelser/special_markeder.py`)**: Spillerskud på mål, målscorere, målmandsredninger, frispark, tacklinger, kort og målspark til alle 3 mapper.
+  3. **Mappe 4 (`historik/regnskab_visning.py` & historisk statistikdatabase)**: Årsregnskab, permanent TOTAL SUM, hitrate, tilbagebetalingsprocent + sæsonhistorik koblet på alle scannere.
 📅 Log: 13-11-2026 kl. 23:05 (Dansk tid) — Færdiggjort selvstændig Mappe 3 (`billed_hjaelp.py`) & sat Specialmarkeds-mappe på ønskelisten
 
 📅 Log: 13-11-2026 kl. 23:34 (Dansk tid) — Opdateret alle 3 Mappe 3-filer med realistiske odds (1.22–1.68) & naturligt erstatningsspørgsmål
