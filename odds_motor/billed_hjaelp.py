@@ -12,10 +12,8 @@ def _hent_live_vejr(klub):
     by = BY_MAP.get(klub.lower(), klub)
     try:
         g = requests.get(f"https://open-meteo.com{by}&count=1&language=da", timeout=3).json()
-        res = g.get("results") or []
-        if res:
-            lat, lon = res["latitude"], res["longitude"]
-            w = requests.get(f"https://open-meteo.com{lat}&longitude={lon}&current=temperature_2m,wind_speed_10m&wind_speed_unit=ms", timeout=3).json()
+        for r in (g.get("results") or []):
+            w = requests.get(f"https://open-meteo.com{r['latitude']}&longitude={r['longitude']}&current=temperature_2m,wind_speed_10m&wind_speed_unit=ms", timeout=3).json()
             cur = w.get("current") or {}
             if cur.get("temperature_2m") is not None:
                 return f"Stadionvejr ({by}): {cur['temperature_2m']}°C, vind {cur['wind_speed_10m']} m/s"
@@ -31,25 +29,22 @@ def _hent_historik_kort_og_dommer(hjemme, ude):
         try:
             url = f"https://espn.com{lg}/scoreboard?dates={dato_sp}"
             for ev in (requests.get(url, timeout=3).json().get("events") or []):
-                comps = ev.get("competitions") or []
-                if not comps:
-                    continue
-                comp = comps
-                teams = comp.get("competitors") or []
-                navne = [t.get("team", {}).get("displayName", "").lower() for t in teams]
-                if any(hjemme.lower()[:5] in n for n in navne) and any(ude.lower()[:5] in n for n in navne):
-                    offs = comp.get("officials") or []
-                    if offs:
-                        dommer = offs.get("displayName", "")
-                for t in teams:
-                    tn = t.get("team", {}).get("displayName", "").lower()
-                    stats = {s.get("name"): s.get("displayValue") for s in (t.get("statistics") or [])}
-                    if stats.get("yellowCards") is not None:
-                        val = float(stats["yellowCards"]) + float(stats.get("redCards") or 0)
-                        if hjemme.lower()[:5] in tn:
-                            h_kort.append(val)
-                        elif ude.lower()[:5] in tn:
-                            u_kort.append(val)
+                for comp in (ev.get("competitions") or []):
+                    teams = comp.get("competitors") or []
+                    navne = [t.get("team", {}).get("displayName", "").lower() for t in teams]
+                    if any(hjemme.lower()[:5] in n for n in navne) and any(ude.lower()[:5] in n for n in navne):
+                        for off in (comp.get("officials") or []):
+                            dommer = off.get("displayName", "")
+                            break
+                    for t in teams:
+                        tn = t.get("team", {}).get("displayName", "").lower()
+                        stats = {s.get("name"): s.get("displayValue") for s in (t.get("statistics") or [])}
+                        if stats.get("yellowCards") is not None:
+                            val = float(stats["yellowCards"]) + float(stats.get("redCards") or 0)
+                            if hjemme.lower()[:5] in tn:
+                                h_kort.append(val)
+                            elif ude.lower()[:5] in tn:
+                                u_kort.append(val)
         except Exception:
             continue
     h_snit = round(sum(h_kort) / len(h_kort), 1) if h_kort else None
@@ -94,8 +89,9 @@ def analyser_kupon_kamp(k):
         f"⚖️ Ulempe: Stram margin ({imp_pct}%), hvor uafgjort (0-0 / 1-1) er største faldgrube."
     )
     alternativer = [] if er_staerk else _byg_intelligente_alternativer(hjemme, spil, odds, reel_pct)
+    bedste_pct = max((x["pct"] for x in alternativer), default=reel_pct)
     anbefaling = (
-        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer['pct']}%."
+        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% op til {bedste_pct}%."
         if alternativer else "✅ Stærkt anker."
     )
     return {
