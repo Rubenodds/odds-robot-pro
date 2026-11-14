@@ -8,6 +8,10 @@ TABEL = "kuponer"
 def _dansk_tid_str():
     return (datetime.utcnow() + timedelta(hours=1)).strftime("%d-%m-%Y %H:%M")
 
+def _groen_knap_css():
+    if st.session_state.get("spil_registreret"):
+        st.markdown("<style>button[data-testid='stBaseButton-primary'],button[kind='primary']{background:#16a34a!important;border-color:#15803d!important;color:#fff!important}</style>", unsafe_allow_html=True)
+
 def _supabase_cfg():
     try:
         url = st.secrets.get("SUPABASE_URL", "").strip().rstrip("/")
@@ -42,7 +46,7 @@ def _init_sqlite():
     con.close()
 
 @st.cache_data(ttl=15, show_spinner=False)
-def hent_alle_kuponer():
+def _hent_raekker():
     try:
         res = _sb_req(f"{TABEL}?select=*&order=id.desc")
         if isinstance(res, list):
@@ -56,6 +60,10 @@ def hent_alle_kuponer():
     con.close()
     return rows
 
+def hent_alle_kuponer():
+    _groen_knap_css()
+    return _hent_raekker()
+
 def gem_kupon_i_historik(*args, **kwargs):
     st.cache_data.clear()
     kilde, kampe, tal = "Scanner", [], []
@@ -67,7 +75,7 @@ def gem_kupon_i_historik(*args, **kwargs):
         elif isinstance(a, str):
             kilde = a
     kampe = kwargs.get("kampe") or kampe
-    odds = round(float(kwargs.get("odds") or kwargs.get("total_odds") or (tal[0] if tal else 1.0)), 2)
+    odds = round(float(kwargs.get("odds") or kwargs.get("total_odds") or next(iter(tal), 1.0)), 2)
     indsats = float(kwargs.get("indsats") or (tal[-1] if len(tal) >= 4 else 100.0))
     dato = _dansk_tid_str()
     post = {
@@ -86,8 +94,9 @@ def gem_kupon_i_historik(*args, **kwargs):
                     (post["dato"], post["kilde"], post["kampe"], post["detaljer"], post["odds"], post["indsats"], post["mulig_gevinst"], post["status"]))
         con.commit()
         con.close()
-    st.markdown("<style>div.stButton:last-of-type button[kind='primary']{background-color:#16a34a!important;border-color:#15803d!important;color:#fff!important}</style>", unsafe_allow_html=True)
-    st.toast(f"✅ Kupon registreret i Mappe 1/2! ({len(kampe)} kampe @ {odds})", icon="✅")
+    st.session_state["spil_registreret"] = True
+    _groen_knap_css()
+    st.toast(f"✅ SPILLET REGISTRERET! ({len(kampe)} kampe @ {odds})", icon="✅")
     return True
 
 gem_kupon = gem_kupon_i_historik
