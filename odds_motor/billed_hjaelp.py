@@ -1,47 +1,57 @@
-import math, re
+import math, re, requests
 try:
     from odds_motor import kamp_intelligens as ki
 except Exception:
     ki = None
-try:
-    from odds_motor import dommer_intelligens as di
-except Exception:
-    di = None
 
 def _rens_holdnavn(navn):
     t = re.sub(r"^[^a-zA-ZæøåÆØÅ]+", "", str(navn)).strip()
     t = re.sub(r"^(ap|fc|cf)\s+", "", t, flags=re.I).strip()
     return t or "Hold"
 
-def _match_live_kamp(k):
-    h, u = k.get("hjemme", "").lower(), k.get("ude", "").lower()
-    obj = {"kamp": k.get("kamp", ""), "hjemme": k.get("hjemme", ""), "ude": k.get("ude", "")}
-    if ki:
+def _hent_live_vejr(by_navn):
+    try:
+        g = requests.get(f"https://open-meteo.com{by_navn}&count=1&language=da", timeout=4).json()
+        res = g.get("results") or []
+        if res:
+            lat, lon = res["latitude"], res["longitude"]
+            w = requests.get(f"https://open-meteo.com{lat}&longitude={lon}&current=temperature_2m,wind_speed_10m&wind_speed_unit=ms", timeout=4).json()
+            cur = w.get("current") or {}
+            temp, vind = cur.get("temperature_2m"), cur.get("wind_speed_10m")
+            if temp is not None and vind is not None:
+                return f"Stadionvejr ({by_navn}): {temp}°C, vind {vind} m/s"
+    except Exception:
+        pass
+    return ""
+
+def _hent_espn_kort_og_dommer(hjemme, ude):
+    ligaer = ["esp.1", "esp.2", "eng.1", "eng.2", "eng.3", "ger.1", "ita.1", "fra.1", "den.1", "uefa.champions"]
+    h_kort, u_kort, dommer = None, None, ""
+    for lg in ligaer:
         try:
-            for timer in (48, 120):
-                if hasattr(ki, "_hent_kampe_v9"):
-                    alle = ki._hent_kampe_v9(timer) or []
-                    for m in alle:
-                        mk = str(m.get("kamp", "")).lower()
-                        if (len(h) >= 4 and h[:5] in mk) or (len(u) >= 4 and u[:5] in mk):
-                            obj.update(m)
-                            break
-                if obj.get("event_id") or obj.get("id"):
-                    break
-            if hasattr(ki, "berig_valgte_kampe"):
-                res = ki.berig_valgte_kampe([obj])
-                if res and isinstance(res, list) and len(res) > 0:
-                    obj.update(res[0])
+            url = f"https://espn.com{lg}/scoreboard"
+            data = requests.get(url, timeout=3).json()
+            for ev in data.get("events") or []:
+                comp = (ev.get("competitions") or [{}])
+                teams = comp.get("competitors") or []
+                navne = [t.get("team", {}).get("displayName", "").lower() for t in teams]
+                if any(hjemme.lower()[:5] in n for n in navne) or any(ude.lower()[:5] in n for n in navne):
+                    offs = comp.get("officials") or []
+                    if offs:
+                        dommer = offs.get("displayName", "")
+                    for t in teams:
+                        t_navn = t.get("team", {}).get("displayName", "")
+                        stats = {s.get("name"): s.get("displayValue") for s in (t.get("statistics") or [])}
+                        yc = stats.get("yellowCards")
+                        if yc and hjemme.lower()[:5] in t_navn.lower():
+                            h_kort = yc
+                        elif yc and ude.lower()[:5] in t_navn.lower():
+                            u_kort = yc
+                    if dommer or h_kort or u_kort:
+                        return h_kort, u_kort, dommer
         except Exception:
-            pass
-    if di:
-        for fn in ("hent_dommer_info", "hent_kort_profil"):
-            if hasattr(di, fn):
-                try:
-                    obj.update(getattr(di, fn)(obj) or {})
-                except Exception:
-                    pass
-    return obj
+            continue
+    return h_kort, u_kort, dommer
 
 def analyser_kupon_kamp(k):
     odds = float(k.get("odds", 1.80))
@@ -49,26 +59,16 @@ def analyser_kupon_kamp(k):
     hjemme = _rens_holdnavn(k.get("hjemme", "Hjemmehold"))
     ude = _rens_holdnavn(k.get("ude", "Udehold"))
     kamp = f"{hjemme} - {ude}"
-    ctx = _match_live_kamp({"kamp": kamp, "hjemme": hjemme, "ude": ude})
 
-    vejr = ctx.get("vejr") or ctx.get("vejr_tekst") or ctx.get("vejr_info")
-    vejr_txt = f"🌤️ {vejr}" if vejr else f"🌤️ Stadionvejr ({hjemme}): Afventer live kickoff-data"
+    vejr = _hent_live_vejr(hjemme)
+    vejr_txt = f"🌤️ {vejr}" if vejr else f"🌤️ Stadionvejr ({hjemme}): Ingen live-måling fundet for bynavn"
 
-    d_navn = ctx.get("dommer_navn") or ctx.get("dommer") or ""
-    gule = ctx.get("gule_snit") or ctx.get("kort_snit")
-    roede = ctx.get("roede_snit")
-    h2h_kort = ctx.get("h2h_kort") or ctx.get("hold_kort_snit") or ctx.get("kort_tekst")
-
-    d_del = ""
-    if d_navn:
-        r_del = f" / {roede} røde" if roede is not None else ""
-        k_del = f" (snitter {gule} gule{r_del}/kamp)" if gule else ""
-        d_del = f"Dommer: <b>{d_navn}</b>{k_del}"
-    h2h_del = (
-        f"Indbyrdes & holdkort: {h2h_kort}" if h2h_kort
-        else f"Indbyrdes & holdkort ({hjemme} vs. {ude}): Hentes fra H2H/liga-kortdata"
-    )
-    kort_txt = f"🟨 {d_del} | {h2h_del}" if d_del else f"🟨 {h2h_del}"
+    h_kort, u_kort, dommer = _hent_espn_kort_og_dommer(hjemme, ude)
+    d_del = f"Dommer: <b>{dommer}</b> | " if dommer else "Dommer: Afventer offentliggørelse | "
+    if h_kort or u_kort:
+        kort_txt = f"🟨 {d_del}Kort i seneste kampdata: {hjemme} ({h_kort or '?'}) & {ude} ({u_kort or '?'})"
+    else:
+        kort_txt = f"🟨 {d_del}Ingen offentliggjort kortstatistik i live-feed for {hjemme} vs. {ude} endnu"
 
     imp_pct = round(100.0 / odds, 1)
     antal_ben = spil.count("+") + 1
@@ -80,29 +80,25 @@ def analyser_kupon_kamp(k):
     risiko = 1 if odds <= 1.45 else (2 if odds <= 1.85 else (3 if odds <= 2.30 else (4 if odds <= 3.00 else 5)))
     er_staerk = (risiko <= 2 and stjerner >= 4 and antal_ben == 1)
 
-    if odds <= 1.75:
-        kamp_billede = f"📊 Kampbillede: {hjemme} er klar favorit mod {ude} og forventes at styre spillet."
-    elif odds <= 2.25:
-        kamp_billede = f"📊 Kampbillede: Tæt duel mellem {hjemme} og {ude}, hvor hjemmebane og dødbolde vejer tungt."
-    else:
-        kamp_billede = f"📊 Kampbillede: Åbent opgør ({hjemme} vs. {ude}) med høj varians og plads til omstillinger."
-
+    kamp_billede = (
+        f"📊 Kampbillede: {hjemme} er klar favorit mod {ude}." if odds <= 1.75 else
+        f"📊 Kampbillede: Tæt duel mellem {hjemme} og {ude}, hvor hjemmebane og dødbolde vejer tungt." if odds <= 2.25 else
+        f"📊 Kampbillede: Åbent opgør ({hjemme} vs. {ude}) med høj varians."
+    )
     ulempe = (
-        f"⚖️ Ulempe: {antal_ben} ben kræver fuldt træf — ét målløst pres vælter spillet."
-        if antal_ben >= 2 else
+        f"⚖️ Ulempe: {antal_ben} ben kræver fuldt træf — ét målløst pres vælter spillet." if antal_ben >= 2 else
         f"⚖️ Ulempe: Stram margin ({imp_pct}%), hvor uafgjort (0-0 / 1-1) er største faldgrube."
     )
     alternativer = [] if er_staerk else _byg_intelligente_alternativer(hjemme, spil, odds, reel_pct)
     anbefaling = (
-        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer[0]['pct']}%."
+        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer['pct']}%."
         if alternativer else "✅ Stærkt anker."
     )
-    begrundelse = f"{kamp_billede}<br>{ulempe} {anbefaling}"
-    meta = f"{vejr_txt}<br>{kort_txt}"
     return {
         "kamp": kamp, "spil": spil, "odds": odds, "pct": reel_pct,
         "stjerner": stjerner, "risiko": risiko, "er_staerk": er_staerk,
-        "begrundelse": begrundelse, "meta": meta, "alternativer": alternativer
+        "begrundelse": f"{kamp_billede}<br>{ulempe} {anbefaling}",
+        "meta": f"{vejr_txt}<br>{kort_txt}", "alternativer": alternativer
     }
 
 def _byg_intelligente_alternativer(hjemme, spil, odds, reel_pct):
