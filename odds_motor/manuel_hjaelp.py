@@ -1,12 +1,11 @@
 import streamlit as st
-from odds_motor import kamp_intelligens
+from odds_motor import byg_kupon
 
 def begrundelse(k):
     if not isinstance(k, dict):
         return "Matematisk værdispil ud fra live kampdata og oddsbalance."
     ctx = k.get("ctx") or {}
-    hj = k.get("hj", "Hjemmehold")
-    ud = k.get("ud", "Udehold")
+    hj, ud = k.get("hj", "Hjemmehold"), k.get("ud", "Udehold")
     spil = k.get("spil", k.get("valg", "Valgt spil"))
     odds = k.get("odds", 1.85)
     dommer = ctx.get("dommer") or "Afventer dommer"
@@ -14,6 +13,22 @@ def begrundelse(k):
     v_txt = f"{vejr['temp']}°C, {vejr['vind']} m/s" if isinstance(vejr, dict) and "temp" in vejr else "Normalt kampvejr"
     skader = ctx.get("skader") or "Ingen kritiske skader meldt"
     return f"📊 {hj} vs {ud} ({spil} @ {odds}) | 🏁 Dommer: {dommer} | 🌤️ {v_txt} | 🏥 {skader}"
+
+def byg_forslag(maal_liste, maks_odds=25.0, kun_res=False):
+    if not maal_liste:
+        return []
+    if hasattr(byg_kupon, "byg_forslag"):
+        return byg_kupon.byg_forslag(maal_liste, maks_odds, kun_res=kun_res)
+    forslag = []
+    for k in maal_liste:
+        valg = k.get("valg") or k.get("spil") or ("1X2" if kun_res else "Over 1.5 mål")
+        odds = float(k.get("odds") or 1.85)
+        if odds <= float(maks_odds):
+            ny = dict(k)
+            ny["spil"] = valg
+            ny["odds"] = odds
+            forslag.append(ny)
+    return forslag
 
 def beregn_kort(k):
     odds = float(k.get("odds", 1.85))
@@ -31,6 +46,3 @@ def vis_kamp_kort(k, idx=0):
         st.markdown(f"**{medalje}{k.get('hj','')} - {k.get('ud','')}** | **{k.get('spil','')}** @ **{k.get('odds','')}**")
         st.caption(f"📊 Chance: **{pct}%** | {'⭐' * stj} | {'🔥' * flm}")
         st.caption(begrundelse(k))
-
-def hent_alle_ligaer(kampe):
-    return sorted({k.get("liga", "Øvrige") for k in (kampe or []) if k.get("liga")})
