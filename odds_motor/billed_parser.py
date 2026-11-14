@@ -44,16 +44,22 @@ def vis_billed_scanner():
         )
         v_spil, v_odds, v_pct = a["spil"], a["odds"], a["pct"]
         if a["alternativer"]:
-            with st.expander(f"💡 Robotten har {len(a['alternativer'])} forslag til at styrke kamp {idx+1}"):
-                valg_liste = [f"Behold dit valg: {a['spil']} @ {a['odds']:.2f} ({a['pct']}%)"] + [
-                    f"{alt['label']} @ {alt['odds']:.2f} ({alt['pct']}%)" for alt in a["alternativer"]
-                ]
-                valg = st.radio("Vælg linje:", valg_liste, key=f"alt_{idx}")
-                if not valg.startswith("Behold"):
-                    i_alt = valg_liste.index(valg) - 1
-                    v_spil = a["alternativer"][i_alt]["label"]
-                    v_odds = a["alternativer"][i_alt]["odds"]
-                    v_pct = a["alternativer"][i_alt]["pct"]
+            with st.expander(f"💡 Robotten har {len(a['alternativer'])} forslag til kamp {idx+1} (vælg ét eller flere)"):
+                valgte_alt = []
+                for i_alt, alt in enumerate(a["alternativer"]):
+                    if st.checkbox(f"{alt['label']} @ {alt['odds']:.2f} ({alt['pct']}%)", key=f"alt_{idx}_{i_alt}"):
+                        valgte_alt.append(alt)
+                if valgte_alt:
+                    v_spil = " + ".join(x["label"].split(": ")[-1] for x in valgte_alt)
+                    rabat = 0.90 if len(valgte_alt) > 1 else 1.0
+                    komb_o = 1.0
+                    komb_p = 1.0
+                    for x in valgte_alt:
+                        komb_o *= x["odds"]
+                        komb_p *= (x["pct"] / 100.0)
+                    v_odds = round(komb_o * rabat, 2)
+                    v_pct = round(min(85.0, komb_p * 100.0 * (1.08 if len(valgte_alt) > 1 else 1.0)), 1)
+                    st.caption(f"✅ Aktivt valg på kamp {idx+1}: {v_spil} @ {v_odds:.2f} ({v_pct}%)")
         aktive_valg.append({"kamp": a["kamp"], "spil": v_spil, "odds": v_odds, "pct": v_pct})
 
     gl_a = bh.samlet_kupon_analyse(oprindelige, indsats)
