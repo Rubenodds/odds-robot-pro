@@ -17,7 +17,7 @@ def begrundelse(k):
 def byg_forslag(maal_liste, maks_odds=25.0, kun_res=False):
     if hasattr(byg_kupon, "byg_forslag"):
         res = byg_kupon.byg_forslag(maal_liste, maks_odds, kun_res=kun_res)
-        if isinstance(res, dict):
+        if isinstance(res, dict) and "kampe" in res:
             return res
     forslag, samlet = [], 1.0
     for k in (maal_liste or []):
@@ -26,6 +26,7 @@ def byg_forslag(maal_liste, maks_odds=25.0, kun_res=False):
         if samlet * odds <= float(maks_odds):
             ny = dict(k)
             ny["spil"] = valg
+            ny["kombinationer"] = ny.get("kombinationer") or [valg]
             ny["odds"] = odds
             forslag.append(ny)
             samlet *= odds
