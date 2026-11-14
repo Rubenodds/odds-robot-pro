@@ -1,5 +1,14 @@
 # 🤖 Odds Robot Pro – Systemstatus & Roadmap
 
+### 📅 Log: 14-11-2026 kl. 16:43 (Dansk tid) — Bygget Mappe 4 (`historik/regnskab_visning.py`) & opgraderet `historik/gem_data.py`
+* **Oprettet `historik/regnskab_visning.py` (2.890 tegn) & opgraderet `historik/gem_data.py` (2.860 tegn)**:
+  * Fane 4 (`📊 4. Statistik & Regnskab`) viser nu **Permanent TOTAL SUM**, **Årsregnskab år for år**, **Hitrate**, **Tilbagebetalingsprocent (ROI)**, **1-kliks afgørelse (`✅ Vundet` / `❌ Tabt` / `⏳ Afventer`)** samt **CSV-import** af tidligere sæsoner (Krav 6 & 12).
+  * `gem_data.py` viser nu tydelig HTTP-fejlbesked hvis Supabase afviser et skriv, og sætter `[AFVENTER]` som startstatus.
+* **Næste i køen**:
+  1. Læg `historik/gem_data.py` og `historik/regnskab_visning.py` på GitHub, test `🚀 SPILLET` + Fane 4 live på Streamlit og lås Mappe 4.
+  2. **Mappe 5 (`udvidelser/historik_statistik.py`)**: Selvlærende historisk kamp-, dommer- og kortdatabase (sæson 25/26 + fremadrettet) koblet på alle 3 scannere (Krav 7).
+  3. **Mappe 6 (`udvidelser/special_markeder.py`)**: Isoleret specialmarkeds-scanner (spillerskud på mål, målscorere, målmandsredninger, frispark, tacklinger, kort og målspark).
+
 ### 📅 Log: 14-11-2026 kl. 15:47 (Dansk tid) — Mappe 3 GODKENDT & LÅST + tjek af Resultatspil i Mappe 2
 * **Mappe 3 (`odds_motor/billed_ocr.py`, `billed_hjaelp.py`, `billed_parser.py`) — 100 % FÆRDIG & LÅST**:
   * Verificeret med kampblok-OCR, mørk kuponstamme, kampbillede-analyse, Open-Meteo stadionvejr, multivalg (flueben) pr. kamp og live Før/Nu-kuponanalyse.
