@@ -4,74 +4,68 @@ import pandas as pd
 import streamlit as st
 from historik.gem_data import DB_STI, TABEL, hent_alle_kuponer, _sb_req
 
-def _opdater_status(kid, ny_status):
+def _handling(kid, valg):
     st.cache_data.clear()
+    ny = {"✅ Vundet": "VUNDET", "❌ Tabt": "TABT", "⏳ Afventer": "[AFVENTER]"}.get(valg)
     try:
-        if _sb_req(f"{TABEL}?id=eq.{kid}", "PATCH", {"status": ny_status}):
+        if valg == "🗑️ Slet" and _sb_req(f"{TABEL}?id=eq.{kid}", "DELETE"):
+            return
+        if ny and _sb_req(f"{TABEL}?id=eq.{kid}", "PATCH", {"status": ny}):
             return
     except Exception:
         pass
     con = sqlite3.connect(DB_STI)
-    con.execute(f"UPDATE {TABEL} SET status=? WHERE id=?", (ny_status, kid))
+    if valg == "🗑️ Slet":
+        con.execute(f"DELETE FROM {TABEL} WHERE id=?", (kid,))
+    elif ny:
+        con.execute(f"UPDATE {TABEL} SET status=? WHERE id=?", (ny, kid))
     con.commit()
     con.close()
 
-def _slet_kupon(kid):
-    st.cache_data.clear()
-    try:
-        if _sb_req(f"{TABEL}?id=eq.{kid}", "DELETE"):
-            return
-    except Exception:
-        pass
-    con = sqlite3.connect(DB_STI)
-    con.execute(f"DELETE FROM {TABEL} WHERE id=?", (kid,))
-    con.commit()
-    con.close()
+def _tegn_kuponer(liste_r):
+    if not liste_r:
+        st.info("Ingen kuponer i denne kategori.")
+        return
+    maaneder = defaultdict(list)
+    for r in liste_r:
+        d = str(r.get("dato", "00-00-0000"))
+        maaneder[f"{d[3:5]}-{d[6:10]}"].append(r)
+    for mdr, kuponer in maaneder.items():
+        with st.expander(f"📅 Måned {mdr}  ({len(kuponer)} kuponer)", expanded=(len(maaneder) == 1)):
+            for r in kuponer:
+                with st.container(border=True):
+                    st.markdown(f"**🎟️ #{r['id']}** | {str(r.get('dato',''))[:10]} | Odds **{r.get('odds')}** | Gevinst **{r.get('mulig_gevinst')} kr.** | **{r.get('status')}**")
+                    raw = r.get("detaljer") or r.get("kampe")
+                    try:
+                        kampe = json.loads(raw) if isinstance(raw, str) and raw.startswith("[") else [raw]
+                    except Exception:
+                        kampe = [raw]
+                    for k in kampe:
+                        st.caption(f"• {k}")
+                    c1, c2 = st.columns([3, 1])
+                    valg = c1.selectbox("Handling", ["✅ Vundet", "❌ Tabt", "⏳ Afventer", "🗑️ Slet"], key=f"sel_{r['id']}", label_visibility="collapsed")
+                    if c2.button("OK", key=f"ok_{r['id']}"):
+                        _handling(r["id"], valg); st.rerun()
 
 def vis_regnskab():
     rækker = hent_alle_kuponer()
     if not rækker:
-        st.info("Ingen gemte kuponer endnu. Tryk på 🚀 SPILLET for at gemme din første kupon.")
+        st.info("Ingen gemte kuponer endnu.")
         return
-
     df = pd.DataFrame(rækker)
-    afgjorte = df[df["status"].isin(["VUNDET", "TABT"])]
-    vundne = df[df["status"] == "VUNDET"]
-    oms = afgjorte["indsats"].sum() if not afgjorte.empty else 0.0
-    udb = vundne["mulig_gevinst"].sum() if not vundne.empty else 0.0
-    netto = round(udb - oms, 2)
-    hit = round((len(vundne) / len(afgjorte) * 100), 1) if len(afgjorte) else 0.0
-    roi = round((udb / oms * 100), 1) if oms > 0 else 0.0
+    afg = df[df["status"].isin(["VUNDET", "TABT"])]
+    vun = df[df["status"] == "VUNDET"]
+    oms = afg["indsats"].sum() if not afg.empty else 0.0
+    udb = vun["mulig_gevinst"].sum() if not vun.empty else 0.0
+    c1, c2, c3 = st.columns(3)
+    c1.metric("💰 TOTAL SUM", f"{udb - oms:+.2f} kr.")
+    c2.metric("🎯 Hitrate", f"{(len(vun)/len(afg)*100 if len(afg) else 0):.1f}%")
+    c3.metric("📈 ROI", f"{(udb/oms*100 if oms else 0):.1f}%")
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("💰 TOTAL SUM", f"{netto:+.2f} kr.")
-    c2.metric("🎯 Hitrate", f"{hit}%")
-    c3.metric("📈 ROI", f"{roi}%")
-    c4.metric("🎟️ Kuponer", len(df))
-
-    mapper = defaultdict(list)
-    for r in rækker:
-        dag = str(r.get("dato", "Ukendt dato"))[:10]
-        mapper[dag].append(r)
-
-    for dag, kuponer in mapper.items():
-        with st.expander(f"📁 {dag}  —  {len(kuponer)} kupon(er)", expanded=False):
-            for r in kuponer:
-                with st.container(border=True):
-                    st.markdown(f"**🎟️ Kupon #{r['id']}** ({r.get('kilde','Scanner')}) | Odds: **{r.get('odds')}** | Mulig gevinst: **{r.get('mulig_gevinst')} kr.** | Status: **{r.get('status')}**")
-                    raw = r.get("detaljer") or r.get("kampe")
-                    try:
-                        liste = json.loads(raw) if isinstance(raw, str) and raw.startswith("[") else [raw]
-                    except Exception:
-                        liste = [raw]
-                    for k in liste:
-                        st.write(f"• {k}")
-                    b1, b2, b3, b4 = st.columns(4)
-                    if b1.button("✅ Vundet", key=f"v_{r['id']}"):
-                        _opdater_status(r["id"], "VUNDET"); st.rerun()
-                    if b2.button("❌ Tabt", key=f"t_{r['id']}"):
-                        _opdater_status(r["id"], "TABT"); st.rerun()
-                    if b3.button("⏳ Afventer", key=f"a_{r['id']}"):
-                        _opdater_status(r["id"], "[AFVENTER]"); st.rerun()
-                    if b4.button("🗑️ Slet", key=f"s_{r['id']}"):
-                        _slet_kupon(r["id"]); st.rerun()
+    f1, f2, f3 = st.tabs(["⏳ Afventer", "✅ Afgjorte", "🗂️ Alle"])
+    with f1:
+        _tegn_kuponer([r for r in rækker if r.get("status") == "[AFVENTER]"])
+    with f2:
+        _tegn_kuponer([r for r in rækker if r.get("status") in ("VUNDET", "TABT")])
+    with f3:
+        _tegn_kuponer(rækker)
