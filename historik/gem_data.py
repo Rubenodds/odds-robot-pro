@@ -1,60 +1,56 @@
-import os, json, sqlite3, urllib.request
+import os, json, base64, urllib.request
 from datetime import datetime, timedelta
 import streamlit as st
 
-DB_STI = os.path.join("historik", "kuponer.db")
-TABEL = "kuponer"
+FIL_STI = "historik/gemte_kuponer.json"
 
-def _dansk_tid_str():
+def _dansk_tid():
     return (datetime.utcnow() + timedelta(hours=1)).strftime("%d-%m-%Y %H:%M")
 
-def _supabase_cfg():
+def _gh_cfg():
     try:
-        url = st.secrets.get("SUPABASE_URL", "").strip().rstrip("/")
-        key = st.secrets.get("SUPABASE_KEY", "").strip()
-        if url and key:
-            return url, key
+        tok = (st.secrets.get("GITHUB_TOKEN") or st.secrets.get("GH_TOKEN") or st.secrets.get("TOKEN") or "").strip()
+        repo = (st.secrets.get("GITHUB_REPO") or "Rubenodds/odds-robot-pro").strip()
+        if tok:
+            return tok, repo
     except Exception:
         pass
     return None, None
 
-def _sb_req(sti, metode="GET", data=None):
-    url, key = _supabase_cfg()
-    if not url or not key:
-        return None
-    headers = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-    if metode == "POST":
-        headers["Prefer"] = "return=representation"
-    body = json.dumps(data).encode("utf-8") if data is not None else None
-    req = urllib.request.Request(f"{url}/rest/v1/{sti}", data=body, headers=headers, method=metode)
-    with urllib.request.urlopen(req, timeout=3) as res:
-        txt = res.read().decode("utf-8")
-        return json.loads(txt) if txt else True
+def _gh_laes():
+    tok, repo = _gh_cfg()
+    if not tok:
+        return [], None
+    req = urllib.request.Request(
+        f"https://github.com{repo}/contents/{FIL_STI}",
+        headers={"Authorization": f"token {tok}", "Accept": "application/vnd.github.v3+json", "User-Agent": "OddsRobotPro"})
+    try:
+        with urllib.request.urlopen(req, timeout=4) as res:
+            d = json.loads(res.read().decode("utf-8"))
+            raekker = json.loads(base64.b64decode(d["content"]).decode("utf-8"))
+            return raekker, d["sha"]
+    except Exception:
+        return [], None
 
-def _init_sqlite():
-    os.makedirs("historik", exist_ok=True)
-    con = sqlite3.connect(DB_STI)
-    con.execute(f"""CREATE TABLE IF NOT EXISTS {TABEL} (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, dato TEXT, kilde TEXT,
-        kampe TEXT, detaljer TEXT, odds REAL, indsats REAL,
-        mulig_gevinst REAL, status TEXT)""")
-    con.commit()
-    con.close()
+def _gh_skriv(raekker, sha=None):
+    tok, repo = _gh_cfg()
+    if not tok:
+        return False
+    body = {"message": "Opdaterer kuponer", "content": base64.b64encode(json.dumps(raekker, ensure_ascii=False, indent=2).encode("utf-8")).decode("utf-8")}
+    if sha:
+        body["sha"] = sha
+    req = urllib.request.Request(
+        f"https://github.com{repo}/contents/{FIL_STI}",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Authorization": f"token {tok}", "Accept": "application/vnd.github.v3+json", "User-Agent": "OddsRobotPro"},
+        method="PUT")
+    with urllib.request.urlopen(req, timeout=5) as res:
+        return res.status in (200, 201)
 
 @st.cache_data(ttl=15, show_spinner=False)
 def hent_alle_kuponer():
-    try:
-        res = _sb_req(f"{TABEL}?select=*&order=id.desc")
-        if isinstance(res, list):
-            return res
-    except Exception:
-        pass
-    _init_sqlite()
-    con = sqlite3.connect(DB_STI)
-    con.row_factory = sqlite3.Row
-    rows = [dict(r) for r in con.execute(f"SELECT * FROM {TABEL} ORDER BY id DESC").fetchall()]
-    con.close()
-    return rows
+    raekker, _ = _gh_laes()
+    return raekker
 
 def gem_kupon_i_historik(*args, **kwargs):
     st.cache_data.clear()
@@ -69,23 +65,11 @@ def gem_kupon_i_historik(*args, **kwargs):
     kampe = kwargs.get("kampe") or kampe
     odds = round(float(kwargs.get("odds") or kwargs.get("total_odds") or next(iter(tal), 1.0)), 2)
     indsats = float(kwargs.get("indsats") or (tal[-1] if len(tal) >= 4 else 100.0))
-    dato = _dansk_tid_str()
-    post = {
-        "dato": dato, "kilde": kilde, "kampe": f"{len(kampe)} kampe ({dato})",
-        "detaljer": json.dumps(kampe, ensure_ascii=False), "odds": odds,
-        "indsats": indsats, "mulig_gevinst": round(odds * indsats, 2), "status": "[AFVENTER]"
-    }
-    try:
-        ok = bool(_sb_req(TABEL, "POST", post))
-    except Exception:
-        ok = False
-    if not ok:
-        _init_sqlite()
-        con = sqlite3.connect(DB_STI)
-        con.execute(f"INSERT INTO {TABEL} (dato,kilde,kampe,detaljer,odds,indsats,mulig_gevinst,status) VALUES (?,?,?,?,?,?,?,?)",
-                    (post["dato"], post["kilde"], post["kampe"], post["detaljer"], post["odds"], post["indsats"], post["mulig_gevinst"], post["status"]))
-        con.commit()
-        con.close()
+    dato = _dansk_tid()
+    raekker, sha = _gh_laes()
+    nyt_id = max([int(r.get("id", 0)) for r in raekker], default=0) + 1
+    raekker.insert(0, {"id": nyt_id, "dato": dato, "kilde": kilde, "kampe": f"{len(kampe)} kampe ({dato})", "detaljer": json.dumps(kampe, ensure_ascii=False), "odds": odds, "indsats": indsats, "mulig_gevinst": round(odds * indsats, 2), "status": "[AFVENTER]"})
+    _gh_skriv(raekker, sha)
     st.toast("OK – tilføjet til historikken")
     return True
 
