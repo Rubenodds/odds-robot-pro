@@ -1,8 +1,4 @@
 import math, re, requests
-try:
-    from odds_motor import kamp_intelligens as ki
-except Exception:
-    ki = None
 
 def _rens_holdnavn(navn):
     t = re.sub(r"^[^a-zA-ZæøåÆØÅ]+", "", str(navn)).strip()
@@ -14,7 +10,7 @@ def _hent_live_vejr(by_navn):
         g = requests.get(f"https://open-meteo.com{by_navn}&count=1&language=da", timeout=4).json()
         res = g.get("results") or []
         if res:
-            lat, lon = res["latitude"], res["longitude"]
+            lat, lon = res[0]["latitude"], res[0]["longitude"]
             w = requests.get(f"https://open-meteo.com{lat}&longitude={lon}&current=temperature_2m,wind_speed_10m&wind_speed_unit=ms", timeout=4).json()
             cur = w.get("current") or {}
             temp, vind = cur.get("temperature_2m"), cur.get("wind_speed_10m")
@@ -32,13 +28,16 @@ def _hent_espn_kort_og_dommer(hjemme, ude):
             url = f"https://espn.com{lg}/scoreboard"
             data = requests.get(url, timeout=3).json()
             for ev in data.get("events") or []:
-                comp = (ev.get("competitions") or [{}])
+                comps = ev.get("competitions") or []
+                if not comps:
+                    continue
+                comp = comps[0]
                 teams = comp.get("competitors") or []
                 navne = [t.get("team", {}).get("displayName", "").lower() for t in teams]
                 if any(hjemme.lower()[:5] in n for n in navne) or any(ude.lower()[:5] in n for n in navne):
                     offs = comp.get("officials") or []
                     if offs:
-                        dommer = offs.get("displayName", "")
+                        dommer = offs[0].get("displayName", "")
                     for t in teams:
                         t_navn = t.get("team", {}).get("displayName", "")
                         stats = {s.get("name"): s.get("displayValue") for s in (t.get("statistics") or [])}
@@ -91,7 +90,7 @@ def analyser_kupon_kamp(k):
     )
     alternativer = [] if er_staerk else _byg_intelligente_alternativer(hjemme, spil, odds, reel_pct)
     anbefaling = (
-        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer['pct']}%."
+        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer[0]['pct']}%."
         if alternativer else "✅ Stærkt anker."
     )
     return {
