@@ -47,14 +47,18 @@ def hent_alle_kuponer():
     con.close()
     return rows
 
-def gem_kupon_i_historik(kampe_liste, total_odds=1.0, indsats=100.0, **kwargs):
+def gem_kupon_i_historik(*args, **kwargs):
     st.cache_data.clear()
+    kampe = kwargs.get("kampe") or kwargs.get("kampe_liste") or (args[0] if len(args) > 0 else [])
+    odds = kwargs.get("total_odds") or kwargs.get("samlet_odds") or (args[1] if len(args) > 1 and isinstance(args[1], (int, float)) else 1.0)
+    indsats = kwargs.get("indsats", 100.0)
+    gevinst = kwargs.get("mulig_gevinst") or round(float(odds) * float(indsats), 2)
     post = {
         "dato": _dansk_tid_str(),
-        "kampe": json.dumps(kampe_liste, ensure_ascii=False),
-        "total_odds": round(float(total_odds), 2),
+        "kampe": json.dumps(kampe, ensure_ascii=False) if not isinstance(kampe, str) else kampe,
+        "total_odds": round(float(odds), 2),
         "indsats": float(indsats),
-        "mulig_gevinst": round(float(total_odds) * float(indsats), 2),
+        "mulig_gevinst": round(float(gevinst), 2),
         "status": "[AFVENTER]"
     }
     url, key = _supabase_cfg()
