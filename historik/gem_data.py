@@ -1,7 +1,6 @@
 import os, json, sqlite3, urllib.request
 from datetime import datetime, timedelta
 import streamlit as st
-import streamlit.components.v1 as components
 
 DB_STI = os.path.join("historik", "kuponer.db")
 TABEL = "kuponer"
@@ -87,15 +86,7 @@ def gem_kupon_i_historik(*args, **kwargs):
                     (post["dato"], post["kilde"], post["kampe"], post["detaljer"], post["odds"], post["indsats"], post["mulig_gevinst"], post["status"]))
         con.commit()
         con.close()
-    components.html("""<script>
-    window.parent.document.querySelectorAll('button').forEach(b=>{
-      if(b.innerText && b.innerText.includes('SPILLET')){
-        b.style.setProperty('background-color','#16a34a','important');
-        b.style.setProperty('border-color','#15803d','important');
-        b.style.setProperty('color','#ffffff','important');
-        b.innerText = '✅ SPILLET REGISTRERET!';
-      }
-    });</script>""", height=0)
+    st.success(f"✅ SPILLET REGISTRERET! ({len(kampe)} kampe @ {odds} | Mulig gevinst: {post['mulig_gevinst']} kr.)")
     st.toast(f"✅ SPILLET REGISTRERET! ({len(kampe)} kampe @ {odds})", icon="✅")
     return True
 
