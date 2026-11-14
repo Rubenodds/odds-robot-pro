@@ -8,21 +8,22 @@ except Exception:
 STOJ = (
     "session", "ansvarsfuldt", "genbrug", "del", "luk væddemål",
     "luk vaddemal", "indsats", "gevinst", "fuldtid", "total antal",
-    "byg væddemål", "byg vaddemal", "indskiftning", "kr."
+    "byg væddemål", "byg vaddemal", "indskiftning", "kr.", "triple",
+    "double", "single", "kupon"
 )
+
+def _rens_tekst(linje):
+    t = re.sub(r"\b(man|tir|ons|tor|fre|lør|lor|søn|son)\s+\d{1,2}\s+[a-zæøå]{3,4}\b", "", linje, flags=re.I)
+    t = re.sub(r"\b\d{1,2}:\d{2}\b", "", t)
+    t = re.sub(r"^[o0•\-FijHIl\|\[\]\(\)\s]{1,4}(?=[A-ZÆØÅ])", "", t)
+    t = re.sub(r"^[^a-zA-ZæøåÆØÅ0-9]+", "", t).strip()
+    return re.sub(r"\s{2,}", " ", t).strip()
 
 def _er_stoj(linje):
     lav = linje.lower().strip()
-    if len(lav) < 2:
-        return True
-    if re.match(r"^(man|tir|ons|tor|fre|lør|søn)\s+\d+", lav):
+    if len(lav) < 3:
         return True
     return any(s in lav for s in STOJ)
-
-def _rens_hold(linje):
-    t = re.sub(r"^[^a-zA-ZæøåÆØÅ0-9]+", "", linje).strip()
-    t = re.sub(r"\s+\d{1,2}:\d{2}$", "", t).strip()
-    return t
 
 def udtraek_kupon_fra_billede(billede_bytes):
     if pytesseract is None:
@@ -51,8 +52,10 @@ def parse_kupon_tekst(tekst):
 
     kampe, blok = [], []
     for l in linjer:
+        if any(x in l.lower() for x in ("indsats", "luk væddemål", "luk vaddemal")):
+            break
         blok.append(l)
-        if re.search(r"\b\d{1,2}:\d{2}\b", l) and len(blok) >= 3:
+        if re.search(r"\b\d{1,2}:\d{2}\b", l) and len(blok) >= 2:
             k = _tolk_kampblok(blok)
             if k:
                 kampe.append(k)
@@ -67,22 +70,33 @@ def parse_kupon_tekst(tekst):
 
 def _tolk_kampblok(blok):
     odds = 0.0
-    for l in blok[:3]:
+    for l in blok:
+        if any(x in l.lower() for x in ("resultat:", "over ", "under ", "begge hold")):
+            continue
         m = re.search(r"\b(\d{1,2}[.,]\d{2})\b", l)
         if m:
-            odds = float(m.group(1).replace(",", "."))
-            break
+            val = float(m.group(1).replace(",", "."))
+            if 1.05 <= val <= 50.0:
+                odds = val
+                break
     if odds <= 1.01:
         return None
     spil_dele = []
     for l in blok:
         if any(x in l.lower() for x in ("resultat:", "over ", "under ", "begge hold", "hjørne", "kort", "skud")):
-            ren = re.sub(r"^[o0•\-]\s*", "", l).strip()
+            ren = re.sub(r"^[o0•\-F\s]{1,4}", "", l).strip()
             ren = re.sub(r"\s+\d{1,2}[.,]\d{2}$", "", ren).strip()
-            if ren not in spil_dele:
+            if ren and ren not in spil_dele:
                 spil_dele.append(ren)
-    kandidater = [_rens_hold(l) for l in blok if not _er_stoj(l) and not re.search(r"\b\d{1,2}[.,]\d{2}\b", l)]
-    kandidater = [k for k in kandidater if len(k) >= 3 and ":" not in k and "resultat" not in k.lower() and not k.lower().startswith(("over ", "under "))]
+    kandidater = []
+    for l in blok:
+        if _er_stoj(l) or re.search(r"\b\d{1,2}[.,]\d{2}\b", l):
+            continue
+        if any(x in l.lower() for x in ("resultat:", "over ", "under ", "begge hold", "hjørne", "kort", "skud")):
+            continue
+        ren = _rens_tekst(l)
+        if len(ren) >= 3 and ren not in kandidater:
+            kandidater.append(ren)
     if len(kandidater) < 2:
         return None
     hjemme, ude = kandidater[-2], kandidater[-1]
