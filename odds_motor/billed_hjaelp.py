@@ -3,42 +3,72 @@ try:
     from odds_motor import kamp_intelligens as ki
 except Exception:
     ki = None
+try:
+    from odds_motor import dommer_intelligens as di
+except Exception:
+    di = None
+
+def _rens_holdnavn(navn):
+    t = re.sub(r"^[^a-zA-ZæøåÆØÅ]+", "", str(navn)).strip()
+    t = re.sub(r"^(ap|fc|cf)\s+", "", t, flags=re.I).strip()
+    return t or "Hold"
 
 def _match_live_kamp(k):
-    if not ki:
-        return {}
     h, u = k.get("hjemme", "").lower(), k.get("ude", "").lower()
     obj = {"kamp": k.get("kamp", ""), "hjemme": k.get("hjemme", ""), "ude": k.get("ude", "")}
-    try:
-        if hasattr(ki, "_hent_kampe_v9"):
-            alle = ki._hent_kampe_v9(72) or []
-            for m in alle:
-                mk = str(m.get("kamp", "")).lower()
-                if (h and h[:5] in mk) or (u and u[:5] in mk):
-                    obj.update(m)
+    if ki:
+        try:
+            for timer in (48, 120):
+                if hasattr(ki, "_hent_kampe_v9"):
+                    alle = ki._hent_kampe_v9(timer) or []
+                    for m in alle:
+                        mk = str(m.get("kamp", "")).lower()
+                        if (len(h) >= 4 and h[:5] in mk) or (len(u) >= 4 and u[:5] in mk):
+                            obj.update(m)
+                            break
+                if obj.get("event_id") or obj.get("id"):
                     break
-        if hasattr(ki, "berig_valgte_kampe"):
-            res = ki.berig_valgte_kampe([obj])
-            if res and isinstance(res, list) and len(res) > 0:
-                return res[0]
-    except Exception:
-        pass
+            if hasattr(ki, "berig_valgte_kampe"):
+                res = ki.berig_valgte_kampe([obj])
+                if res and isinstance(res, list) and len(res) > 0:
+                    obj.update(res)
+        except Exception:
+            pass
+    if di:
+        for fn in ("hent_dommer_info", "hent_kort_profil"):
+            if hasattr(di, fn):
+                try:
+                    obj.update(getattr(di, fn)(obj) or {})
+                except Exception:
+                    pass
     return obj
 
 def analyser_kupon_kamp(k):
     odds = float(k.get("odds", 1.80))
     spil = re.sub(r"^[\-\s]+", "", k.get("spil", "")).strip()
-    hjemme = re.sub(r"^(ap|fc|cf)\s+", "", k.get("hjemme", "Hjemmehold"), flags=re.I).strip()
-    ude = re.sub(r"^(ap|fc|cf)\s+", "", k.get("ude", "Udehold"), flags=re.I).strip()
+    hjemme = _rens_holdnavn(k.get("hjemme", "Hjemmehold"))
+    ude = _rens_holdnavn(k.get("ude", "Udehold"))
     kamp = f"{hjemme} - {ude}"
     ctx = _match_live_kamp({"kamp": kamp, "hjemme": hjemme, "ude": ude})
 
-    vejr = ctx.get("vejr") or ctx.get("vejr_tekst") or f"Stadionvejr ({hjemme}): Let skyet, ~14°C, svag vind 3–4 m/s (gode spilforhold)"
-    dommer_raw = ctx.get("dommer") or ctx.get("dommer_tekst") or ""
-    if dommer_raw and "liga-snit" not in dommer_raw.lower():
-        kort_info = f"{dommer_raw} — holdene trækker samlet ~4,5 kort pr. kamp."
-    else:
-        kort_info = f"Dommerlinje ~4,4 gule / 0,18 røde kort pr. kamp; {hjemme} & {ude} trækker typisk 4,2–4,8 kort tilsammen."
+    vejr = ctx.get("vejr") or ctx.get("vejr_tekst") or ctx.get("vejr_info")
+    vejr_txt = f"🌤️ {vejr}" if vejr else f"🌤️ Stadionvejr ({hjemme}): Afventer live kickoff-data"
+
+    d_navn = ctx.get("dommer_navn") or ctx.get("dommer") or ""
+    gule = ctx.get("gule_snit") or ctx.get("kort_snit")
+    roede = ctx.get("roede_snit")
+    h2h_kort = ctx.get("h2h_kort") or ctx.get("hold_kort_snit") or ctx.get("kort_tekst")
+
+    d_del = ""
+    if d_navn:
+        r_del = f" / {roede} røde" if roede is not None else ""
+        k_del = f" (snitter {gule} gule{r_del}/kamp)" if gule else ""
+        d_del = f"Dommer: <b>{d_navn}</b>{k_del}"
+    h2h_del = (
+        f"Indbyrdes & holdkort: {h2h_kort}" if h2h_kort
+        else f"Indbyrdes & holdkort ({hjemme} vs. {ude}): Hentes fra H2H/liga-kortdata"
+    )
+    kort_txt = f"🟨 {d_del} | {h2h_del}" if d_del else f"🟨 {h2h_del}"
 
     imp_pct = round(100.0 / odds, 1)
     antal_ben = spil.count("+") + 1
@@ -64,11 +94,11 @@ def analyser_kupon_kamp(k):
     )
     alternativer = [] if er_staerk else _byg_intelligente_alternativer(hjemme, spil, odds, reel_pct)
     anbefaling = (
-        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer[0]['pct']}%."
+        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer['pct']}%."
         if alternativer else "✅ Stærkt anker."
     )
     begrundelse = f"{kamp_billede}<br>{ulempe} {anbefaling}"
-    meta = f"🌤️ {vejr}<br>🟨 Kort & Dommer: {kort_info}"
+    meta = f"{vejr_txt}<br>{kort_txt}"
     return {
         "kamp": kamp, "spil": spil, "odds": odds, "pct": reel_pct,
         "stjerner": stjerner, "risiko": risiko, "er_staerk": er_staerk,
