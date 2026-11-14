@@ -4,10 +4,13 @@ try:
 except Exception:
     ki = None
 
-def _hent_kontekst(kamp_navn):
-    if ki and hasattr(ki, "analyser_enkelt_kamp"):
+def _hent_kontekst(k):
+    if ki and hasattr(ki, "berig_valgte_kampe"):
         try:
-            return ki.analyser_enkelt_kamp(kamp_navn) or {}
+            obj = [{"kamp": k.get("kamp", ""), "hjemme": k.get("hjemme", ""), "ude": k.get("ude", "")}]
+            res = ki.berig_valgte_kampe(obj)
+            if res and isinstance(res, list):
+                return res[0]
         except Exception:
             pass
     return {}
@@ -18,10 +21,9 @@ def analyser_kupon_kamp(k):
     kamp = k.get("kamp", "")
     hjemme = k.get("hjemme", "Hjemmehold")
     ude = k.get("ude", "Udehold")
-    ctx = _hent_kontekst(kamp)
-    vejr = ctx.get("vejr", "")
-    dommer = ctx.get("dommer", "")
-    form_tekst = ctx.get("analyse", "")
+    ctx = _hent_kontekst(k)
+    vejr = ctx.get("vejr") or ctx.get("vejr_tekst") or "Vejr: Afventer stadiondata"
+    dommer = ctx.get("dommer") or ctx.get("dommer_tekst") or "Dommer: Liga-snit aktiv"
 
     imp_pct = round(100.0 / odds, 1)
     antal_ben = spil.count("+") + 1
@@ -33,29 +35,27 @@ def analyser_kupon_kamp(k):
     risiko = 1 if odds <= 1.45 else (2 if odds <= 1.85 else (3 if odds <= 2.30 else (4 if odds <= 3.00 else 5)))
     er_staerk = (risiko <= 2 and stjerner >= 4 and antal_ben == 1)
 
+    if odds <= 1.75:
+        kamp_billede = f"📊 Kampbillede: {hjemme} går ind som tydelig favorit mod {ude} og forventes at styre boldbesiddelsen."
+    elif odds <= 2.25:
+        kamp_billede = f"📊 Kampbillede: Jævnbyrdigt opgør mellem {hjemme} og {ude}, hvor hjemmebanen og dødbolde kan blive afgørende."
+    else:
+        kamp_billede = f"📊 Kampbillede: Åben og uforudsigelig duel ({hjemme} vs. {ude}) med høj varians og plads til omstillinger."
+
     if antal_ben >= 2:
-        ulempe = f"Ulempe: Kombinationsspil ({antal_ben} ben) kræver at alt klapper — ét målløst halvlegspres eller 1-0 resultat vælter hele væddemålet."
+        ulempe = f"⚖️ Ulempe: Kombinationsspil ({antal_ben} ben) kræver fuldt træf på flere parametre — ét målløst halvlegspres vælter spillet."
     elif odds >= 2.35:
-        ulempe = f"Ulempe: Højt odds ({odds:.2f}) giver kun {reel_pct}% teoretisk træfchance, og et tidligt føringsmål til {ude} gør spillet meget sårbart."
-    elif odds >= 1.85:
-        ulempe = f"Ulempe: Tæt opgør (markedet giver kun {imp_pct}%), hvor uafgjort (0-0 / 1-1) er den største faldgrube for {hjemme}."
+        ulempe = f"⚖️ Ulempe: Højt odds ({odds:.2f}) giver kun {reel_pct}% træfchance, og et tidligt føringsmål til {ude} gør spillet sårbart."
     else:
-        ulempe = f"Ulempe: Lav odds-margin ({odds:.2f}) giver begrænset betaling i forhold til risikoen ved rødt kort eller sene udsving."
+        ulempe = f"⚖️ Ulempe: Tæt margin ({imp_pct}%), hvor uafgjort (0-0 / 1-1) er den største faldgrube for {hjemme}."
 
-    if er_staerk:
-        begrundelse = f"{ulempe} ✅ Samlet vurdering: Alligevel et stærkt anker med god balance mellem risiko og betaling."
-        alternativer = []
-    else:
-        alternativer = _byg_intelligente_alternativer(k, odds, reel_pct)
-        anbefaling = (
-            f"💡 Hvorfor alternativer: Ved at sikre mod uafgjort (1X/DNB) eller flytte fokus til kampens måltotal "
-            f"løfter du træfsikkerheden fra {reel_pct}% til ca. {alternativer[0]['pct']}%."
-            if alternativer else ""
-        )
-        extra = f" ({form_tekst})" if form_tekst else ""
-        begrundelse = f"{ulempe}{extra} {anbefaling}".strip()
-
-    meta = " | ".join([x for x in [vejr, dommer] if x])
+    alternativer = [] if er_staerk else _byg_intelligente_alternativer(k, odds, reel_pct)
+    anbefaling = (
+        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer['pct']}%."
+        if alternativer else "✅ Stærkt anker med god balance."
+    )
+    begrundelse = f"{kamp_billede}<br>{ulempe} {anbefaling}"
+    meta = f"🌤️ {vejr} &nbsp;|&nbsp; 🟨 {dommer}"
     return {
         "kamp": kamp, "spil": spil, "odds": odds, "pct": reel_pct,
         "stjerner": stjerner, "risiko": risiko, "er_staerk": er_staerk,
