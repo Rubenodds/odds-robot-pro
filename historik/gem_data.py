@@ -29,7 +29,7 @@ def gem_kupon_i_historik(ligaer, forslag, b365_odds, unibet_odds, oddset_odds, b
             strategi_txt = f"[EGEN] {strategi_txt}"
         payload = {
             "kampe": ", ".join(forslag) if isinstance(forslag, list) else str(forslag),
-            "strategi": strategi_txt,
+            "strategi": f"[AFVENTER] {strategi_txt}".strip(),
             "odds": _til_float(b365_odds, 1.0),
             "indsats": final_indsats,
             "vaerdi_manuel": _til_float(unibet_odds, 0.0),
@@ -38,13 +38,15 @@ def gem_kupon_i_historik(ligaer, forslag, b365_odds, unibet_odds, oddset_odds, b
             "timestamp": dansk_tid,
         }
         res = requests.post(f"{url}/rest/v1/historik", headers=headers, json=payload, timeout=10)
-        return res.status_code in (200, 201)
+        if res.status_code not in (200, 201):
+            st.error(f"Supabase fejl ({res.status_code}): {res.text[:160]}")
+            return False
+        return True
     except Exception as e:
-        print(f"[Supabase Gem-Fejl]: {e}")
+        st.error(f"Supabase forbindelsesfejl: {e}")
         return False
 
 def opdater_kupon_status(kupon_id, ny_status):
-    """Gemmer status ('Vundet', 'Tabt', 'Afventer') sikkert i strategi-feltet i Supabase."""
     try:
         url, headers = _get_headers()
         r = requests.get(f"{url}/rest/v1/historik?id=eq.{kupon_id}&select=strategi", headers=headers, timeout=8)
@@ -64,6 +66,5 @@ def hent_alle_kuponer():
         url, headers = _get_headers()
         res = requests.get(f"{url}/rest/v1/historik?select=*&order=id.desc", headers=headers, timeout=10)
         return res.json() if res.status_code == 200 else []
-    except Exception as e:
-        print(f"[Supabase Hent-Fejl]: {e}")
+    except Exception:
         return []
