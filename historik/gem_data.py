@@ -58,20 +58,17 @@ def hent_alle_kuponer():
 
 def gem_kupon_i_historik(*args, **kwargs):
     st.cache_data.clear()
-    kilde = kwargs.get("kilde", "Scanner")
-    kampe = kwargs.get("kampe") or kwargs.get("kampe_liste") or []
-    odds = kwargs.get("odds") or kwargs.get("total_odds") or kwargs.get("samlet_odds")
+    kilde, kampe, tal = "Scanner", [], []
     for a in args:
-        if isinstance(a, (list, tuple)):
+        if isinstance(a, (list, tuple)) and a and any(":" in str(x) or "vs" in str(x) or "-" in str(x) for x in a):
             kampe = list(a)
-        elif isinstance(a, (int, float)) and odds is None:
-            odds = float(a)
-        elif isinstance(a, str) and "|" in a:
-            kampe = [x.strip() for x in a.split("|") if x.strip()]
+        elif isinstance(a, (int, float)):
+            tal.append(float(a))
         elif isinstance(a, str):
             kilde = a
-    odds = round(float(odds or 1.0), 2)
-    indsats = float(kwargs.get("indsats", 100.0))
+    kampe = kwargs.get("kampe") or kampe
+    odds = round(float(kwargs.get("odds") or kwargs.get("total_odds") or (tal if tal else 1.0)), 2)
+    indsats = float(kwargs.get("indsats") or (tal[-1] if len(tal) >= 4 else 100.0))
     dato = _dansk_tid_str()
     post = {
         "dato": dato, "kilde": kilde, "kampe": f"{len(kampe)} kampe ({dato})",
@@ -79,17 +76,19 @@ def gem_kupon_i_historik(*args, **kwargs):
         "indsats": indsats, "mulig_gevinst": round(odds * indsats, 2), "status": "[AFVENTER]"
     }
     try:
-        if _sb_req(TABEL, "POST", post):
-            return True, "✅ Gemt permanent i Supabase Cloud!"
+        ok = bool(_sb_req(TABEL, "POST", post))
     except Exception:
-        pass
-    _init_sqlite()
-    con = sqlite3.connect(DB_STI)
-    con.execute(f"INSERT INTO {TABEL} (dato,kilde,kampe,detaljer,odds,indsats,mulig_gevinst,status) VALUES (?,?,?,?,?,?,?,?)",
-                (post["dato"], post["kilde"], post["kampe"], post["detaljer"], post["odds"], post["indsats"], post["mulig_gevinst"], post["status"]))
-    con.commit()
-    con.close()
-    return True, "✅ Gemt lokalt!"
+        ok = False
+    if not ok:
+        _init_sqlite()
+        con = sqlite3.connect(DB_STI)
+        con.execute(f"INSERT INTO {TABEL} (dato,kilde,kampe,detaljer,odds,indsats,mulig_gevinst,status) VALUES (?,?,?,?,?,?,?,?)",
+                    (post["dato"], post["kilde"], post["kampe"], post["detaljer"], post["odds"], post["indsats"], post["mulig_gevinst"], post["status"]))
+        con.commit()
+        con.close()
+    st.markdown("<style>div.stButton:last-of-type button[kind='primary']{background-color:#16a34a!important;border-color:#15803d!important;color:#fff!important}</style>", unsafe_allow_html=True)
+    st.toast(f"✅ Kupon registreret i Mappe 1/2! ({len(kampe)} kampe @ {odds})", icon="✅")
+    return True
 
 gem_kupon = gem_kupon_i_historik
 gem_spil = gem_kupon_i_historik
