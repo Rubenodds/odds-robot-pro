@@ -31,7 +31,7 @@ def _match_live_kamp(k):
             if hasattr(ki, "berig_valgte_kampe"):
                 res = ki.berig_valgte_kampe([obj])
                 if res and isinstance(res, list) and len(res) > 0:
-                    obj.update(res)
+                    obj.update(res[0])
         except Exception:
             pass
     if di:
@@ -94,7 +94,7 @@ def analyser_kupon_kamp(k):
     )
     alternativer = [] if er_staerk else _byg_intelligente_alternativer(hjemme, spil, odds, reel_pct)
     anbefaling = (
-        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer['pct']}%."
+        f"💡 Anbefaling: 1X/DNB eller målsikring løfter chancen fra {reel_pct}% til {alternativer[0]['pct']}%."
         if alternativer else "✅ Stærkt anker."
     )
     begrundelse = f"{kamp_billede}<br>{ulempe} {anbefaling}"
