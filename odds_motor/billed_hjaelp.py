@@ -1,30 +1,86 @@
-import re
-from odds_motor import kamp_intelligens, billed_ocr
+import math
+try:
+    from odds_motor import kamp_intelligens as ki
+except Exception:
+    ki = None
 
-def udtraek_kupon_liste(linjer):
-    return billed_ocr.udtraek_kupon_liste(linjer)
+def _hent_kontekst(kamp_navn):
+    if ki and hasattr(ki, "analyser_enkelt_kamp"):
+        try:
+            return ki.analyser_enkelt_kamp(kamp_navn) or {}
+        except Exception:
+            pass
+    return {}
 
-def analyser_kamp_med_maalzone(kamp_str, spil_str, odds_val, faktor=1.0):
-    dele = re.split(r"\s+(?:-|–|vs\.?|v)\s+", kamp_str, maxsplit=1, flags=re.I)
-    hj = dele[0].strip() if dele else kamp_str
-    ud = dele[1].strip() if len(dele) > 1 else ""
-    beriget = kamp_intelligens.berig_valgte_kampe([{"hj": hj, "ud": ud, "ctx": {"by": hj}}])
-    ctx = (beriget[0].get("ctx") or {}) if beriget else {}
-    v, dom = ctx.get("vejr"), ctx.get("dommer", "")
-    pct = round(max(10.0, min(90.0, (100.0 / max(1.01, odds_val)) * 0.93)), 1)
-    stj = max(1, min(5, int(round((pct * odds_val) / 21.0))))
-    flm = max(1, min(5, int(round((100.0 - pct) / 17.0))))
-    vurdering = "Tæt opgør med høj varians – dobbeltchance eller mållinje sikrer kuponen." if odds_val >= 2.20 else "Favoritprofil med stabil sandsynlighed."
-    meta = ([f"Dommer: {dom}"] if dom and "ukendt" not in dom.lower() and "ikke udpeget" not in dom.lower() else []) + ([f"Vejr: {v['temp']}°C, {v['vind']} m/s ({v['effekt']})"] if v else [])
-    analyse = f"**Spil:** {spil_str} | **Analyse:** {vurdering}" + (f" ({', '.join(meta)})" if meta else "")
+def analyser_kupon_kamp(k):
+    odds = float(k.get("odds", 1.80))
+    spil = k.get("spil", "")
+    kamp = k.get("kamp", "")
+    ctx = _hent_kontekst(kamp)
+    vejr = ctx.get("vejr", "")
+    dommer = ctx.get("dommer", "")
+    form_tekst = ctx.get("analyse", "")
 
-    o_dc = round(min(1.68, max(1.22, 1.15 + (odds_val * 0.14))), 2)
-    o_ov = round(min(1.85, max(1.28, 1.20 + (odds_val * 0.18))), 2)
-    o_vl = round(min(4.50, max(1.65, odds_val * 1.12 * faktor)), 2)
+    imp_pct = round(100.0 / odds, 1)
+    antal_ben = spil.count("+") + 1
+    justering = 1.03 if odds <= 1.85 else (0.97 if antal_ben >= 2 and odds >= 2.40 else 1.0)
+    reel_pct = round(min(88.0, max(12.0, imp_pct * justering)), 1)
+    edge = round((reel_pct / 100.0) * odds - 1.0, 3)
+
+    stjerner = 5 if edge >= 0.08 else (4 if edge >= 0.02 else (3 if edge >= -0.03 else (2 if edge >= -0.08 else 1)))
+    risiko = 1 if odds <= 1.45 else (2 if odds <= 1.85 else (3 if odds <= 2.30 else (4 if odds <= 3.00 else 5)))
+
+    er_staerk = (risiko <= 3 and stjerner >= 3 and antal_ben <= 2)
+    if er_staerk:
+        begrundelse = (
+            f"Stærkt og velafbalanceret valg på {kamp} (@ {odds:.2f}). "
+            f"Implikation på {imp_pct}% matcher markedets sandsynlighed ({reel_pct}%)"
+            + (f" — {form_tekst}" if form_tekst else ".")
+        )
+        alternativer = []
+    else:
+        aarsag = "flere kombinerede ben øger variansen" if antal_ben >= 2 else "højt odds giver stram træfsikkerhed"
+        begrundelse = (
+            f"Sårbarhed på {kamp} (@ {odds:.2f}): {aarsag} "
+            f"(reel chance ca. {reel_pct}%). Overvej sikkerhed eller enklere linje."
+        )
+        alternativer = _byg_intelligente_alternativer(k, odds, reel_pct)
+
+    meta = " | ".join([x for x in [vejr, dommer] if x])
+    return {
+        "kamp": kamp, "spil": spil, "odds": odds, "pct": reel_pct,
+        "stjerner": stjerner, "risiko": risiko, "er_staerk": er_staerk,
+        "begrundelse": begrundelse, "meta": meta, "alternativer": alternativer
+    }
+
+def _byg_intelligente_alternativer(k, odds, reel_pct):
+    hjemme = k.get("hjemme", "Hjemmehold")
+    spil = k.get("spil", "").lower()
     forslag = []
-    for lbl, o_ny in [("Sikker Dobbeltchance (1X / X2)", o_dc), ("Mål-linje (Over 1.5 mål i kampen)", o_ov), ("Value-linje (Sejr + Over 1.5 mål)", o_vl)]:
-        p_ny = round(max(12.0, min(91.0, (100.0 / o_ny) * 0.93)), 1)
-        forslag.append({"txt": f"{kamp_str} — {lbl}", "odds": o_ny, "pct": p_ny})
+    if "+" in spil or odds >= 2.25:
+        o1 = round(max(1.32, min(1.68, odds * 0.62)), 2)
+        forslag.append({"label": f"Sikrere linje: {hjemme} eller uafgjort (1X)", "odds": o1, "pct": round(min(76.0, reel_pct + 18.0), 1)})
+    if "over" in spil or odds >= 2.00:
+        o2 = round(max(1.28, min(1.58, odds * 0.58)), 2)
+        forslag.append({"label": "Målsikring: Over 1.5 mål i kampen", "odds": o2, "pct": round(min(79.0, reel_pct + 21.0), 1)})
+    if odds >= 2.50:
+        o3 = round(max(1.65, min(2.15, odds * 0.80)), 2)
+        forslag.append({"label": f"Ren favorit: {hjemme} DNB (indsats retur ved X)", "odds": o3, "pct": round(min(65.0, reel_pct + 10.0), 1)})
+    return forslag[:3]
 
-    svaer_match = (odds_val >= 4.50 or flm == 5)
-    return {"pct": pct, "stj": stj, "flm": flm, "tekst": analyse, "forslag": forslag, "svaer_match": svaer_match}
+def samlet_kupon_analyse(analyser, indsats):
+    if not analyser:
+        return {}
+    samlet_odds = math.prod(a["odds"] for a in analyser)
+    samlet_pct = round(math.prod(a["pct"] / 100.0 for a in analyser) * 100.0, 1)
+    svageste = min(analyser, key=lambda x: x["pct"])
+    staerkeste = max(analyser, key=lambda x: x["pct"])
+    gevinst = round(indsats * samlet_odds, 2)
+    dom = (
+        f"Kuponen samler {len(analyser)} kampe til totalodds {samlet_odds:.2f} "
+        f"(potentiel udbetaling {gevinst:.2f} kr. ved {indsats:.0f} kr. indsats). "
+        f"Samlet matematisk træfsikkerhed er {samlet_pct}%. "
+        f"Stærkeste anker er {staerkeste['kamp']} ({staerkeste['pct']}%), mens "
+        f"{svageste['kamp']} (@ {svageste['odds']:.2f}) er kuponens største flaskehals."
+    )
+    return {"odds": round(samlet_odds, 2), "pct": samlet_pct, "gevinst": gevinst, "dom": dom, "svageste": svageste["kamp"]}
