@@ -1,53 +1,30 @@
-import os, json, sqlite3, urllib.request
+import json, sqlite3
+from collections import defaultdict
 import pandas as pd
 import streamlit as st
-from historik.gem_data import DB_STI, TABEL, _supabase_cfg, _init_sqlite
+from historik.gem_data import DB_STI, TABEL, hent_alle_kuponer
 
-def _hent_alle():
-    url, key = _supabase_cfg()
-    if url and key:
-        try:
-            req = urllib.request.Request(
-                f"{url}/rest/v1/{TABEL}?select=*&order=id.desc",
-                headers={"apikey": key, "Authorization": f"Bearer {key}"})
-            with urllib.request.urlopen(req, timeout=8) as res:
-                return json.loads(res.read().decode("utf-8")), "Supabase"
-        except Exception:
-            pass
-    _init_sqlite()
-    con = sqlite3.connect(DB_STI)
-    con.row_factory = sqlite3.Row
-    rows = [dict(r) for r in con.execute(f"SELECT * FROM {TABEL} ORDER BY id DESC").fetchall()]
-    con.close()
-    return rows, "Lokal SQLite"
-
-def _opdater_status(kid, ny_status, kilde):
-    url, key = _supabase_cfg()
-    if kilde == "Supabase" and url and key:
-        try:
-            req = urllib.request.Request(
-                f"{url}/rest/v1/{TABEL}?id=eq.{kid}",
-                data=json.dumps({"status": ny_status}).encode("utf-8"),
-                headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                method="PATCH")
-            urllib.request.urlopen(req, timeout=8)
-            return
-        except Exception:
-            pass
+def _opdater_status(kid, ny_status):
+    st.cache_data.clear()
     con = sqlite3.connect(DB_STI)
     con.execute(f"UPDATE {TABEL} SET status=? WHERE id=?", (ny_status, kid))
     con.commit()
     con.close()
 
+def _slet_kupon(kid):
+    st.cache_data.clear()
+    con = sqlite3.connect(DB_STI)
+    con.execute(f"DELETE FROM {TABEL} WHERE id=?", (kid,))
+    con.commit()
+    con.close()
+
 def vis_regnskab():
-    rækker, kilde = _hent_alle()
-    st.caption(f"📡 Datakilde aktiv: **{kilde}**")
+    rækker = hent_alle_kuponer()
     if not rækker:
         st.info("Ingen gemte kuponer endnu. Tryk på 🚀 SPILLET for at gemme din første kupon.")
         return
 
     df = pd.DataFrame(rækker)
-    df["aar"] = df["dato"].astype(str).str.slice(6, 10)
     afgjorte = df[df["status"].isin(["VUNDET", "TABT"])]
     vundne = df[df["status"] == "VUNDET"]
     oms = afgjorte["indsats"].sum() if not afgjorte.empty else 0.0
@@ -59,20 +36,32 @@ def vis_regnskab():
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("💰 TOTAL SUM", f"{netto:+.2f} kr.")
     c2.metric("🎯 Hitrate", f"{hit}%")
-    c3.metric("📈 Tilbagebetaling", f"{roi}%")
+    c3.metric("📈 ROI", f"{roi}%")
     c4.metric("🎟️ Kuponer", len(df))
 
+    mapper = defaultdict(list)
     for r in rækker:
-        st_txt = r.get("status", "[AFVENTER]")
-        with st.container(border=True):
-            st.markdown(f"**🎟️ Kupon #{r['id']}** | 📅 {r['dato']} | Odds: **{r['total_odds']}** | Gevinst: **{r['mulig_gevinst']} kr.** | Status: **{st_txt}**")
-            kampe = json.loads(r["kampe"]) if isinstance(r["kampe"], str) else r["kampe"]
-            for k in (kampe or []):
-                st.write(f"• {k}")
-            b1, b2, b3 = st.columns(3)
-            if b1.button("✅ Vundet", key=f"v_{r['id']}"):
-                _opdater_status(r["id"], "VUNDET", kilde); st.rerun()
-            if b2.button("❌ Tabt", key=f"t_{r['id']}"):
-                _opdater_status(r["id"], "TABT", kilde); st.rerun()
-            if b3.button("⏳ Afventer", key=f"a_{r['id']}"):
-                _opdater_status(r["id"], "[AFVENTER]", kilde); st.rerun()
+        dag = str(r.get("dato", "Ukendt dato"))[:10]
+        mapper[dag].append(r)
+
+    for dag, kuponer in mapper.items():
+        with st.expander(f"📁 {dag}  —  {len(kuponer)} kupon(er)", expanded=False):
+            for r in kuponer:
+                with st.container(border=True):
+                    st.markdown(f"**🎟️ Kupon #{r['id']}** ({r.get('kilde','Scanner')}) | Odds: **{r.get('odds')}** | Mulig gevinst: **{r.get('mulig_gevinst')} kr.** | Status: **{r.get('status')}**")
+                    raw = r.get("detaljer") or r.get("kampe")
+                    try:
+                        liste = json.loads(raw) if isinstance(raw, str) and raw.startswith("[") else [raw]
+                    except Exception:
+                        liste = [raw]
+                    for k in liste:
+                        st.write(f"• {k}")
+                    b1, b2, b3, b4 = st.columns(4)
+                    if b1.button("✅ Vundet", key=f"v_{r['id']}"):
+                        _opdater_status(r["id"], "VUNDET"); st.rerun()
+                    if b2.button("❌ Tabt", key=f"t_{r['id']}"):
+                        _opdater_status(r["id"], "TABT"); st.rerun()
+                    if b3.button("⏳ Afventer", key=f"a_{r['id']}"):
+                        _opdater_status(r["id"], "[AFVENTER]"); st.rerun()
+                    if b4.button("🗑️ Slet", key=f"s_{r['id']}"):
+                        _slet_kupon(r["id"]); st.rerun()
