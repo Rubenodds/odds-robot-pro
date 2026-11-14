@@ -1,9 +1,13 @@
 import os, json, sqlite3, urllib.request, urllib.error
+from datetime import datetime, timedelta
 import streamlit as st
-from tidsstyring.dansk_tid import dansk_nu
 
 DB_STI = os.path.join("historik", "kuponer.db")
 TABEL = "kuponer"
+
+def _dansk_tid_str():
+    nu = datetime.utcnow() + timedelta(hours=1)
+    return nu.strftime("%d-%m-%Y %H:%M")
 
 def _supabase_cfg():
     try:
@@ -26,7 +30,7 @@ def _init_sqlite():
     con.close()
 
 def gem_kupon(kampe_liste, total_odds, indsats=100.0):
-    dato_str = dansk_nu().strftime("%d-%m-%Y %H:%M")
+    dato_str = _dansk_tid_str()
     kampe_json = json.dumps(kampe_liste, ensure_ascii=False)
     gevinst = round(float(total_odds) * float(indsats), 2)
     post = {
