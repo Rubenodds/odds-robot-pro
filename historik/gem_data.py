@@ -25,7 +25,7 @@ def _gh_laes():
         f"https://github.com{repo}/contents/{FIL_STI}",
         headers={"Authorization": f"token {tok}", "Accept": "application/vnd.github.v3+json", "User-Agent": "OddsRobotPro"})
     try:
-        with urllib.request.urlopen(req, timeout=4) as res:
+        with urllib.request.urlopen(req, timeout=1.5) as res:
             d = json.loads(res.read().decode("utf-8"))
             raekker = json.loads(base64.b64decode(d["content"]).decode("utf-8"))
             return raekker, d["sha"]
@@ -44,16 +44,16 @@ def _gh_skriv(raekker, sha=None):
         data=json.dumps(body).encode("utf-8"),
         headers={"Authorization": f"token {tok}", "Accept": "application/vnd.github.v3+json", "User-Agent": "OddsRobotPro"},
         method="PUT")
-    with urllib.request.urlopen(req, timeout=5) as res:
+    with urllib.request.urlopen(req, timeout=2.5) as res:
         return res.status in (200, 201)
 
-@st.cache_data(ttl=15, show_spinner=False)
 def hent_alle_kuponer():
-    raekker, _ = _gh_laes()
-    return raekker
+    if "kupon_ram_cache" not in st.session_state:
+        raekker, _ = _gh_laes()
+        st.session_state["kupon_ram_cache"] = raekker
+    return st.session_state["kupon_ram_cache"]
 
 def gem_kupon_i_historik(*args, **kwargs):
-    st.cache_data.clear()
     kilde, kampe, tal = "Scanner", [], []
     for a in args:
         if isinstance(a, (list, tuple)) and a and any(":" in str(x) or "vs" in str(x) or "-" in str(x) for x in a):
@@ -70,6 +70,7 @@ def gem_kupon_i_historik(*args, **kwargs):
     nyt_id = max([int(r.get("id", 0)) for r in raekker], default=0) + 1
     raekker.insert(0, {"id": nyt_id, "dato": dato, "kilde": kilde, "kampe": f"{len(kampe)} kampe ({dato})", "detaljer": json.dumps(kampe, ensure_ascii=False), "odds": odds, "indsats": indsats, "mulig_gevinst": round(odds * indsats, 2), "status": "[AFVENTER]"})
     _gh_skriv(raekker, sha)
+    st.session_state["kupon_ram_cache"] = raekker
     st.toast("OK – tilføjet til historikken")
     return True
 
