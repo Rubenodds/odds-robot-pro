@@ -10,7 +10,12 @@ def _dansk_tid_str():
 
 def _groen_knap_css():
     if st.session_state.get("spil_registreret"):
-        st.markdown("<style>button[data-testid='stBaseButton-primary'],button[kind='primary']{background:#16a34a!important;border-color:#15803d!important;color:#fff!important}</style>", unsafe_allow_html=True)
+        st.markdown(
+            "<style>button[data-testid='stBaseButton-primary'],button[kind='primary']{"
+            "background-color:#16a34a!important;background-image:none!important;"
+            "border-color:#15803d!important;color:#ffffff!important;}</style>",
+            unsafe_allow_html=True,
+        )
 
 def _supabase_cfg():
     try:
