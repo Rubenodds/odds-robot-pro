@@ -15,10 +15,12 @@ def begrundelse(k):
     return f"📊 {hj} vs {ud} ({spil} @ {odds}) | 🏁 Dommer: {dommer} | 🌤️ {v_txt} | 🏥 {skader}"
 
 def byg_forslag(maal_liste, maks_odds=25.0, kun_res=False):
-    if hasattr(byg_kupon, "byg_forslag"):
-        res = byg_kupon.byg_forslag(maal_liste, maks_odds, kun_res=kun_res)
-        if isinstance(res, dict) and "kampe" in res:
-            return res
+    res = byg_kupon.byg_forslag(maal_liste, maks_odds, kun_res=kun_res) if hasattr(byg_kupon, "byg_forslag") else None
+    if isinstance(res, dict) and "kampe" in res:
+        for k in res["kampe"]:
+            if isinstance(k, dict) and "kombinationer" not in k:
+                k["kombinationer"] = [k.get("spil") or k.get("valg") or "1X2"]
+        return res
     forslag, samlet = [], 1.0
     for k in (maal_liste or []):
         valg = k.get("valg") or k.get("spil") or ("1X2" if kun_res else "Over 1.5 mål")
@@ -26,7 +28,7 @@ def byg_forslag(maal_liste, maks_odds=25.0, kun_res=False):
         if samlet * odds <= float(maks_odds):
             ny = dict(k)
             ny["spil"] = valg
-            ny["kombinationer"] = ny.get("kombinationer") or [valg]
+            ny["kombinationer"] = [valg]
             ny["odds"] = odds
             forslag.append(ny)
             samlet *= odds
