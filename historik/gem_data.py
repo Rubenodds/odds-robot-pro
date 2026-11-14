@@ -67,7 +67,7 @@ def gem_kupon_i_historik(*args, **kwargs):
         elif isinstance(a, str):
             kilde = a
     kampe = kwargs.get("kampe") or kampe
-    odds = round(float(kwargs.get("odds") or kwargs.get("total_odds") or (tal if tal else 1.0)), 2)
+    odds = round(float(kwargs.get("odds") or kwargs.get("total_odds") or (tal[0] if tal else 1.0)), 2)
     indsats = float(kwargs.get("indsats") or (tal[-1] if len(tal) >= 4 else 100.0))
     dato = _dansk_tid_str()
     post = {
