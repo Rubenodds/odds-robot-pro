@@ -9,8 +9,15 @@ def _dansk_tid():
 
 def _gh_cfg():
     try:
-        tok = (st.secrets.get("GITHUB_TOKEN") or st.secrets.get("GH_TOKEN") or st.secrets.get("TOKEN") or "").strip()
-        repo = (st.secrets.get("GITHUB_REPO") or "Rubenodds/odds-robot-pro").strip()
+        repo = "Rubenodds/odds-robot-pro"
+        tok = ""
+        for k, v in st.secrets.items():
+            s = str(v).strip()
+            if "repo" in k.lower() and "/" in s:
+                repo = s
+            elif s.startswith(("ghp_", "github_pat_", "gho_")) or any(x in k.lower() for x in ("github", "gh_", "token", "pat")):
+                if len(s) > 15 and not s.startswith("http"):
+                    tok = s
         if tok:
             return tok, repo
     except Exception:
@@ -25,18 +32,18 @@ def _gh_laes():
         f"https://github.com{repo}/contents/{FIL_STI}",
         headers={"Authorization": f"token {tok}", "Accept": "application/vnd.github.v3+json", "User-Agent": "OddsRobotPro"})
     try:
-        with urllib.request.urlopen(req, timeout=1.5) as res:
+        with urllib.request.urlopen(req, timeout=2.5) as res:
             d = json.loads(res.read().decode("utf-8"))
-            raekker = json.loads(base64.b64decode(d["content"]).decode("utf-8"))
-            return raekker, d["sha"]
+            return json.loads(base64.b64decode(d["content"]).decode("utf-8")), d["sha"]
     except Exception:
         return [], None
 
 def _gh_skriv(raekker, sha=None):
     tok, repo = _gh_cfg()
     if not tok:
+        st.error("⚠️ Ingen GitHub-token fundet i Streamlit Secrets!")
         return False
-    body = {"message": "Opdaterer kuponer", "content": base64.b64encode(json.dumps(raekker, ensure_ascii=False, indent=2).encode("utf-8")).decode("utf-8")}
+    body = {"message": "Gem kupon", "content": base64.b64encode(json.dumps(raekker, ensure_ascii=False, indent=2).encode("utf-8")).decode("utf-8")}
     if sha:
         body["sha"] = sha
     req = urllib.request.Request(
@@ -44,8 +51,12 @@ def _gh_skriv(raekker, sha=None):
         data=json.dumps(body).encode("utf-8"),
         headers={"Authorization": f"token {tok}", "Accept": "application/vnd.github.v3+json", "User-Agent": "OddsRobotPro"},
         method="PUT")
-    with urllib.request.urlopen(req, timeout=2.5) as res:
-        return res.status in (200, 201)
+    try:
+        with urllib.request.urlopen(req, timeout=3.5) as res:
+            return res.status in (200, 201)
+    except Exception as e:
+        st.error(f"⚠️ GitHub gem-fejl: {e}")
+        return False
 
 def hent_alle_kuponer():
     if "kupon_ram_cache" not in st.session_state:
@@ -69,10 +80,11 @@ def gem_kupon_i_historik(*args, **kwargs):
     raekker, sha = _gh_laes()
     nyt_id = max([int(r.get("id", 0)) for r in raekker], default=0) + 1
     raekker.insert(0, {"id": nyt_id, "dato": dato, "kilde": kilde, "kampe": f"{len(kampe)} kampe ({dato})", "detaljer": json.dumps(kampe, ensure_ascii=False), "odds": odds, "indsats": indsats, "mulig_gevinst": round(odds * indsats, 2), "status": "[AFVENTER]"})
-    _gh_skriv(raekker, sha)
-    st.session_state["kupon_ram_cache"] = raekker
-    st.toast("OK – tilføjet til historikken")
-    return True
+    if _gh_skriv(raekker, sha):
+        st.session_state["kupon_ram_cache"] = raekker
+        st.toast(f"✅ Kupon #{nyt_id} gemt permanent på GitHub!")
+        return True
+    return False
 
 gem_kupon = gem_kupon_i_historik
 gem_spil = gem_kupon_i_historik
