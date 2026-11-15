@@ -52,9 +52,7 @@ def _gh_laes():
             _lokal_skriv(raekker)
             return raekker, d.get("sha")
     except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return [], None
-        return _lokal_laes(), None
+        return ([], None) if e.code == 404 else (_lokal_laes(), None)
     except Exception:
         return _lokal_laes(), None
 
@@ -64,7 +62,7 @@ def _gh_skriv(raekker, sha=None):
     if not tok:
         return False
     url = f"https://github.com{repo}/contents/{FIL_STI}"
-    body = {"message": "Gem kupon", "content": base64.b64encode(json.dumps(raekker, ensure_ascii=False, indent=2).encode("utf-8")).decode("utf-8")}
+    body = {"message": "Opdater kuponer", "content": base64.b64encode(json.dumps(raekker, ensure_ascii=False, indent=2).encode("utf-8")).decode("utf-8")}
     if sha:
         body["sha"] = sha
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json", "User-Agent": "OddsRobotPro"}, method="PUT")
@@ -98,7 +96,16 @@ def gem_kupon_i_historik(*args, **kwargs):
     raekker.insert(0, {"id": nyt_id, "dato": dato, "kilde": kilde, "kampe": f"{len(kampe)} kampe ({dato})", "detaljer": json.dumps(kampe, ensure_ascii=False), "odds": odds, "indsats": indsats, "mulig_gevinst": round(odds * indsats, 2), "status": "[AFVENTER]"})
     cloud_ok = _gh_skriv(raekker, sha)
     st.session_state["kupon_ram_cache"] = raekker
-    st.success("OK – tilføjet til historikken" + (" (Cloud)" if cloud_ok else " (Lokal backup)"))
+    msg = f"✅ OK – Kupon ({len(kampe)} kampe @ {odds}) er tilføjet til historikken!" + (" (Cloud)" if cloud_ok else " (Lokal)")
+    st.session_state["sidste_gem_ok"] = msg
+    st.success(msg)
+    return True
+
+def slet_kupon(kupon_id):
+    raekker, sha = _gh_laes()
+    ny = [r for r in raekker if int(r.get("id", -1)) != int(kupon_id)]
+    _gh_skriv(ny, sha)
+    st.session_state["kupon_ram_cache"] = ny
     return True
 
 gem_kupon = gem_kupon_i_historik
