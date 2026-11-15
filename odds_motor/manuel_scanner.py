@@ -5,6 +5,9 @@ from historik import gem_data
 
 def vis_manuel_scanner():
     st.subheader("🎯 2. Manuel Kamp-Vælger & Kuponbygger")
+    if msg := st.session_state.pop("sidste_gem_ok", None):
+        st.success(msg)
+
     favs = list(liga_favoritter.hent_favorit_ligaer())
     timer = dansk_tid.vaelg_tidsramme("man", standard=12)
 
@@ -20,7 +23,7 @@ def vis_manuel_scanner():
     st.session_state.setdefault("man_pins", [])
     pins = [l for l in st.session_state["man_pins"] if l in ligaer]
 
-    c_l1, c_l2 = st.columns([3, 1])
+    c_l1, c_l2 = st.columns()
     v_ligaer = c_l1.multiselect(f"🏆 Vælg ligaer ({len(ligaer)} aktive i {timer}T):", ligaer, default=pins, key="man_ligaer")
     if c_l2.button("📌 Fastgør valgte", key="btn_man_pin"):
         st.session_state["man_pins"] = list(v_ligaer)
@@ -42,7 +45,7 @@ def vis_manuel_scanner():
                 blokeret.add(k["hj"])
     tilgaengelige = [h for h in all_klubber if h in st.session_state["man_klubber"] or h not in blokeret]
 
-    c_k1, c_k2 = st.columns([3, 1])
+    c_k1, c_k2 = st.columns()
     valgte_klubber = c_k1.multiselect("🔍 Søg og vælg hold (modstander fjernes automatisk):", tilgaengelige, key="man_klubber")
     maal_odds = c_k2.number_input("🎯 Ønsket mål-odds:", min_value=1.10, max_value=5000.0, value=10.0, step=1.0, key="man_maal_odds")
 
@@ -79,7 +82,7 @@ def vis_manuel_scanner():
             if st.checkbox(f"{i+1}. {k['hj']} vs {k['ud']} — {', '.join(k['kombinationer'])} (Odds: {k['b365']} | Chance: {k['vinderchance_pct']}%)", value=True, key=f"man_chk_{i}_{k['hj']}_{k['ud']}"):
                 valgte.append(k)
             st.caption(f"📍 {k['liga']} | **{k['start']}** | Form: {ctx.get('hj_form')} vs {ctx.get('ud_form')}{dom_txt} | Vejr: {v_txt}")
-            st.caption(k.get("begrundelse") or mh.begrundelse(k))
+            st.caption(mh.begrundelse(k))
 
         if valgte:
             side, bo, uo, oo, sp, stj, flm = ap._vurder_kupon(valgte)
