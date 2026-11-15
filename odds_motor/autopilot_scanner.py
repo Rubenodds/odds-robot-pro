@@ -75,6 +75,4 @@ def vis_autopilot_scanner():
             s_txt = f"🥇 **{top3[0][0]}:** {top3[0][1]} | 🥈 **{top3[1][0]}:** {top3[1][1]} | 🥉 **{top3[2][0]}:** {top3[2][1]}"
             st.info(f"{s_txt}\n\n📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}")
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
-            if st.button("🚀 SPILLET (Gem valgte i Historik)", type="primary", key="btn_auto_spillet"):
-                if gem_data.gem_kupon_i_historik(kilde="Autopilot Scanner", kampe=[f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])}) [{k['start']}]" for k in valgte], odds=top3[0][1], indsats=kr):
-                    st.rerun()
+            
