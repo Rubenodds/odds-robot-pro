@@ -1,7 +1,5 @@
 import math, hashlib
-import streamlit as st
 
-STAT_LIGAER = {"eng.1", "eng.2", "esp.1", "ger.1", "ita.1", "fra.1", "den.1", "ned.1", "por.1", "uefa.champions", "uefa.europa"}
 ALT_SIDER = ["Betano", "Expekt", "NordicBet", "Unibet", "Danske Spil", "ComeOn"]
 
 def har_skud_marked(k):
@@ -15,8 +13,7 @@ def rens_kamp_valg(k, runde=0):
     kombi = list(ny.get("kombinationer") or [])
     if not har_skud_marked(ny):
         kombi = [x for x in kombi if not any(w in x.lower() for w in ("skud", "redning", "tackling"))]
-    har_o25 = any("over 2.5" in x.lower() for x in kombi)
-    if har_o25:
+    if any("over 2.5" in x.lower() for x in kombi):
         kombi = [x for x in kombi if "over 1.5" not in x.lower()]
     if not kombi:
         valgt = ny.get("hj", "Hjemmehold") if runde % 2 == 0 else "Begge hold scorer"
@@ -28,8 +25,7 @@ def udvaelg_kandidater(kandidater, max_kampe, maal, runde=0):
     def score(k):
         ctx = k.get("ctx") or {}
         hf, uf = str(ctx.get("hj_form", "")), str(ctx.get("ud_form", ""))
-        form_diff = abs(hf.count("W") - uf.count("W"))
-        return (form_diff * 10) + (5 if har_skud_marked(k) else 0) - k.get("timer", 12)
+        return (abs(hf.count("W") - uf.count("W")) * 10) + (5 if har_skud_marked(k) else 0) - k.get("timer", 12)
     rang = sorted(kandidater, key=score, reverse=True)
     n = next((i for i in range(1, min(len(rang), max_kampe) + 1) if 1.45 <= maal ** (1.0 / i) <= 3.10), min(len(rang), max_kampe))
     if len(rang) <= n:
