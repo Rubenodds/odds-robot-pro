@@ -23,7 +23,7 @@ def vis_manuel_scanner():
     st.session_state.setdefault("man_pins", [])
     pins = [l for l in st.session_state["man_pins"] if l in ligaer]
 
-    c_l1, c_l2 = st.columns()
+    c_l1, c_l2 = st.columns([3, 1])
     v_ligaer = c_l1.multiselect(f"🏆 Vælg ligaer ({len(ligaer)} aktive i {timer}T):", ligaer, default=pins, key="man_ligaer")
     if c_l2.button("📌 Fastgør valgte", key="btn_man_pin"):
         st.session_state["man_pins"] = list(v_ligaer)
@@ -45,7 +45,7 @@ def vis_manuel_scanner():
                 blokeret.add(k["hj"])
     tilgaengelige = [h for h in all_klubber if h in st.session_state["man_klubber"] or h not in blokeret]
 
-    c_k1, c_k2 = st.columns()
+    c_k1, c_k2 = st.columns([2, 1])
     valgte_klubber = c_k1.multiselect("🔍 Søg og vælg hold (modstander fjernes automatisk):", tilgaengelige, key="man_klubber")
     maal_odds = c_k2.number_input("🎯 Ønsket mål-odds:", min_value=1.10, max_value=5000.0, value=10.0, step=1.0, key="man_maal_odds")
 
