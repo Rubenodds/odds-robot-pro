@@ -36,7 +36,7 @@ def _tegn_kuponer(liste_r, fane_prefix):
                     kampe = [raw]
                 for k in kampe:
                     st.caption(f"• {k}")
-                c1, c2, c3 = st.columns()
+                c1, c2, c3 = st.columns([2, 1, 1])
                 valg = c1.selectbox("Status", ["✅ Vundet", "❌ Tabt", "⏳ Afventer"], key=f"s_{fane_prefix}_{kid}", label_visibility="collapsed")
                 if c2.button("Gem", key=f"b_{fane_prefix}_{kid}", use_container_width=True):
                     _handling(kid, valg); st.rerun()
