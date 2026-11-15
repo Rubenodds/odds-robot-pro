@@ -5,31 +5,26 @@ from tidsstyring import dansk_tid
 from odds_motor import liga_favoritter, byg_kupon, kamp_intelligens, manuel_hjaelp as mh, autopilot_hjaelp as ah
 from historik import gem_data
 
-API = "https://espn.com{}/scoreboard"
+HOST = "site.api." + "espn.com"
+API = f"https://{HOST}/apis/site/v2/sports/soccer/{{}}/scoreboard"
 HDR = {"User-Agent": "Mozilla/5.0"}
 SLUGS = {
     "Danmark - Superliga": "den.1", "Danmark - 1. Division": "den.2", "Danmark - Pokalen": "den.cup",
     "England - Premier League": "eng.1", "England - Championship": "eng.2", "England - League One": "eng.3",
     "England - FA Cup": "eng.fa", "England - EFL Cup": "eng.league_cup", "Spanien - La Liga": "esp.1",
-    "Spanien - Segunda División": "esp.2", "Italien - Serie A": "ita.1", "Italien - Serie B": "ita.2",
-    "Tyskland - Bundesliga": "ger.1", "Tyskland - 2. Bundesliga": "ger.2", "Frankrig - Ligue 1": "fra.1",
-    "Frankrig - Ligue 2": "fra.2", "Norge - Eliteserien": "nor.1", "Norge - OBOS-ligaen": "nor.2",
-    "Sverige - Allsvenskan": "swe.1", "Holland - Eredivisie": "ned.1", "Portugal - Liga Portugal": "por.1",
-    "Brasilien - Serie A": "bra.1", "Japan - J1 League": "jpn.1", "Japan - J2 League": "jpn.2",
+    "Spanien - Segunda División": "esp.2", "Spanien - Copa del Rey": "esp.copa_del_rey",
+    "Italien - Serie A": "ita.1", "Italien - Serie B": "ita.2", "Italien - Coppa Italia": "ita.coppa_italia",
+    "Tyskland - Bundesliga": "ger.1", "Tyskland - 2. Bundesliga": "ger.2", "Tyskland - DFB Pokal": "ger.dfb_pokal",
+    "Frankrig - Ligue 1": "fra.1", "Frankrig - Ligue 2": "fra.2", "Frankrig - Coupe de France": "fra.coupe_de_france",
+    "Norge - Eliteserien": "nor.1", "Norge - OBOS-ligaen": "nor.2", "Sverige - Allsvenskan": "swe.1",
+    "Holland - Eredivisie": "ned.1", "Portugal - Liga Portugal": "por.1",
+    "Brasilien - Serie A": "bra.1", "Brasilien - Serie B": "bra.2",
+    "Japan - J1 League": "jpn.1", "Japan - J2 League": "jpn.2",
     "UEFA - Champions League": "uefa.champions", "UEFA - Europa League": "uefa.europa",
     "UEFA - Conference League": "uefa.europa.conf", "UEFA - Nations League": "uefa.nations",
     "UEFA - VM Kvalifikation": "fifa.worldq.uefa", "FIFA - Venskabskampe": "fifa.friendly",
 }
-MARKEDER = ["Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Flest)", "Spillerskud & Skud på mål", "Tacklinger & Målmandsredninger", "Kort-sandsynlighed (Gule/Røde)", "Målscorer (Anytime/Første)", "Offsides"]
-
-def _parse_event(ev, liga, slug, nu, dk_tz, sete):
-    ev_id = ev.get("id")
-    if not ev_id or ev_id in sete or (ev.get("status") or {}).get("type", {}).get("state") == "post":
-        return None
-    raw_dt = ev.get("date", "")
-    if len(raw_dt) == 17 and raw_dt.endswith("Z"):
-        raw_dt = raw_dt[:-1] + ":00Z"
-    dk_dt = datetime.fromisoformat(raw_dt.replace("Z", "+00:00")).astimezone(dk_tz)
+e.fromisoformat(raw_dt.replace("Z", "+00:00")).astimezone(dk_tz)
     diff = (dk_dt - nu).total_seconds() / 3600.0
     if diff <= -0.25:
         return None
