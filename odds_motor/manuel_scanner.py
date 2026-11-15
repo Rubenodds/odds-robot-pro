@@ -41,7 +41,10 @@ def vis_manuel_scanner():
             elif k["ud"] == h:
                 blokeret.add(k["hj"])
     tilgaengelige = [h for h in all_klubber if h in st.session_state["man_klubber"] or h not in blokeret]
-    valgte_klubber = st.multiselect("🔍 Søg og vælg hold (modstander fjernes automatisk):", tilgaengelige, key="man_klubber")
+
+    c_k1, c_k2 = st.columns([3, 1])
+    valgte_klubber = c_k1.multiselect("🔍 Søg og vælg hold (modstander fjernes automatisk):", tilgaengelige, key="man_klubber")
+    maal_odds = c_k2.number_input("🎯 Ønsket mål-odds:", min_value=1.10, max_value=5000.0, value=10.0, step=1.0, key="man_maal_odds")
 
     udvalgte, sete_kampe = [], set()
     for hold in valgte_klubber:
@@ -63,7 +66,7 @@ def vis_manuel_scanner():
             st.warning("⚠️ Vælg mindst ét hold i rullemenuen først.")
         else:
             maal_liste = kamp_intelligens.berig_valgte_kampe(maal_liste)
-            st.session_state["man_kupon"] = mh.byg_forslag(maal_liste, 25.0, kun_res=bool(k2))
+            st.session_state["man_kupon"] = mh.byg_forslag(maal_liste, float(maal_odds), kun_res=bool(k2))
 
     if kupon := st.session_state.get("man_kupon"):
         st.markdown("### 🎫 Din Manuelt Byggede Kupon:")
@@ -82,6 +85,6 @@ def vis_manuel_scanner():
             side, bo, uo, oo, sp, stj, flm = ap._vurder_kupon(valgte)
             st.info(f"🥇 **Bedste odds:** {side} ({bo}) | 🥈 Unibet: {uo} | 🥉 Danske Spil: {oo} | Chance: **{sp}%** | Værdi: {'⭐'*stj} | Risiko: {'🔥'*flm}")
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="man_kr")
-            if st.button("🚀 SPILLET (Gem i Supabase)", type="primary", key="btn_man_spillet"):
-                if gem_data.gem_kupon_i_historik(list({k["liga"] for k in valgte}), [f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])}) [{k['start']}]" for k in valgte], bo, uo, oo, side, stj, kr):
-                    st.success("Kupon gemt i Supabase!")
+            if st.button("🚀 SPILLET (Gem i Historik)", type="primary", key="btn_man_spillet"):
+                if gem_data.gem_kupon_i_historik(kilde="Manuel Scanner", kampe=[f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])}) [{k['start']}]" for k in valgte], odds=bo, indsats=kr):
+                    st.rerun()
