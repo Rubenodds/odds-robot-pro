@@ -1,4 +1,4 @@
-import math, requests, streamlit as st
+import requests, streamlit as st
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from tidsstyring import dansk_tid
@@ -65,9 +65,10 @@ def _hent_kampe_v9(ligaer_tuple, timer_maks=24):
     return sorted(kampe, key=lambda x: x["dk_dt"])
 
 def _vurder_kupon(valgte):
-    alle, sp, _, stj, flm = ah.vurder_top3(valgte)
-    return alle[0][0], alle[0][1], alle[1][1], alle[2][1], sp, stj, flm
-    def vis_autopilot_scanner():
+    top3, sp, _, stj, flm = ah.vurder_top3(valgte)
+    return top3[0][0], top3[0][1], top3[1][1], top3[2][1], sp, stj, flm
+
+def vis_autopilot_scanner():
     st.subheader("🌐 1. Autopilot Scanner (Form, H2H, Dommer & Vejr)")
     if msg := st.session_state.pop("sidste_gem_ok", None):
         st.success(msg)
