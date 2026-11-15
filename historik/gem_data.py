@@ -1,4 +1,4 @@
-import os, json, base64, urllib.request
+import os, json, base64, urllib.request, urllib.error
 from datetime import datetime, timedelta
 import streamlit as st
 
@@ -44,13 +44,17 @@ def _gh_laes():
     if not tok:
         return _lokal_laes(), None
     url = f"https://github.com{repo}/contents/{FIL_STI}"
-    req = urllib.request.Request(url, headers={"Authorization": f"token {tok}", "Accept": "application/vnd.github.v3+json", "User-Agent": "OddsRobotPro"})
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json", "User-Agent": "OddsRobotPro"})
     try:
-        with urllib.request.urlopen(req, timeout=3) as res:
+        with urllib.request.urlopen(req, timeout=5) as res:
             d = json.loads(res.read().decode("utf-8"))
             raekker = json.loads(base64.b64decode(d["content"]).decode("utf-8"))
             _lokal_skriv(raekker)
-            return raekker, d["sha"]
+            return raekker, d.get("sha")
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return [], None
+        return _lokal_laes(), None
     except Exception:
         return _lokal_laes(), None
 
@@ -63,9 +67,9 @@ def _gh_skriv(raekker, sha=None):
     body = {"message": "Gem kupon", "content": base64.b64encode(json.dumps(raekker, ensure_ascii=False, indent=2).encode("utf-8")).decode("utf-8")}
     if sha:
         body["sha"] = sha
-    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers={"Authorization": f"token {tok}", "Accept": "application/vnd.github.v3+json", "User-Agent": "OddsRobotPro"}, method="PUT")
+    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json", "User-Agent": "OddsRobotPro"}, method="PUT")
     try:
-        with urllib.request.urlopen(req, timeout=4) as res:
+        with urllib.request.urlopen(req, timeout=6) as res:
             return res.status in (200, 201)
     except Exception:
         return False
@@ -79,22 +83,22 @@ def hent_alle_kuponer():
 def gem_kupon_i_historik(*args, **kwargs):
     kilde, kampe, tal = "Scanner", [], []
     for a in args:
-        if isinstance(a, (list, tuple)) and a and any(":" in str(x) or "vs" in str(x) or "-" in str(x) for x in a):
+        if isinstance(a, (list, tuple)) and a:
             kampe = list(a)
         elif isinstance(a, (int, float)):
             tal.append(float(a))
-        elif isinstance(a, str):
-            kilde = a
-    kampe = kwargs.get("kampe") or kampe
+        elif isinstance(a, str) and a.strip():
+            kilde = a.strip()
+    kampe = kwargs.get("kampe") or kwargs.get("valg") or kampe
     odds = round(float(kwargs.get("odds") or kwargs.get("total_odds") or next(iter(tal), 1.0)), 2)
-    indsats = float(kwargs.get("indsats") or (tal[-1] if len(tal) >= 4 else 100.0))
+    indsats = float(kwargs.get("indsats") or (tal[-1] if len(tal) >= 2 and tal[-1] >= 10 else 100.0))
     dato = _dansk_tid()
     raekker, sha = _gh_laes()
     nyt_id = max([int(r.get("id", 0)) for r in raekker], default=0) + 1
     raekker.insert(0, {"id": nyt_id, "dato": dato, "kilde": kilde, "kampe": f"{len(kampe)} kampe ({dato})", "detaljer": json.dumps(kampe, ensure_ascii=False), "odds": odds, "indsats": indsats, "mulig_gevinst": round(odds * indsats, 2), "status": "[AFVENTER]"})
     cloud_ok = _gh_skriv(raekker, sha)
     st.session_state["kupon_ram_cache"] = raekker
-    st.toast("OK – tilføjet til historikken" + (" (Cloud)" if cloud_ok else " (Lokal backup)"))
+    st.success("OK – tilføjet til historikken" + (" (Cloud)" if cloud_ok else " (Lokal backup)"))
     return True
 
 gem_kupon = gem_kupon_i_historik
