@@ -1,18 +1,37 @@
 import streamlit as st
-from odds_motor import byg_kupon
 
 def begrundelse(k):
     if not isinstance(k, dict):
-        return "Matematisk værdispil ud fra live kampdata og oddsbalance."
+        return "💡 **Hvorfor?** Matematisk værdispil ud fra live formkurve og oddsbalance."
     ctx = k.get("ctx") or {}
     hj, ud = k.get("hj", "Hjemmehold"), k.get("ud", "Udehold")
-    spil = ", ".join(k.get("kombinationer") or [k.get("spil") or k.get("valg") or "Valgt spil"])
-    odds = k.get("b365") or k.get("odds") or 1.85
-    dommer = ctx.get("dommer") or "Afventer dommer"
-    vejr = ctx.get("vejr")
-    v_txt = f"{vejr['temp']}°C, {vejr['vind']} m/s" if isinstance(vejr, dict) and "temp" in vejr else "Normalt kampvejr"
-    skader = ctx.get("skader") or "Ingen kritiske skader meldt"
-    return f"📊 {hj} vs {ud} ({spil} @ {odds}) | 🏁 Dommer: {dommer} | 🌤️ {v_txt} | 🏥 {skader}"
+    spil = ", ".join(k.get("kombinationer") or [k.get("spil") or "Valgt spil"])
+    odds = float(k.get("b365") or k.get("odds") or 1.85)
+    imp = round(100.0 / max(1.01, odds), 1)
+    hf, uf = str(ctx.get("hj_form") or ""), str(ctx.get("ud_form") or "")
+    hw, uw = hf.count("W"), uf.count("W")
+    vejr = ctx.get("vejr") or {}
+    vind = float(vejr.get("vind", 0) or 0) if isinstance(vejr, dict) else 0.0
+
+    dele = []
+    if hf and uf and (hw != uw):
+        bedst = hj if hw > uw else ud
+        dele.append(f"**{bedst}** kommer ind med overlegen form ({max(hw, uw)} sejre i de seneste 5 kampe)")
+    elif hf and uf:
+        dele.append(f"Tæt formduel ({hf} mod {uf}), hvor hjemmebane og kampbillede vejer tungt")
+    else:
+        dele.append(f"Odds **{odds}** modsvarer **{imp}%** markedssandsynlighed med positiv value-margin")
+
+    if vind >= 9.0:
+        dele.append(f"kraftig blæst ({vind} m/s) skaber flere tilfældige bolde, dødbolde og hjørnespark")
+    elif "hjørne" in spil.lower() or "skud" in spil.lower():
+        dele.append("begge mandskaber spiller med høj offensiv volumen, hvilket driver afslutninger og hjørnespark op")
+    elif "over" in spil.lower() or "scorer" in spil.lower():
+        dele.append("begge holds defensive sårbarhed peger mod en åben kamp med mange chancer")
+    else:
+        dele.append("stabilt kampvejr understøtter det forventede styrkeforhold")
+
+    return "💡 **Hvorfor?** " + ". ".join(dele) + "."
 
 def _vaelg_marked_til_maal(k, maal_pr_kamp, kun_res=False):
     valgt = k.get("valgt_hold") or k.get("hj", "Hjemmehold")
