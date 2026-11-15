@@ -2,6 +2,14 @@
 
 🤖 Odds Robot Pro – Systemstatus & Roadmap
 
+# 📅 Log: 15-11-2026 kl. 18:00 (Dansk tid) — Total Status & Færdiggørelse af Mappe 1–5
+* **Mappe 1 (`autopilot_hjaelp.py` + `autopilot_scanner.py` + `byg_kupon.py`)**: Smart rotation (`auto_scan_runde`) ved gentagne klik, markeds-realisme (`_har_skud_marked` blokerer opfundne skudlinjer på landskampe), anti-dublet (`Over 1.5` vs `Over 2.5`) og bookmaker-agnostisk Top 3 (`🥇🥈🥉` med Bet365 + 2 dynamiske konkurrenter).
+* **Mappe 2 (`manuel_scanner.py` + `manuel_hjaelp.py`)**: Interaktivt `🎯 Ønsket mål-odds`-felt + taktiske `💡 Hvorfor?`-begrundelser.
+* **Mappe 3 (`billed_ocr.py` + `billed_hjaelp.py` + `billed_parser.py`)**: `✅ Godt` / `⚠️ Skidt` pr. scannet kamp, `💡 Hvorfor?` under alle forslag og Cloud-gem med grøn kvittering.
+* **Mappe 4 (`historik/gem_data.py` + `regnskab_visning.py`)**: Permanent GitHub Cloud-lagring (`://github.com...`), 0-sek RAM-cache og 1-kliks `🗑️ Slet`-knap under hver kupon i dato-mapperne.
+* **Mappe 5 (`udvidelser/holdnavne_oversaetter.py` + `historik_statistik.py`)**: Holdnavne-normalisering og historisk kamp-/dommerstatistik.
+* **Næste i køen**: **Mappe 6 (`udvidelser/special_markeder.py`)** — isoleret specialmarkeds-scanner.
+
 📅 Log: 14-11-2026 kl. 22:54 (Dansk tid) — Mappe 4 FÆRDIG & LÅST (Permanent GitHub-lagring, lyn-RAM-cache & mobil-regnskab) + Mappe 2 gendannet
 
 - **Arkitektur & Hovedfil (`app.py`):** 100 % LÅST og urørt. Live på `a4fvsw9j8o.streamlit.app`. Alle kodeblokke overholder strengt reglen om maks. 3.000 tegn.
