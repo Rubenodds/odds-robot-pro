@@ -13,11 +13,11 @@ def har_skud_marked(k):
     lg = str(k.get("liga", "")).lower()
     return not any(x in lg for x in ("2. division", "obos", "j2"))
 
-def _hent_live_valg(ny, runde=0):
+def _hent_live_valg(ny, runde=0, maks_ben=2.15):
     try:
         from udvidelser.marked_motor import hent_reelle_muligheder
         muligheder, kilde, _ = hent_reelle_muligheder({"id": ny.get("id", ""), "liga_kode": _gæt_liga_kode(ny), "hjemme": ny.get("hj", ""), "ude": ny.get("ud", ""), "odds_api_id": ny.get("odds_api_id", "")})
-        gyldige = [m for m in muligheder if 1.25 <= float(m.get("b365", 0)) <= 3.80]
+        gyldige = [m for m in muligheder if 1.25 <= float(m.get("b365", 0)) <= maks_ben]
         if gyldige:
             valgt = gyldige[(runde * 3 + len(ny.get("hj", ""))) % len(gyldige)]
             odds = round(float(valgt["b365"]), 2)
@@ -30,23 +30,21 @@ def _hent_live_valg(ny, runde=0):
         pass
     return False
 
-def rens_kamp_valg(k, runde=0):
+def rens_kamp_valg(k, runde=0, maks_ben=2.15):
     ny = dict(k)
-    if _hent_live_valg(ny, runde):
+    if _hent_live_valg(ny, runde, maks_ben):
         return ny
     hj, ud = ny.get("hj", "Hjemmehold"), ny.get("ud", "Udehold")
     alt_valg = [
-        (f"Begge hold scorer: Ja", 1.82), (f"{hj} eller Uafgjort & Over 1.5 mål", 1.75),
-        (f"Over 2.5 mål i kampen", 1.95), (f"{hj} vinder 1. halvleg", 2.40),
-        (f"Over 9.5 hjørnespark i alt", 1.85), (f"{ud} eller Uafgjort (X2)", 1.68)
+        (f"{hj} eller Uafgjort (1X)", 1.42), (f"Over 1.5 mål i kampen", 1.38),
+        (f"Begge hold scorer: Ja", 1.78), (f"{hj} eller Uafgjort & Over 1.5 mål", 1.72),
+        (f"Over 8.5 hjørnespark i alt", 1.65), (f"{ud} eller Uafgjort (X2)", 1.58)
     ]
-    if runde > 0 or not ny.get("kombinationer"):
-        valg_txt, odds = alt_valg[(runde + len(hj)) % len(alt_valg)]
-        ny["kombinationer"] = [valg_txt]
-        ny["b365"] = odds
-        ny["vinderchance_pct"] = round(min(86.0, (100.0 / odds) * 0.96), 1)
-    else:
-        ny["kombinationer"] = [x.replace("total", "i alt") for x in ny["kombinationer"]]
+    gyldige_alt = [v for v in alt_valg if v[1] <= maks_ben] or [alt_valg[1]]
+    valg_txt, odds = gyldige_alt[(runde + len(hj)) % len(gyldige_alt)]
+    ny["kombinationer"] = [valg_txt]
+    ny["b365"] = odds
+    ny["vinderchance_pct"] = round(min(86.0, (100.0 / odds) * 0.96), 1)
     return ny
 
 def udvaelg_kandidater(kandidater, max_kampe, maal, runde=0):
