@@ -44,6 +44,7 @@ def vis_autopilot_scanner():
         if not kandidater:
             st.warning("⚠️ Ingen kampe valgt inden for tidsrammen.")
         else:
+            st.session_state.pop("auto_gemt_ok", None)
             with st.spinner("⏳ Robotten analyserer kampe, vejr, dommere og live bookmaker-odds..."):
                 runde = st.session_state.get("auto_scan_runde", 0)
                 st.session_state["auto_scan_runde"] = runde + 1
@@ -80,11 +81,17 @@ def vis_autopilot_scanner():
             st.caption(mh.begrundelse(k))
         if valgte:
             top3, sp, vp, stj, flm = ah.vurder_top3(valgte)
-            bedst_o = float(top3[0][1])
-            anker = max(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)))
-            risiko_k = min(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)))
-            analyse_txt = f"🧠 **Samlet analyse:** Stærkeste anker er **{anker['hj']} - {anker['ud']}** ({anker['vinderchance_pct']}%), mens **{risiko_k['hj']} - {risiko_k['ud']}** (@ {risiko_k['b365']}) er kuponens flaskehals."
+            bo = float(top3[0][1])
+            sort_k = sorted(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)), reverse=True)
+            anker, flaske = sort_k[0], sort_k[-1]
+            f_txt = f", mens **{flaske['hj']} - {flaske['ud']}** (@ {flaske['b365']}) er flaskehalsen" if len(sort_k) > 1 else ""
+            analyse_txt = f"🧠 **Samlet kuponanalyse:** Stærkeste anker er **{anker['hj']} - {anker['ud']}** ({anker['vinderchance_pct']}%){f_txt}."
             st.info(f"🥇 **{top3[0][0]}:** {top3[0][1]} | 🥈 **{top3[1][0]}:** {top3[1][1]} | 🥉 **{top3[2][0]}:** {top3[2][1]}\n\n📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}\n\n{analyse_txt}")
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
-            if st.button("🚀 SPILLET", type="primary", key="btn_auto_spillet"):
-                gem_data.gem_kupon_i_historik(kilde="Autopilot", kampe=valgte, odds=bedst_o, indsats=kr)
+            if ok_msg := st.session_state.get("auto_gemt_ok"):
+                st.success(ok_msg)
+            elif st.button("🚀 SPILLET", type="primary", key="btn_auto_spillet"):
+                with st.spinner("⏳ Gemmer kupon i Cloud-historik..."):
+                    gem_data.gem_kupon_i_historik(kilde="Autopilot", kampe=valgte, odds=bo, indsats=kr)
+                    st.session_state["auto_gemt_ok"] = f"✅ OK — Kupon ({len(valgte)} kampe @ {bo}) er gemt i historikken!"
+                    st.rerun()
