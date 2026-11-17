@@ -76,10 +76,11 @@ def vis_autopilot_scanner():
             st.caption(mh.begrundelse(k))
         if valgte:
             top3, sp, vp, stj, flm = ah.vurder_top3(valgte)
+            bedst_o = float(top3[0][1])
             anker = max(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)))
             risiko_k = min(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)))
             analyse_txt = f"🧠 **Samlet analyse:** Stærkeste anker er **{anker['hj']} - {anker['ud']}** ({anker['vinderchance_pct']}%), mens **{risiko_k['hj']} - {risiko_k['ud']}** (@ {risiko_k['b365']}) er kuponens flaskehals."
-            st.info(f"🥇 **{top3}:** {top3} | 🥈 **{top3}:** {top3} | 🥉 **{top3}:** {top3}\n\n📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}\n\n{analyse_txt}")
+            st.info(f"🥇 **{top3[0][0]}:** {top3[0][1]} | 🥈 **{top3[1][0]}:** {top3[1][1]} | 🥉 **{top3[2][0]}:** {top3[2][1]}\n\n📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}\n\n{analyse_txt}")
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
             if st.button("🚀 SPILLET", type="primary", key="btn_auto_spillet"):
-                gem_data.gem_kupon_i_historik(kilde="Autopilot", kampe=valgte, odds=top3, indsats=kr)
+                gem_data.gem_kupon_i_historik(kilde="Autopilot", kampe=valgte, odds=bedst_o, indsats=kr)
