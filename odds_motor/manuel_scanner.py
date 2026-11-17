@@ -1,20 +1,15 @@
 import streamlit as st
 from tidsstyring import dansk_tid
-from odds_motor import autopilot_scanner as ap, liga_favoritter, manuel_hjaelp as mh, kamp_intelligens
+from odds_motor import autopilot_scanner as ap, liga_favoritter, manuel_hjaelp as mh, autopilot_hjaelp as ah, kamp_intelligens
 from historik import gem_data
 
 def vis_manuel_scanner():
     st.subheader("🎯 2. Manuel Kamp-Vælger & Kuponbygger")
-    if msg := st.session_state.pop("sidste_gem_ok", None):
-        st.success(msg)
-
     favs = list(liga_favoritter.hent_favorit_ligaer())
     timer = dansk_tid.vaelg_tidsramme("man", standard=12)
-
     alle = ap._hent_kampe_v9(tuple(favs), timer)
     aktive = [k for k in alle if 0 < k["timer"] <= timer]
     ligaer = sorted({k["liga"] for k in aktive})
-
     if not ligaer:
         f1 = next(iter(alle), None)
         st.info(f"📭 Ingen aktive kampe inden for **{timer} timer**." + (f" Næste: **{f1['hj']} vs {f1['ud']}** ({f1['start']})." if f1 else ""))
@@ -22,7 +17,6 @@ def vis_manuel_scanner():
 
     st.session_state.setdefault("man_pins", [])
     pins = [l for l in st.session_state["man_pins"] if l in ligaer]
-
     c_l1, c_l2 = st.columns([3, 1])
     v_ligaer = c_l1.multiselect(f"🏆 Vælg ligaer ({len(ligaer)} aktive i {timer}T):", ligaer, default=pins, key="man_ligaer")
     if c_l2.button("📌 Fastgør valgte", key="btn_man_pin"):
@@ -36,13 +30,7 @@ def vis_manuel_scanner():
 
     all_klubber = sorted({k["hj"] for k in filt} | {k["ud"] for k in filt})
     st.session_state["man_klubber"] = [h for h in st.session_state.get("man_klubber", []) if h in all_klubber]
-    blokeret = set()
-    for h in st.session_state["man_klubber"]:
-        for k in filt:
-            if k["hj"] == h:
-                blokeret.add(k["ud"])
-            elif k["ud"] == h:
-                blokeret.add(k["hj"])
+    blokeret = {k["ud"] if k["hj"] == h else k["hj"] for h in st.session_state["man_klubber"] for k in filt if h in (k["hj"], k["ud"])}
     tilgaengelige = [h for h in all_klubber if h in st.session_state["man_klubber"] or h not in blokeret]
 
     c_k1, c_k2 = st.columns([2, 1])
@@ -62,14 +50,13 @@ def vis_manuel_scanner():
     k1 = b1.button("🧮 Beregn Kupon (Valgte hold)", type="primary", key="btn_man_beregn")
     k2 = b2.button("🎯 Kun Resultatspil (1X2 / Ciffer)", key="btn_man_res")
     k3 = b3.button("⚡ TILFØJ ALLE KAMPE I LIGAER", key="btn_man_alle")
-
     if k1 or k2 or k3:
         maal_liste = [dict(x) for x in filt] if k3 else udvalgte
         if not maal_liste:
             st.warning("⚠️ Vælg mindst ét hold i rullemenuen først.")
         else:
-            maal_liste = kamp_intelligens.berig_valgte_kampe(maal_liste)
-            st.session_state["man_kupon"] = mh.byg_forslag(maal_liste, float(maal_odds), kun_res=bool(k2))
+            with st.spinner("⏳ Beregner rigtige bookmaker-markeder..."):
+                st.session_state["man_kupon"] = mh.byg_forslag(kamp_intelligens.berig_valgte_kampe(maal_liste), float(maal_odds), kun_res=bool(k2))
 
     if kupon := st.session_state.get("man_kupon"):
         st.markdown("### 🎫 Din Manuelt Byggede Kupon:")
@@ -78,16 +65,22 @@ def vis_manuel_scanner():
             ctx = k.get("ctx", {})
             v = ctx.get("vejr")
             v_txt = f"{v['temp']}°C, {v['vind']} m/s ({v['effekt']})" if v else "Ikke tilgængeligt"
-            dom_txt = f" | Dommer: {ctx['dommer']}" if ctx.get("dommer") else ""
-            if st.checkbox(f"{i+1}. {k['hj']} vs {k['ud']} — {', '.join(k['kombinationer'])} (Odds: {k['b365']} | Chance: {k['vinderchance_pct']}%)", value=True, key=f"man_chk_{i}_{k['hj']}_{k['ud']}"):
+            if st.checkbox(f"{i+1}. {k['hj']} vs {k['ud']} (@ {k['b365']} | {k['vinderchance_pct']}%)", value=True, key=f"man_chk_{i}_{k['hj']}_{k['ud']}"):
                 valgte.append(k)
-            st.caption(f"📍 {k['liga']} | **{k['start']}** | Form: {ctx.get('hj_form')} vs {ctx.get('ud_form')}{dom_txt} | Vejr: {v_txt}")
+            st.markdown(f"🎯 **{', '.join(k['kombinationer'])}**")
+            st.caption(f"📍 {k['liga']} | **{k['start']}** | Form: {ctx.get('hj_form')} vs {ctx.get('ud_form')} | Vejr: {v_txt}")
             st.caption(mh.begrundelse(k))
 
         if valgte:
-            side, bo, uo, oo, sp, stj, flm = ap._vurder_kupon(valgte)
-            st.info(f"🥇 **Bedste odds:** {side} ({bo}) | 🥈 Unibet: {uo} | 🥉 Danske Spil: {oo} | Chance: **{sp}%** | Værdi: {'⭐'*stj} | Risiko: {'🔥'*flm}")
+            top3, sp, vp, stj, flm = ah.vurder_top3(valgte)
+            bo = float(top3[0][1])
+            b365_o = next((o for s, o in top3 if s == "Bet365"), bo)
+            har_1x2 = any("1x2" in " ".join(k.get("kombinationer", [])).lower() or "kampvinder" in " ".join(k.get("kombinationer", [])).lower() for k in valgte)
+            tu_txt = f"\n⚡ **Tidlig udbetaling:** Bet365 ({b365_o}) giver tidlig udbetaling ved 2 måls føring på 1X2." if har_1x2 else ""
+            anker = max(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)))
+            risiko_k = min(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)))
+            analyse_txt = f"🧠 **Analyse:** Anker er **{anker['hj']} - {anker['ud']}** ({anker['vinderchance_pct']}%), mens **{risiko_k['hj']} - {risiko_k['ud']}** (@ {risiko_k['b365']}) er flaskehalsen."
+            st.info(f"🥇 **{top3[0][0]}:** {top3[0][1]} | 🥈 **{top3[1][0]}:** {top3[1][1]} | 🥉 **{top3[2][0]}:** {top3[2][1]}\n\n📊 **{len(valgte)} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}{tu_txt}\n\n{analyse_txt}")
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="man_kr")
             if st.button("🚀 SPILLET (Gem i Historik)", type="primary", key="btn_man_spillet"):
-                if gem_data.gem_kupon_i_historik(kilde="Manuel Scanner", kampe=[f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])}) [{k['start']}]" for k in valgte], odds=bo, indsats=kr):
-                    st.rerun()
+                gem_data.gem_kupon_i_historik(kilde="Manuel Scanner", kampe=[f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])}) [{k['start']}]" for k in valgte], odds=bo, indsats=kr)
