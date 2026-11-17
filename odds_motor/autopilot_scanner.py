@@ -10,14 +10,12 @@ def _hent_kampe_v9(ligaer_tuple, timer_maks=24):
 
 def vis_autopilot_scanner():
     st.subheader("🌐 1. Autopilot Scanner (Form, H2H, Dommer & Vejr)")
-    if msg := st.session_state.pop("sidste_gem_ok", None):
-        st.success(msg)
     favs = list(liga_favoritter.hent_favorit_ligaer())
     timer = dansk_tid.vaelg_tidsramme("auto", standard=12)
     c1, c2, c3 = st.columns(3)
     min_o = c1.number_input("🎯 Min. odds:", min_value=1.2, value=10.0, step=1.0, key="auto_min_o")
     max_o = c2.number_input("🎯 Maks. odds:", min_value=1.5, value=50.0, step=5.0, key="auto_max_o")
-    max_kampe = c3.number_input("🎫 Maks. kampe:", min_value=1, max_value=20, value=4, step=1, key="auto_max_kampe")
+    max_kampe = c3.number_input("🎫 Maks. kampe:", min_value=1, max_value=20, value=6, step=1, key="auto_max_kampe")
 
     alle = _hent_kampe_v9(tuple(favs), timer)
     aktive = [k for k in alle if 0 < k["timer"] <= timer]
@@ -74,5 +72,4 @@ def vis_autopilot_scanner():
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
             if st.button("🚀 SPILLET", type="primary", key="btn_auto_spillet"):
                 gem_data.gem_kupon({"kilde": "Autopilot", "kampe": valgte, "odds": top3[0][1], "indsats": kr, "chance_pct": sp})
-                st.session_state["sidste_gem_ok"] = f"✅ Kupon med {len(valgte)} kampe (odds {top3[0][1]}) er nu lagt i historikken!"
-                st.rerun()
+                st.success(f"✅ OK — Kupon med {len(valgte)} kampe (odds {top3[0][1]}) er tilføjet til historikken!")
