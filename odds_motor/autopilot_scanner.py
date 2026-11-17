@@ -8,10 +8,6 @@ ALLE_MARKEDER = ["Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Fle
 def _hent_kampe_v9(ligaer_tuple, timer_maks=24):
     return kf.hent_kampe_v9(ligaer_tuple, timer_maks)
 
-def _vurder_kupon(valgte):
-    top3, sp, _, stj, flm = ah.vurder_top3(valgte)
-    return top3[0][0], top3[0][1], top3[1][1], top3[2][1], sp, stj, flm
-
 def vis_autopilot_scanner():
     st.subheader("🌐 1. Autopilot Scanner (Form, H2H, Dommer & Vejr)")
     if msg := st.session_state.pop("sidste_gem_ok", None):
@@ -76,3 +72,7 @@ def vis_autopilot_scanner():
             s_txt = f"🥇 **{top3[0][0]}:** {top3[0][1]} | 🥈 **{top3[1][0]}:** {top3[1][1]} | 🥉 **{top3[2][0]}:** {top3[2][1]}"
             st.info(f"{s_txt}\n\n📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}")
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
+            if st.button("🚀 SPILLET", type="primary", key="btn_auto_spillet"):
+                gem_data.gem_kupon({"kilde": "Autopilot", "kampe": valgte, "odds": top3[0][1], "indsats": kr, "chance_pct": sp})
+                st.session_state["sidste_gem_ok"] = f"✅ Kupon med {len(valgte)} kampe (odds {top3[0][1]}) er nu lagt i historikken!"
+                st.rerun()
