@@ -3,7 +3,7 @@ from tidsstyring import dansk_tid
 from odds_motor import liga_favoritter, byg_kupon, kamp_intelligens, manuel_hjaelp as mh, autopilot_hjaelp as ah, autopilot_kamp_feed as kf
 from historik import gem_data
 
-MARKEDER = ["Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Flest)", "Spillerskud & Skud på mål", "Tacklinger & Målmandsredninger", "Kort-sandsynlighed (Gule/Røde)", "Målscorer (Anytime/Første)", "Offsides"]
+ALLE_MARKEDER = ["Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Flest)", "Spillerskud & Skud på mål", "Tacklinger & Målmandsredninger", "Kort-sandsynlighed (Gule/Røde)", "Målscorer (Anytime/Første)", "Offsides"]
 
 def _hent_kampe_v9(ligaer_tuple, timer_maks=24):
     return kf.hent_kampe_v9(ligaer_tuple, timer_maks)
@@ -41,22 +41,23 @@ def vis_autopilot_scanner():
         f1 = next(iter(alle), None)
         st.info(f"📭 Ingen kampe inden for **{timer} timer**." + (f" Næste: **{f1['hj']} vs {f1['ud']}** ({f1['start']} — om **{f1['timer']}T**)." if f1 else ""))
 
-    markeder = st.multiselect("📊 Specialmarkeder:", MARKEDER, default=MARKEDER[:3], key="auto_mark")
+    st.caption("🤖 Scanner automatisk blandt alle udbudte bookmaker-markeder.")
     b1, b2 = st.columns(2)
     if b1.button("🔍 FIND NYE SPILFORSLAG", type="primary", key="btn_scan") or b2.button("⚡ SCAN ALLE VALGTE KAMPE", key="btn_scan_alle"):
-        if not kandidater or not markeder:
-            st.warning("⚠️ Vælg både kampe og specialmarkeder.")
+        if not kandidater:
+            st.warning("⚠️ Ingen kampe valgt inden for tidsrammen.")
         else:
-            runde = st.session_state.get("auto_scan_runde", 0)
-            st.session_state["auto_scan_runde"] = runde + 1
-            maal = round((min_o + max(min_o, max_o)) / 2.0, 2)
-            udv = kandidater if st.session_state.get("btn_scan_alle") else ah.udvaelg_kandidater(kandidater, int(max_kampe), maal, runde)
-            udv = kamp_intelligens.berig_valgte_kampe(udv)
-            kupon = byg_kupon.byg_kombineret_kupon(udv, markeder, maal, runde, min_o=min_o, max_o=max_o)
-            for idx, (ko, uo) in enumerate(zip(kupon["kampe"], udv)):
-                ko["ctx"] = uo["ctx"]
-                kupon["kampe"][idx] = ah.rens_kamp_valg(ko, runde)
-            st.session_state["auto_kupon"] = kupon
+            with st.spinner("⏳ Robotten analyserer kampe, vejr, dommere og live bookmaker-odds..."):
+                runde = st.session_state.get("auto_scan_runde", 0)
+                st.session_state["auto_scan_runde"] = runde + 1
+                maal = round((min_o + max(min_o, max_o)) / 2.0, 2)
+                udv = kandidater if st.session_state.get("btn_scan_alle") else ah.udvaelg_kandidater(kandidater, int(max_kampe), maal, runde)
+                udv = kamp_intelligens.berig_valgte_kampe(udv)
+                kupon = byg_kupon.byg_kombineret_kupon(udv, ALLE_MARKEDER, maal, runde, min_o=min_o, max_o=max_o)
+                for idx, (ko, uo) in enumerate(zip(kupon["kampe"], udv)):
+                    ko["ctx"] = uo["ctx"]
+                    kupon["kampe"][idx] = ah.rens_kamp_valg(ko, runde)
+                st.session_state["auto_kupon"] = kupon
 
     if kupon := st.session_state.get("auto_kupon"):
         st.markdown("### 🎫 Vælg hvilke forslag der skal med på kuponen:")
@@ -75,4 +76,3 @@ def vis_autopilot_scanner():
             s_txt = f"🥇 **{top3[0][0]}:** {top3[0][1]} | 🥈 **{top3[1][0]}:** {top3[1][1]} | 🥉 **{top3[2][0]}:** {top3[2][1]}"
             st.info(f"{s_txt}\n\n📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}")
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
-            
