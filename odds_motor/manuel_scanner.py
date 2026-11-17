@@ -76,14 +76,15 @@ def vis_manuel_scanner():
             top3, sp, vp, stj, flm = ah.vurder_top3(valgte)
             bo = float(top3[0][1])
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="man_kr")
-            gevinst = round(kr * bo, 2)
             sort_k = sorted(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)), reverse=True)
             anker, flaske = sort_k[0], sort_k[-1]
             f_txt = f", mens **{flaske['hj']} - {flaske['ud']}** (@ {flaske['b365']}) er flaskehalsen" if len(sort_k) > 1 else ""
-            analyse_txt = f"🧠 **Samlet kuponanalyse:** Kuponen giver **{gevinst:.2f} kr.** ved {kr:.0f} kr. indsats. Stærkeste anker er **{anker['hj']} - {anker['ud']}** ({anker['vinderchance_pct']}%){f_txt}."
+            analyse_txt = f"🧠 **Samlet kuponanalyse:** Kuponen giver **{round(kr * bo, 2):.2f} kr.** ved {kr:.0f} kr. indsats. Stærkeste anker er **{anker['hj']} - {anker['ud']}** ({anker['vinderchance_pct']}%){f_txt}."
             st.info(f"🥇 **{top3[0][0]}:** {top3[0][1]} | 🥈 **{top3[1][0]}:** {top3[1][1]} | 🥉 **{top3[2][0]}:** {top3[2][1]}\n\n📊 **{len(valgte)} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}\n\n{analyse_txt}")
-            if st.button("🚀 SPILLET (Gem i Historik)", type="primary", key="btn_man_spillet"):
-                gem_data.gem_kupon_i_historik(kilde="Manuel Scanner", kampe=[f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])}) [{k['start']}]" for k in valgte], odds=bo, indsats=kr)
-                st.session_state["man_gemt_ok"] = f"✅ OK — Kupon ({len(valgte)} kampe @ {bo}) er lagt i historikken!"
             if ok_msg := st.session_state.get("man_gemt_ok"):
                 st.success(ok_msg)
+            elif st.button("🚀 SPILLET (Gem i Historik)", type="primary", key="btn_man_spillet"):
+                with st.spinner("⏳ Gemmer kupon i Cloud-historik..."):
+                    gem_data.gem_kupon_i_historik(kilde="Manuel Scanner", kampe=[f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])}) [{k['start']}]" for k in valgte], odds=bo, indsats=kr)
+                    st.session_state["man_gemt_ok"] = f"✅ OK — Kupon ({len(valgte)} kampe @ {bo}) er gemt i historikken!"
+                    st.rerun()
