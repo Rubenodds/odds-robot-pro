@@ -40,7 +40,6 @@ def vis_autopilot_scanner():
         if not kandidater:
             st.warning("⚠️ Ingen kampe valgt inden for tidsrammen.")
         else:
-            st.session_state.pop("auto_gemt_msg", None)
             with st.spinner("⏳ Robotten analyserer kampe, vejr, dommere og live bookmaker-odds..."):
                 runde = st.session_state.get("auto_scan_runde", 0)
                 st.session_state["auto_scan_runde"] = runde + 1
@@ -64,7 +63,7 @@ def vis_autopilot_scanner():
             v = ctx.get("vejr")
             v_txt = f"{v['temp']}°C, {v['vind']} m/s ({v['effekt']})" if v else "Ikke tilgængeligt"
             col_chk, col_ny = st.columns([0.85, 0.15])
-            if col_chk.checkbox(f"{i+1}. {k['hj']} vs {k['ud']} — {', '.join(k['kombinationer'])} (Odds: {k['b365']} | Chance: {k['vinderchance_pct']}%)", value=True, key=f"kupon_chk_{i}_{k['hj']}"):
+            if col_chk.checkbox(f"{i+1}. {k['hj']} vs {k['ud']} (@ {k['b365']} | {k['vinderchance_pct']}%)", value=True, key=f"kupon_chk_{i}_{k['hj']}"):
                 valgte.append(k)
             if col_ny.button("🔄", key=f"ny_valg_{i}_{k['hj']}", help="Skift spil og odds"):
                 ny_r = k.get("kamp_runde", 0) + 1
@@ -72,6 +71,7 @@ def vis_autopilot_scanner():
                 ny_k["kamp_runde"] = ny_r
                 kupon["kampe"][i] = ny_k
                 st.rerun()
+            st.markdown(f"🎯 **{', '.join(k['kombinationer'])}**")
             st.caption(f"📍 {k['liga']} | **{k['start']}** | Form: {ctx.get('hj_form')} vs {ctx.get('ud_form')} | Vejr: {v_txt}")
             st.caption(mh.begrundelse(k))
         if valgte:
@@ -79,10 +79,7 @@ def vis_autopilot_scanner():
             anker = max(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)))
             risiko_k = min(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)))
             analyse_txt = f"🧠 **Samlet analyse:** Stærkeste anker er **{anker['hj']} - {anker['ud']}** ({anker['vinderchance_pct']}%), mens **{risiko_k['hj']} - {risiko_k['ud']}** (@ {risiko_k['b365']}) er kuponens flaskehals."
-            st.info(f"🥇 **{top3[0][0]}:** {top3[0][1]} | 🥈 **{top3[1][0]}:** {top3[1][1]} | 🥉 **{top3[2][0]}:** {top3[2][1]}\n\n📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}\n\n{analyse_txt}")
+            st.info(f"🥇 **{top3}:** {top3} | 🥈 **{top3}:** {top3} | 🥉 **{top3}:** {top3}\n\n📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}\n\n{analyse_txt}")
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
             if st.button("🚀 SPILLET", type="primary", key="btn_auto_spillet"):
-                gem_data.gem_kupon({"kilde": "Autopilot", "kampe": valgte, "odds": top3[0][1], "indsats": kr, "chance_pct": sp})
-                st.session_state["auto_gemt_msg"] = f"✅ OK — Kupon med {len(valgte)} kampe (odds {top3[0][1]}) er lagt i historikken!"
-            if gemt_msg := st.session_state.get("auto_gemt_msg"):
-                st.success(gemt_msg)
+                gem_data.gem_kupon_i_historik(kilde="Autopilot", kampe=valgte, odds=top3, indsats=kr)
