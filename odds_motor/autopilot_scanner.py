@@ -10,7 +10,8 @@ def _hent_kampe_v9(ligaer_tuple, timer_maks=24):
 
 def _vurder_kupon(valgte):
     top3, sp, _, stj, flm = ah.vurder_top3(valgte)
-    return top3, top3, top3, top3, sp, stj, flm
+    (s1, o1), (s2, o2), (s3, o3) = top3
+    return s1, o1, o2, o3, sp, stj, flm
 
 def _gem_auto_cb(valgte, bo, kr):
     if st.session_state.get("auto_gemt_ok"):
@@ -87,12 +88,13 @@ def vis_autopilot_scanner():
             st.caption(mh.begrundelse(k))
         if valgte:
             top3, sp, vp, stj, flm = ah.vurder_top3(valgte)
-            bo = float(top3)
+            (s1, o1), (s2, o2), (s3, o3) = top3
+            bo = float(o1)
             sort_k = sorted(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)), reverse=True)
-            anker, flaske = sort_k, sort_k[-1]
+            anker, flaske = next(iter(sort_k)), sort_k[-1]
             f_txt = f", mens **{flaske['hj']} - {flaske['ud']}** (@ {flaske['b365']}) er flaskehalsen" if len(sort_k) > 1 else ""
             analyse_txt = f"🧠 **Samlet kuponanalyse:** Stærkeste anker er **{anker['hj']} - {anker['ud']}** ({anker['vinderchance_pct']}%){f_txt}."
-            st.info(f"🥇 **{top3}:** {top3} | 🥈 **{top3}:** {top3} | 🥉 **{top3}:** {top3}\n\n📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}\n\n{analyse_txt}")
+            st.info(f"🥇 **{s1}:** {o1} | 🥈 **{s2}:** {o2} | 🥉 **{s3}:** {o3}\n\n📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}\n\n{analyse_txt}")
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
             if ok_msg := st.session_state.get("auto_gemt_ok"):
                 st.success(ok_msg)
