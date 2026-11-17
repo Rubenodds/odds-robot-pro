@@ -1,14 +1,6 @@
 import streamlit as st
 from odds_motor import billed_ocr as ocr, billed_hjaelp as bh
-
-def _gem_til_historik(kampe, odds, indsats):
-    try:
-        from historik import gem_data as gd
-        forslag = [f"{k['kamp']}: {k['spil']} (@ {k['odds']:.2f})" for k in kampe]
-        return gd.gem_kupon_i_historik(kilde="Billed Scanner", kampe=forslag, odds=odds, indsats=indsats)
-    except Exception as e:
-        st.error(f"Kunne ikke gemme kupon: {e}")
-        return False
+from historik import gem_data
 
 def _godt_og_skidt(a):
     o, p = float(a.get("odds", 1.85)), float(a.get("pct", 50.0))
@@ -18,16 +10,14 @@ def _godt_og_skidt(a):
 
 def vis_billed_scanner():
     st.markdown("### 🧾 Kupon & Billed Scanner")
-    if msg := st.session_state.get("billed_gem_ok"):
-        st.success(msg)
-
     fil = st.file_uploader("Upload screenshot af kupon", type=["png", "jpg", "jpeg"])
     if fil is not None and st.session_state.get("sidste_fil_navn") != fil.name:
         kampe, indsats, _ = ocr.udtraek_kupon_fra_billede(fil.read())
-        st.session_state.update({"kupon_kampe": kampe, "kupon_indsats": indsats, "sidste_fil_navn": fil.name, "billed_gemt_sig": "", "billed_gem_ok": ""})
+        st.session_state.update({"kupon_kampe": kampe, "kupon_indsats": indsats, "sidste_fil_navn": fil.name})
+        st.session_state.pop("billed_gemt_ok", None)
 
     kampe = st.session_state.get("kupon_kampe", [])
-    indsats = st.number_input("Indsats (kr. — std. 100 kr.)", min_value=1.0, value=float(st.session_state.get("kupon_indsats", 100.0)), step=10.0)
+    indsats = st.number_input("Indsats (kr. — std. 100 kr.)", min_value=1.0, value=float(st.session_state.get("kupon_indsats", 100.0)), step=10.0, key="billed_kr")
     if not kampe:
         st.info("Upload et kuponbillede for at se robottens scanning og kuponanalyse.")
         return
@@ -81,17 +71,15 @@ def vis_billed_scanner():
         unsafe_allow_html=True,
     )
 
-    kupon_sig = f"{[(x['kamp'], x['spil']) for x in aktive_valg]}_{ny_a['odds']}_{indsats}"
-    er_gemt = st.session_state.get("billed_gemt_sig") == kupon_sig
-    c1, c2 = st.columns(2)
-    if c1.button("✅ GEMT I CLOUD" if er_gemt else "🚀 SPILLET — Gem kupon", type="primary", disabled=er_gemt, use_container_width=True):
-        if _gem_til_historik(aktive_valg, ny_a["odds"], indsats):
-            st.session_state["billed_gemt_sig"] = kupon_sig
-            st.session_state["billed_gem_ok"] = f"✅ Kupon gemt i Cloud! ({len(aktive_valg)} kampe @ {ny_a['odds']:.2f} | Indsats: {indsats:.0f} kr.)"
+    if ok_msg := st.session_state.get("billed_gemt_ok"):
+        st.success(ok_msg)
+    elif st.button("🚀 SPILLET (Gem i Historik)", type="primary", key="btn_billed_spillet", use_container_width=True):
+        with st.spinner("⏳ Gemmer kupon i Cloud-historik..."):
+            gem_data.gem_kupon_i_historik(kilde="Billed Scanner", kampe=[f"{x['kamp']} ({x['spil']}) [@ {x['odds']:.2f}]" for x in aktive_valg], odds=ny_a["odds"], indsats=indsats)
+            st.session_state["billed_gemt_ok"] = f"✅ OK — Kupon ({len(aktive_valg)} kampe @ {ny_a['odds']:.2f}) er gemt i historikken!"
             st.rerun()
-    if c2.button("🗑️ Ryd kupon", use_container_width=True):
-        for k_navn in ("kupon_kampe", "sidste_fil_navn", "billed_gemt_sig", "billed_gem_ok"):
+
+    if st.button("🗑️ Ryd kupon", key="btn_billed_ryd", use_container_width=True):
+        for k_navn in ("kupon_kampe", "sidste_fil_navn", "billed_gemt_ok"):
             st.session_state.pop(k_navn, None)
         st.rerun()
-    if er_gemt and st.session_state.get("billed_gem_ok"):
-        st.success(st.session_state["billed_gem_ok"])
