@@ -69,7 +69,7 @@ def vurder_top3(valgte):
     o_s2 = round(o_b365 * (1.01 if seed % 2 == 0 else 0.96), 2)
     alle = sorted([("Bet365", o_b365), (s1, o_s1), (s2, o_s2)], key=lambda x: x[1], reverse=True)
     sp = round(max(1.0, min(95.0, math.prod(float(k.get("vinderchance_pct", 55.0)) / 100.0 for k in valgte) * 100.0)), 1)
-    bo = alle[1]
+    bo = alle[0][1]
     vp = round(sp - round(100.0 / max(bo, 1.01), 1), 1)
     ev = (sp / 100.0) * bo
     stj = 5 if (ev >= 1.35 or vp >= 12.0) else (4 if (ev >= 1.20 or vp >= 8.0) else (3 if (ev >= 1.10 or vp >= 4.0) else (2 if (ev >= 1.02 or vp >= 1.0) else 1)))
