@@ -19,8 +19,6 @@ def _hent_live_valg(ny, runde=0):
             "odds_api_id": ny.get("odds_api_id", "")
         }
         muligheder, kilde, _ = hent_reelle_muligheder(kamp_obj)
-        if not har_skud_marked(ny):
-            muligheder = [m for m in muligheder if not any(w in m["marked"].lower() for w in ("skud", "målscorer", "assist"))]
         gyldige = [m for m in muligheder if 1.25 <= float(m.get("b365", 0)) <= 3.60]
         if gyldige:
             valgt = gyldige[runde % len(gyldige)]
