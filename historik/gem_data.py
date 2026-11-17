@@ -45,6 +45,7 @@ def _gh_laes():
         with urllib.request.urlopen(req, timeout=5) as res:
             d = json.loads(res.read().decode("utf-8"))
             raekker = json.loads(base64.b64decode(d["content"]).decode("utf-8"))
+            st.session_state["kupon_sha"] = d.get("sha")
             _lokal_skriv(raekker)
             return raekker, d.get("sha")
     except urllib.error.HTTPError as e:
@@ -64,9 +65,13 @@ def _gh_skriv(raekker, sha=None):
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json", "User-Agent": "OddsRobotPro"}, method="PUT")
     try:
         with urllib.request.urlopen(req, timeout=6) as res:
-            return res.status in (200, 201)
+            if res.status in (200, 201):
+                ny_d = json.loads(res.read().decode("utf-8"))
+                st.session_state["kupon_sha"] = (ny_d.get("content") or {}).get("sha")
+                return True
     except Exception:
-        return False
+        pass
+    return False
 
 def hent_alle_kuponer():
     if "kupon_ram_cache" not in st.session_state:
@@ -98,10 +103,13 @@ def gem_kupon_i_historik(*args, **kwargs):
     return True
 
 def slet_kupon(kupon_id):
-    raekker, sha = _gh_laes()
+    raekker = list(hent_alle_kuponer())
+    sha = st.session_state.get("kupon_sha")
+    if not sha:
+        raekker, sha = _gh_laes()
     ny = [r for r in raekker if int(r.get("id", -1)) != int(kupon_id)]
-    _gh_skriv(ny, sha)
     st.session_state["kupon_ram_cache"] = ny
+    _gh_skriv(ny, sha)
     return True
 
 gem_kupon = gem_kupon_i_historik
