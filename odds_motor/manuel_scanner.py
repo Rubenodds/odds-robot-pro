@@ -55,6 +55,7 @@ def vis_manuel_scanner():
         if not maal_liste:
             st.warning("⚠️ Vælg mindst ét hold i rullemenuen først.")
         else:
+            st.session_state.pop("man_gemt_ok", None)
             with st.spinner("⏳ Beregner rigtige bookmaker-markeder..."):
                 st.session_state["man_kupon"] = mh.byg_forslag(kamp_intelligens.berig_valgte_kampe(maal_liste), float(maal_odds), kun_res=bool(k2))
 
@@ -74,13 +75,15 @@ def vis_manuel_scanner():
         if valgte:
             top3, sp, vp, stj, flm = ah.vurder_top3(valgte)
             bo = float(top3[0][1])
-            b365_o = next((o for s, o in top3 if s == "Bet365"), bo)
-            har_1x2 = any("1x2" in " ".join(k.get("kombinationer", [])).lower() or "kampvinder" in " ".join(k.get("kombinationer", [])).lower() for k in valgte)
-            tu_txt = f"\n⚡ **Tidlig udbetaling:** Bet365 ({b365_o}) giver tidlig udbetaling ved 2 måls føring på 1X2." if har_1x2 else ""
-            anker = max(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)))
-            risiko_k = min(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)))
-            analyse_txt = f"🧠 **Analyse:** Anker er **{anker['hj']} - {anker['ud']}** ({anker['vinderchance_pct']}%), mens **{risiko_k['hj']} - {risiko_k['ud']}** (@ {risiko_k['b365']}) er flaskehalsen."
-            st.info(f"🥇 **{top3[0][0]}:** {top3[0][1]} | 🥈 **{top3[1][0]}:** {top3[1][1]} | 🥉 **{top3[2][0]}:** {top3[2][1]}\n\n📊 **{len(valgte)} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}{tu_txt}\n\n{analyse_txt}")
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="man_kr")
+            gevinst = round(kr * bo, 2)
+            sort_k = sorted(valgte, key=lambda x: float(x.get("vinderchance_pct", 50)), reverse=True)
+            anker, flaske = sort_k[0], sort_k[-1]
+            f_txt = f", mens **{flaske['hj']} - {flaske['ud']}** (@ {flaske['b365']}) er flaskehalsen" if len(sort_k) > 1 else ""
+            analyse_txt = f"🧠 **Samlet kuponanalyse:** Kuponen giver **{gevinst:.2f} kr.** ved {kr:.0f} kr. indsats. Stærkeste anker er **{anker['hj']} - {anker['ud']}** ({anker['vinderchance_pct']}%){f_txt}."
+            st.info(f"🥇 **{top3[0][0]}:** {top3[0][1]} | 🥈 **{top3[1][0]}:** {top3[1][1]} | 🥉 **{top3[2][0]}:** {top3[2][1]}\n\n📊 **{len(valgte)} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}\n\n{analyse_txt}")
             if st.button("🚀 SPILLET (Gem i Historik)", type="primary", key="btn_man_spillet"):
                 gem_data.gem_kupon_i_historik(kilde="Manuel Scanner", kampe=[f"{k['hj']} - {k['ud']} ({', '.join(k['kombinationer'])}) [{k['start']}]" for k in valgte], odds=bo, indsats=kr)
+                st.session_state["man_gemt_ok"] = f"✅ OK — Kupon ({len(valgte)} kampe @ {bo}) er lagt i historikken!"
+            if ok_msg := st.session_state.get("man_gemt_ok"):
+                st.success(ok_msg)
