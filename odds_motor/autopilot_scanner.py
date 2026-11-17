@@ -12,6 +12,12 @@ def _vurder_kupon(valgte):
     top3, sp, _, stj, flm = ah.vurder_top3(valgte)
     return top3[0][0], top3[0][1], top3[1][1], top3[2][1], sp, stj, flm
 
+def _gem_auto_cb(valgte, bo, kr):
+    if st.session_state.get("auto_gemt_ok"):
+        return
+    gem_data.gem_kupon_i_historik(kilde="Autopilot", kampe=valgte, odds=bo, indsats=kr)
+    st.session_state["auto_gemt_ok"] = f"✅ OK — Kupon ({len(valgte)} kampe @ {bo}) er gemt i historikken!"
+
 def vis_autopilot_scanner():
     st.subheader("🌐 1. Autopilot Scanner (Form, H2H, Dommer & Vejr)")
     favs = list(liga_favoritter.hent_favorit_ligaer())
@@ -90,8 +96,5 @@ def vis_autopilot_scanner():
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
             if ok_msg := st.session_state.get("auto_gemt_ok"):
                 st.success(ok_msg)
-            elif st.button("🚀 SPILLET", type="primary", key="btn_auto_spillet"):
-                with st.spinner("⏳ Gemmer kupon i Cloud-historik..."):
-                    gem_data.gem_kupon_i_historik(kilde="Autopilot", kampe=valgte, odds=bo, indsats=kr)
-                    st.session_state["auto_gemt_ok"] = f"✅ OK — Kupon ({len(valgte)} kampe @ {bo}) er gemt i historikken!"
-                    st.rerun()
+            else:
+                st.button("🚀 SPILLET", type="primary", key="btn_auto_spillet", on_click=_gem_auto_cb, args=(valgte, bo, kr))
