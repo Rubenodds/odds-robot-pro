@@ -10,10 +10,11 @@ def _godt_og_skidt(a):
 
 def vis_billed_scanner():
     st.markdown("### 🧾 Kupon & Billed Scanner")
-    fil = st.file_uploader("Upload screenshot af kupon", type=["png", "jpg", "jpeg"])
-    if fil is not None and st.session_state.get("sidste_fil_navn") != fil.name:
+    fil = st.file_uploader("Upload screenshot af kupon", type=["png", "jpg", "jpeg"], key="billed_uploader")
+    fil_id = getattr(fil, "file_id", None) or (f"{fil.name}_{fil.size}" if fil else None)
+    if fil is not None and st.session_state.get("sidste_fil_id") != fil_id:
         kampe, indsats, _ = ocr.udtraek_kupon_fra_billede(fil.read())
-        st.session_state.update({"kupon_kampe": kampe, "kupon_indsats": indsats, "sidste_fil_navn": fil.name})
+        st.session_state.update({"kupon_kampe": kampe, "kupon_indsats": indsats, "sidste_fil_id": fil_id})
         st.session_state.pop("billed_gemt_ok", None)
 
     kampe = st.session_state.get("kupon_kampe", [])
@@ -75,11 +76,12 @@ def vis_billed_scanner():
         st.success(ok_msg)
     elif st.button("🚀 SPILLET (Gem i Historik)", type="primary", key="btn_billed_spillet", use_container_width=True):
         with st.spinner("⏳ Gemmer kupon i Cloud-historik..."):
-            gem_data.gem_kupon_i_historik(kilde="Billed Scanner", kampe=[f"{x['kamp']} ({x['spil']}) [@ {x['odds']:.2f}]" for x in aktive_valg], odds=ny_a["odds"], indsats=indsats)
-            st.session_state["billed_gemt_ok"] = f"✅ OK — Kupon ({len(aktive_valg)} kampe @ {ny_a['odds']:.2f}) er gemt i historikken!"
+            kamp_linjer = [f"{x['kamp']} ({x['spil']}) [@ {x['odds']:.2f}]" for x in aktive_valg]
+            gem_data.gem_kupon_i_historik(kilde="Billed Scanner", kampe=kamp_linjer, odds=ny_a["odds"], indsats=indsats)
+            st.session_state["billed_gemt_ok"] = st.session_state.get("sidste_gem_ok") or f"✅ OK – Kupon ({len(kamp_linjer)} kampe @ {ny_a['odds']:.2f}) er gemt!"
             st.rerun()
 
     if st.button("🗑️ Ryd kupon", key="btn_billed_ryd", use_container_width=True):
-        for k_navn in ("kupon_kampe", "sidste_fil_navn", "billed_gemt_ok"):
+        for k_navn in ("kupon_kampe", "sidste_fil_id", "billed_gemt_ok"):
             st.session_state.pop(k_navn, None)
         st.rerun()
