@@ -8,6 +8,10 @@ ALLE_MARKEDER = ["Standard (Mål / Kampvinder)", "Hjørnespark (Over/Under & Fle
 def _hent_kampe_v9(ligaer_tuple, timer_maks=24):
     return kf.hent_kampe_v9(ligaer_tuple, timer_maks)
 
+def _vurder_kupon(valgte):
+    top3, sp, _, stj, flm = ah.vurder_top3(valgte)
+    return top3[0][0], top3[0][1], top3[1][1], top3[2][1], sp, stj, flm
+
 def vis_autopilot_scanner():
     st.subheader("🌐 1. Autopilot Scanner (Form, H2H, Dommer & Vejr)")
     favs = list(liga_favoritter.hent_favorit_ligaer())
