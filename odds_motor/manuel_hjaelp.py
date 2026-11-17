@@ -12,43 +12,49 @@ def begrundelse(k):
     hw, uw = hf.count("W"), uf.count("W")
     vejr = ctx.get("vejr") or {}
     vind = float(vejr.get("vind", 0) or 0) if isinstance(vejr, dict) else 0.0
-
-    dele = []
-    if hf and uf and (hw != uw):
-        bedst = hj if hw > uw else ud
-        dele.append(f"**{bedst}** kommer ind med overlegen form ({max(hw, uw)} sejre i de seneste 5 kampe)")
-    elif hf and uf:
-        dele.append(f"Tæt formduel ({hf} mod {uf}), hvor hjemmebane og kampbillede vejer tungt")
+    dele = [f"**{hj if hw > uw else ud}** har stærkest form ({max(hw, uw)}/5 sejre)"] if (hf and uf and hw != uw) else [f"Odds **{odds}** modsvarer **{imp}%** markedssandsynlighed"]
+    if k.get("api_kilde"):
+        dele.append(f"direkte hentet fra bettingsidernes udbud ({k['api_kilde']})")
+    elif vind >= 9.0:
+        dele.append(f"kraftig blæst ({vind} m/s) giver flere dødbolde og hjørnespark")
+    elif any(w in spil.lower() for w in ("over", "scorer", "skud")):
+        dele.append("offensiv volumen og sårbar defensiv peger mod chancer og afslutninger")
     else:
-        dele.append(f"Odds **{odds}** modsvarer **{imp}%** markedssandsynlighed med positiv value-margin")
-
-    if vind >= 9.0:
-        dele.append(f"kraftig blæst ({vind} m/s) skaber flere tilfældige bolde, dødbolde og hjørnespark")
-    elif "hjørne" in spil.lower() or "skud" in spil.lower():
-        dele.append("begge mandskaber spiller med høj offensiv volumen, hvilket driver afslutninger og hjørnespark op")
-    elif "over" in spil.lower() or "scorer" in spil.lower():
-        dele.append("begge holds defensive sårbarhed peger mod en åben kamp med mange chancer")
-    else:
-        dele.append("stabilt kampvejr understøtter det forventede styrkeforhold")
-
+        dele.append("stabilt kampvejr understøtter styrkeforholdet")
     return "💡 **Hvorfor?** " + ". ".join(dele) + "."
 
+def _find_rigtigt_marked(k, maal_pr_kamp, kun_res=False):
+    try:
+        from udvidelser.marked_motor import hent_reelle_muligheder
+        muligheder, kilde, _ = hent_reelle_muligheder({
+            "id": k.get("id", ""), "liga_kode": k.get("liga_kode", "eng.1"),
+            "hjemme": k.get("hj", ""), "ude": k.get("ud", ""), "odds_api_id": k.get("odds_api_id", "")
+        })
+        if kun_res:
+            muligheder = [m for m in muligheder if any(x in m["marked"].lower() for x in ("kampvinder", "dobbeltchance", "uafgjort", "handicap"))]
+        if muligheder:
+            bedst = min(muligheder, key=lambda m: abs(float(m.get("b365", 1.85)) - maal_pr_kamp))
+            return f"[{bedst['marked']}] {bedst['valg']}", round(float(bedst["b365"]), 2), kilde
+    except Exception:
+        pass
+    return None, None, ""
+
 def _vaelg_marked_til_maal(k, maal_pr_kamp, kun_res=False):
+    api_valg, api_odds, kilde = _find_rigtigt_marked(k, maal_pr_kamp, kun_res)
+    if api_valg and api_odds:
+        k["api_kilde"] = kilde
+        return api_valg, api_odds
     valgt = k.get("valgt_hold") or k.get("hj", "Hjemmehold")
     basis = float(k.get("b365") or k.get("odds") or 1.85)
     if kun_res:
         if maal_pr_kamp < 1.55:
             return f"{valgt} el. Uafgjort (1X/X2)", round(max(1.22, min(1.55, basis * 0.72)), 2)
-        if maal_pr_kamp < 2.65:
-            return f"{valgt} vinder (1X2)", round(max(1.55, min(2.65, basis)), 2)
-        return f"{valgt} vinder med præcis 1 mål", round(max(2.70, min(6.50, maal_pr_kamp)), 2)
+        return (f"{valgt} vinder (1X2)", round(max(1.55, min(2.65, basis)), 2)) if maal_pr_kamp < 2.65 else (f"{valgt} vinder med præcis 1 mål", round(max(2.70, min(6.50, maal_pr_kamp)), 2))
     if maal_pr_kamp < 1.45:
         return f"{valgt} el. Uafgjort & Over 1.5 mål", round(max(1.25, min(1.48, maal_pr_kamp)), 2)
     if maal_pr_kamp < 1.95:
         return f"{valgt} vinder & Over 1.5 mål", round(max(1.50, min(1.98, maal_pr_kamp)), 2)
-    if maal_pr_kamp < 2.95:
-        return f"{valgt} vinder & Begge hold scorer", round(max(2.05, min(2.95, maal_pr_kamp)), 2)
-    return f"{valgt} vinder, Over 2.5 mål & Flest hjørnespark", round(max(3.00, min(12.0, maal_pr_kamp)), 2)
+    return (f"{valgt} vinder & Begge hold scorer", round(max(2.05, min(2.95, maal_pr_kamp)), 2)) if maal_pr_kamp < 2.95 else (f"{valgt} vinder, Over 2.5 mål & Flest hjørnespark", round(max(3.00, min(12.0, maal_pr_kamp)), 2))
 
 def _sikr_kamp(k, maal_pr_kamp=1.85, kun_res=False):
     ny = dict(k) if isinstance(k, dict) else {}
@@ -58,14 +64,7 @@ def _sikr_kamp(k, maal_pr_kamp=1.85, kun_res=False):
     ny.setdefault("ud", ny.get("ude", "Udehold"))
     ny.setdefault("liga", "Øvrige")
     ny.setdefault("start", "I dag")
-    ny["spil"] = valg
-    ny["odds"] = odds
-    ny["b365"] = odds
-    ny["unibet"] = round(max(1.05, odds - 0.03), 2)
-    ny["ds"] = round(max(1.05, odds - 0.05), 2)
-    ny["kombinationer"] = [valg]
-    ny["vinderchance_pct"] = pct
-    ny["pct"] = pct
+    ny.update({"spil": valg, "odds": odds, "b365": odds, "unibet": round(max(1.05, odds - 0.03), 2), "ds": round(max(1.05, odds - 0.05), 2), "kombinationer": [valg], "vinderchance_pct": pct, "pct": pct})
     ny["stj"] = max(1, min(5, int(round((pct * odds) / 20.0))))
     ny["flm"] = max(1, min(5, int(round((100.0 - pct) / 17.0))))
     return ny
