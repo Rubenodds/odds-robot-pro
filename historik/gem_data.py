@@ -10,15 +10,11 @@ def _dansk_tid():
 
 def _gh_cfg():
     try:
-        repo = "Rubenodds/odds-robot-pro"
-        tok = ""
-        for k, v in st.secrets.items():
-            s = str(v).strip()
-            if "repo" in k.lower() and "/" in s and "http" not in s:
-                repo = s
-            elif s.startswith(("ghp_", "github_pat_", "gho_")) or any(x in k.lower() for x in ("github", "gh_", "token", "pat")):
-                if len(s) > 15 and "http" not in s:
-                    tok = s
+        gh = st.secrets.get("github") or {}
+        tok = str(gh.get("token") or st.secrets.get("GITHUB_TOKEN") or "").strip()
+        user = str(gh.get("username") or "Rubenodds").strip()
+        repo_navn = str(gh.get("repo") or "odds-robot-pro").strip()
+        repo = repo_navn if "/" in repo_navn else f"{user}/{repo_navn}"
         if tok:
             return tok, repo
     except Exception:
@@ -96,7 +92,7 @@ def gem_kupon_i_historik(*args, **kwargs):
     raekker.insert(0, {"id": nyt_id, "dato": dato, "kilde": kilde, "kampe": f"{len(kampe)} kampe ({dato})", "detaljer": json.dumps(kampe, ensure_ascii=False), "odds": odds, "indsats": indsats, "mulig_gevinst": round(odds * indsats, 2), "status": "[AFVENTER]"})
     cloud_ok = _gh_skriv(raekker, sha)
     st.session_state["kupon_ram_cache"] = raekker
-    msg = f"✅ OK – Kupon ({len(kampe)} kampe @ {odds}) er tilføjet til historikken!" + (" (Cloud)" if cloud_ok else " (Lokal)")
+    msg = f"✅ OK – Kupon ({len(kampe)} kampe @ {odds}) er tilføjet til historikken!" + (" (Cloud ☁️)" if cloud_ok else " (Kun lokal ⚠️)")
     st.session_state["sidste_gem_ok"] = msg
     st.success(msg)
     return True
