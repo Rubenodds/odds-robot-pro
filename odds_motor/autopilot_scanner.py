@@ -62,10 +62,10 @@ def vis_autopilot_scanner():
             ctx = k.get("ctx", {})
             v = ctx.get("vejr")
             v_txt = f"{v['temp']}°C, {v['vind']} m/s ({v['effekt']})" if v else "Ikke tilgængeligt"
-            col_chk, col_ny = st.columns([5, 1])
+            col_chk, col_ny = st.columns([0.85, 0.15])
             if col_chk.checkbox(f"{i+1}. {k['hj']} vs {k['ud']} — {', '.join(k['kombinationer'])} (Odds: {k['b365']} | Chance: {k['vinderchance_pct']}%)", value=True, key=f"kupon_chk_{i}_{k['hj']}"):
                 valgte.append(k)
-            if col_ny.button("🔄", key=f"ny_valg_{i}_{k['hj']}", help="Skift spil og odds på denne kamp"):
+            if col_ny.button("🔄", key=f"ny_valg_{i}_{k['hj']}", help="Skift spil og odds"):
                 ny_r = k.get("kamp_runde", 0) + 1
                 ny_k = ah.rens_kamp_valg(k, ny_r, 3.20)
                 ny_k["kamp_runde"] = ny_r
@@ -75,8 +75,8 @@ def vis_autopilot_scanner():
             st.caption(mh.begrundelse(k))
         if valgte:
             top3, sp, vp, stj, flm = ah.vurder_top3(valgte)
-            st.info(f"🥇 **{top3}:** {top3} | 🥈 **{top3}:** {top3} | 🥉 **{top3}:** {top3}\n\n📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}")
+            st.info(f"🥇 **{top3[0][0]}:** {top3[0][1]} | 🥈 **{top3[1][0]}:** {top3[1][1]} | 🥉 **{top3[2][0]}:** {top3[2][1]}\n\n📊 **{len(valgte)}/{len(kupon['kampe'])} valg** | Chance: **{sp}%** | Værdi: {'⭐'*stj} ({vp:+.1f}%) | Risiko: {'🔥'*flm}")
             kr = st.number_input("Indsats (kr.):", min_value=1.0, value=100.0, step=10.0, key="auto_kr")
             if st.button("🚀 SPILLET", type="primary", key="btn_auto_spillet"):
-                gem_data.gem_kupon({"kilde": "Autopilot", "kampe": valgte, "odds": top3, "indsats": kr, "chance_pct": sp})
-                st.success(f"✅ OK — Kupon med {len(valgte)} kampe (odds {top3}) er tilføjet til historikken!")
+                gem_data.gem_kupon({"kilde": "Autopilot", "kampe": valgte, "odds": top3[0][1], "indsats": kr, "chance_pct": sp})
+                st.success(f"✅ OK — Kupon med {len(valgte)} kampe (odds {top3[0][1]}) er tilføjet til historikken!")
