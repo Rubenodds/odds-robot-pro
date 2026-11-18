@@ -15,11 +15,17 @@ except Exception:
 def _hent_gemini_noegle() -> str:
     if st is not None:
         try:
-            if "GEMINI_API_KEY" in st.secrets:
-                return str(st.secrets["GEMINI_API_KEY"]).strip()
+            for k, v in st.secrets.items():
+                if str(k).strip().upper() == "GEMINI_API_KEY" and isinstance(v, str):
+                    return v.strip()
+                if isinstance(v, dict):
+                    for k2, v2 in v.items():
+                        if str(k2).strip().upper() == "GEMINI_API_KEY" and isinstance(v2, str):
+                            return v2.strip()
         except Exception:
             pass
     return os.environ.get("GEMINI_API_KEY", "").strip()
+
 
 
 def _laes_med_gemini(billede_bytes: bytes, api_key: str):
