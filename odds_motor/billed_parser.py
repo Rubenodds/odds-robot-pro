@@ -4,8 +4,25 @@ from odds_motor import billed_ocr as ocr, billed_hjaelp as bh
 from historik import gem_data
 
 
-def _normaliser_kamp(kamp_str: str) -> str:
-    return "".join(ch.lower() for ch in kamp_str if ch.isalnum())
+def _normaliser_tekst(txt: str) -> str:
+    return "".join(ch.lower() for ch in str(txt) if ch.isalnum())
+
+
+def _er_dublet(k: dict, sete_kampe: list) -> bool:
+    kamp_norm = _normaliser_tekst(k.get("kamp", ""))
+    odds_val = round(float(k.get("odds", 0.0)), 2)
+    hjemme = _normaliser_tekst(k.get("hjemme", ""))
+    ude = _normaliser_tekst(k.get("ude", ""))
+
+    for s in sete_kampe:
+        if kamp_norm and kamp_norm == s["kamp"]:
+            return True
+        if odds_val > 1.0 and abs(odds_val - s["odds"]) < 0.02:
+            if (hjemme and len(hjemme) >= 4 and (hjemme in s["kamp"] or s["hjemme"] in hjemme)) or (
+                ude and len(ude) >= 4 and (ude in s["kamp"] or s["ude"] in ude)
+            ):
+                return True
+    return False
 
 
 def _godt_og_skidt(a):
@@ -48,7 +65,7 @@ def vis_billed_scanner():
                 )
 
         if st.session_state.get("sidste_fil_id") != fil_sig:
-            alle_kampe, sete, dubletter = [], set(), 0
+            alle_kampe, sete_kampe, dubletter = [], [], 0
             sidste_indsats = 100.0
             with st.spinner("🔍 Aflæser skærmbilleder og fletter kuponen sammen..."):
                 for fil in filer:
@@ -57,12 +74,17 @@ def vis_billed_scanner():
                     if indsats_del and indsats_del > 0:
                         sidste_indsats = float(indsats_del)
                     for k in kampe_del:
-                        noegle = _normaliser_kamp(k.get("kamp", ""))
-                        if noegle and noegle in sete:
+                        if _er_dublet(k, sete_kampe):
                             dubletter += 1
                             continue
-                        if noegle:
-                            sete.add(noegle)
+                        sete_kampe.append(
+                            {
+                                "kamp": _normaliser_tekst(k.get("kamp", "")),
+                                "hjemme": _normaliser_tekst(k.get("hjemme", "")),
+                                "ude": _normaliser_tekst(k.get("ude", "")),
+                                "odds": round(float(k.get("odds", 0.0)), 2),
+                            }
+                        )
                         alle_kampe.append(k)
 
             st.session_state.update(
@@ -73,6 +95,11 @@ def vis_billed_scanner():
                     "scan_info": (
                         f"✅ {len(alle_kampe)} kampe indlæst fra {len(filer)} billeder"
                         + (f" ({dubletter} dublet{'ter' if dubletter > 1 else ''} fjernet)" if dubletter else "")
+                    ),
+                }
+            )
+            st.session_state.pop("billed_gemt_ok", None)
+
                     ),
                 }
             )
