@@ -27,20 +27,6 @@ def _hent_gemini_noegle() -> str:
     return os.environ.get("GEMINI_API_KEY", "").strip()
 
 
-def _find_model(host: str, api_key: str) -> str:
-    try:
-        u = "https://" + host + "/v1beta/models?key=" + api_key
-        with urllib.request.urlopen(u, timeout=6) as r:
-            info = json.loads(r.read().decode("utf-8"))
-        for m in info.get("models", []):
-            navn = m.get("name", "").replace("models/", "")
-            if "generateContent" in m.get("supportedGenerationMethods", []) and "flash" in navn:
-                return navn
-    except Exception:
-        pass
-    return "gemini-3.8-flash"
-
-
 def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     img = Image.open(io.BytesIO(billede_bytes)).convert("RGB")
     buf = io.BytesIO()
@@ -48,8 +34,9 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     b64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
 
     prompt = (
-        "Aflæs dette kupon-screenshot. Medtag KUN kampe hvor BEGGE holdnavne er synlige. "
-        "Returner KUN JSON: "
+        "Aflæs dette kupon-screenshot fra en bookmaker. "
+        "Medtag KUN kampe hvor BEGGE holdnavne (hjemmehold og udehold) er synlige. "
+        "Returner KUN ren JSON: "
         '{"indsats": 100.0, "kampe": [{"hjemme": "Hold A", "ude": "Hold B", "spil": "Spil", "odds": 1.52}]}'
     )
     payload = {
@@ -58,8 +45,7 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     }
 
     host = ".".join(["generativelanguage", "googleapis", "com"])
-    model_navn = _find_model(host, api_key)
-    url = "https://" + host + "/v1beta/models/" + model_navn + ":generateContent?key=" + api_key
+    url = "https://" + host + "/v1beta/models/gemini-2.5-flash-lite:generateContent?key=" + api_key
 
     req = urllib.request.Request(
         url,
@@ -67,7 +53,7 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=12) as resp:
+    with urllib.request.urlopen(req, timeout=15) as resp:
         data = json.loads(resp.read().decode("utf-8"))
 
     kandidat = data.get("candidates", [{}]).pop(0)
