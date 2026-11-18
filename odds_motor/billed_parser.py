@@ -1,3 +1,4 @@
+import re
 import streamlit as st
 from PIL import Image
 from odds_motor import billed_ocr as ocr, billed_hjaelp as bh
@@ -6,6 +7,26 @@ from historik import gem_data
 
 def _normaliser_tekst(txt: str) -> str:
     return "".join(ch.lower() for ch in str(txt) if ch.isalnum())
+
+
+def _er_gyldig_kamp(k: dict) -> bool:
+    kamp = str(k.get("kamp", "")).strip()
+    if not kamp or " - " not in kamp:
+        return False
+    hjemme, ude = [x.strip() for x in kamp.split(" - ", 1)]
+    if len(hjemme) < 3 or len(ude) < 3:
+        return False
+    # Afvis afklippede bund-linjer med OCR-ikoner, tal-støj eller 'tillaegstid'
+    for del_navn in (hjemme, ude):
+        lav = del_navn.lower()
+        if any(s in lav for s in ("tillaegstid", "tillægstid", "ila2", "halvleg", "vaeddemal", "væddemål", "casino", "live")):
+            return False
+        if re.search(r"[(){}\[\]?!@#$%^&*=<>]", del_navn):
+            return False
+        bogstaver = sum(1 for c in del_navn if c.isalpha())
+        if bogstaver < 3 or (bogstaver / max(1, len(del_navn))) < 0.65:
+            return False
+    return True
 
 
 def _er_dublet(k: dict, sete_kampe: list) -> bool:
@@ -23,11 +44,6 @@ def _er_dublet(k: dict, sete_kampe: list) -> bool:
             ):
                 return True
     return False
-
-
-def _godt_og_skidt(a):
-    o, p = float(a.get("odds", 1.85)), float(a.get("pct", 50.0))
-    godt = (
         f"Stærk værdi på {a['spil']} ({p}% træfsikkerhed)"
         if p >= 52
         else f"Høj udbetalingsfaktor (@ {o:.2f}) ved fuld træffer"
