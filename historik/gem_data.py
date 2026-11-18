@@ -15,15 +15,19 @@ def _dansk_tid():
 def _gh_cfg():
     try:
         gh = st.secrets.get("github") or {}
-        tok = str(gh.get("token") or st.secrets.get("GITHUB_TOKEN") or "").strip()
-        user = str(gh.get("username") or "Rubenodds").strip()
-        repo_navn = str(gh.get("repo") or "odds-robot-pro").strip()
+        tok = "".join(str(gh.get("token") or st.secrets.get("GITHUB_TOKEN") or "").split())
+        user = "".join(str(gh.get("username") or "Rubenodds").split())
+        repo_navn = "".join(str(gh.get("repo") or "odds-robot-pro").split())
         repo = repo_navn if "/" in repo_navn else f"{user}/{repo_navn}"
         if tok:
             return tok, repo
     except Exception:
         pass
     return None, None
+
+def _gh_url(repo):
+    host = "api." + "github.com"
+    return f"https://{host}/repos/{repo}/contents/{FIL_STI}"
 
 def _lokal_laes():
     if os.path.exists(LOKAL_STI):
@@ -43,8 +47,7 @@ def _gh_laes():
     tok, repo = _gh_cfg()
     if not tok:
         return _lokal_laes(), None
-    url = f"https://github.com{repo}/contents/{FIL_STI}"
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json", "User-Agent": "OddsRobotPro"})
+    req = urllib.request.Request(_gh_url(repo), headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json", "User-Agent": "OddsRobotPro"})
     try:
         with urllib.request.urlopen(req, timeout=4) as res:
             d = json.loads(res.read().decode("utf-8"))
@@ -55,11 +58,12 @@ def _gh_laes():
             return raekker, d.get("sha")
     except urllib.error.HTTPError as e:
         if e.code == 404:
+            st.session_state.pop("gh_fejl", None)
             return [], None
-        st.session_state["gh_fejl"] = f"HTTP {e.code}"
+        st.session_state["gh_fejl"] = f"HTTP {e.code} ({repo})"
         return _lokal_laes(), None
     except Exception as e:
-        st.session_state["gh_fejl"] = str(e)[:40]
+        st.session_state["gh_fejl"] = f"{e} ({repo})"
         return _lokal_laes(), None
 
 def _gh_skriv(raekker, sha=None):
@@ -67,11 +71,10 @@ def _gh_skriv(raekker, sha=None):
     tok, repo = _gh_cfg()
     if not tok:
         return False
-    url = f"https://github.com{repo}/contents/{FIL_STI}"
     body = {"message": "Opdater kuponer", "content": base64.b64encode(json.dumps(raekker, ensure_ascii=False, indent=2).encode("utf-8")).decode("utf-8")}
     if sha:
         body["sha"] = sha
-    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json", "User-Agent": "OddsRobotPro"}, method="PUT")
+    req = urllib.request.Request(_gh_url(repo), data=json.dumps(body).encode("utf-8"), headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json", "User-Agent": "OddsRobotPro"}, method="PUT")
     try:
         with urllib.request.urlopen(req, timeout=5) as res:
             if res.status in (200, 201):
@@ -80,9 +83,9 @@ def _gh_skriv(raekker, sha=None):
                 st.session_state.pop("gh_fejl", None)
                 return True
     except urllib.error.HTTPError as e:
-        st.session_state["gh_fejl"] = f"HTTP {e.code}"
+        st.session_state["gh_fejl"] = f"HTTP {e.code} ({repo})"
     except Exception as e:
-        st.session_state["gh_fejl"] = str(e)[:40]
+        st.session_state["gh_fejl"] = f"{e} ({repo})"
     return False
 
 def hent_alle_kuponer():
