@@ -3,7 +3,6 @@ import io
 import json
 import os
 import re
-import time
 import urllib.request
 from PIL import Image
 
@@ -28,22 +27,15 @@ def _hent_gemini_noegle() -> str:
     return os.environ.get("GEMINI_API_KEY", "").strip()
 
 
-def _find_aktiv_model(host: str, api_key: str) -> str:
+def _find_model(host: str, api_key: str) -> str:
     try:
-        list_url = "https://" + host + "/v1beta/models?key=" + api_key
-        with urllib.request.urlopen(list_url, timeout=10) as resp:
-            info = json.loads(resp.read().decode("utf-8"))
-        kandidater = []
+        u = "https://" + host + "/v1beta/models?key=" + api_key
+        with urllib.request.urlopen(u, timeout=6) as r:
+            info = json.loads(r.read().decode("utf-8"))
         for m in info.get("models", []):
             navn = m.get("name", "").replace("models/", "")
-            metoder = m.get("supportedGenerationMethods", [])
-            if "generateContent" in metoder and "flash" in navn and "tts" not in navn and "image" not in navn:
-                kandidater.append(navn)
-        for foretrukken in ("gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash-lite"):
-            if foretrukken in kandidater:
-                return foretrukken
-        if kandidater:
-            return kandidater.pop()
+            if "generateContent" in m.get("supportedGenerationMethods", []) and "flash" in navn:
+                return navn
     except Exception:
         pass
     return "gemini-3.8-flash"
@@ -52,64 +44,35 @@ def _find_aktiv_model(host: str, api_key: str) -> str:
 def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     img = Image.open(io.BytesIO(billede_bytes)).convert("RGB")
     buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=92)
+    img.save(buf, format="JPEG", quality=85)
     b64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
 
     prompt = (
-        "Du aflæser et skærmbillede af en fodbold-kupon fra en bookmaker "
-        "(f.eks. Bet365, Danske Spil, Unibet, Betano, NordicBet m.fl.). "
-        "Udtræk KUN kampe hvor BEGGE holdnavne (hjemmehold og udehold) er synlige. "
-        "Ignorer afklippede halvkampe hvor et af holdnavnene mangler, "
-        "og ignorer live-stillinger (f.eks. 0-0, 1. halvleg - Slut) og bundmenuer. "
-        "Returner KUN ren JSON i præcis dette format uden markdown: "
-        '{"indsats": 100.0, "kampe": [{"hjemme": "Hold A", "ude": "Hold B", "spil": "Valgt spil", "odds": 1.52}]}'
+        "Aflæs dette kupon-screenshot. Medtag KUN kampe hvor BEGGE holdnavne er synlige. "
+        "Returner KUN JSON: "
+        '{"indsats": 100.0, "kampe": [{"hjemme": "Hold A", "ude": "Hold B", "spil": "Spil", "odds": 1.52}]}'
     )
-
     payload = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": prompt},
-                    {"inline_data": {"mime_type": "image/jpeg", "data": b64_img}},
-                ]
-            }
-        ],
+        "contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": "image/jpeg", "data": b64_img}}]}],
         "generationConfig": {"response_mime_type": "application/json"},
     }
 
     host = ".".join(["generativelanguage", "googleapis", "com"])
-    hoved_model = _find_aktiv_model(host, api_key)
-    modeller_at_proeve = [hoved_model, "gemini-3.5-flash-lite", "gemini-3.8-flash"]
+    model_navn = _find_model(host, api_key)
+    url = "https://" + host + "/v1beta/models/" + model_navn + ":generateContent?key=" + api_key
 
-    data = None
-    sidste_fejl = None
-    for m_navn in modeller_at_proeve:
-        sti = "/v1beta/models/" + m_navn + ":generateContent"
-        url = "https://" + host + sti + "?key=" + api_key
-        for _ in range(2):
-            try:
-                req = urllib.request.Request(
-                    url,
-                    data=json.dumps(payload).encode("utf-8"),
-                    headers={"Content-Type": "application/json"},
-                    method="POST",
-                )
-                with urllib.request.urlopen(req, timeout=25) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
-                break
-            except Exception as err:
-                sidste_fejl = err
-                time.sleep(2)
-        if data is not None:
-            break
-
-    if data is None:
-        raise sidste_fejl or RuntimeError("Kunne ikke hente svar fra Gemini")
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=12) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
 
     kandidat = data.get("candidates", [{}]).pop(0)
     del_obj = kandidat.get("content", {}).get("parts", [{}]).pop(0)
-    tekst = del_obj.get("text", "{}").strip()
-    tekst = re.sub(r"^```json\s*|\s*```$", "", tekst).strip()
+    tekst = re.sub(r"^```json\s*|\s*```$", "", del_obj.get("text", "{}")).strip()
     parsed = json.loads(tekst)
 
     indsats = float(parsed.get("indsats") or 100.0)
@@ -126,31 +89,23 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
         except ValueError:
             continue
         if hjemme and ude and odds > 1.01:
-            kampe.append(
-                {
-                    "kamp": f"{hjemme} - {ude}",
-                    "hjemme": hjemme,
-                    "ude": ude,
-                    "spil": spil,
-                    "odds": round(odds, 2),
-                }
-            )
+            kampe.append({"kamp": f"{hjemme} - {ude}", "hjemme": hjemme, "ude": ude, "spil": spil, "odds": round(odds, 2)})
 
-    total_odds = 1.0
+    total = 1.0
     for k in kampe:
-        total_odds *= k["odds"]
-    return kampe, indsats, round(total_odds, 2) if kampe else 0.0
+        total *= k["odds"]
+    return kampe, indsats, round(total, 2) if kampe else 0.0
 
 
 def udtraek_kupon_fra_billede(billede_bytes: bytes):
     api_key = _hent_gemini_noegle()
     if not api_key:
         if st is not None:
-            st.error("❌ GEMINI_API_KEY blev ikke fundet i Streamlit Secrets.")
+            st.error("❌ GEMINI_API_KEY mangler i Secrets.")
         return [], 100.0, 0.0
     try:
         return _laes_med_gemini(billede_bytes, api_key)
     except Exception as e:
         if st is not None:
-            st.error(f"❌ Gemini-fejl ved billedlæsning: {e}")
+            st.error(f"❌ Gemini-fejl: {e}")
         return [], 100.0, 0.0
