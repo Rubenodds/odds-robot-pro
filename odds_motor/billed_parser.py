@@ -140,6 +140,11 @@ def vis_billed_scanner():
     ny_a = bh.samlet_kupon_analyse(aktive_valg, indsats)
     er_aendret = any(o["spil"] != n["spil"] for o, n in zip(oprindelige, aktive_valg))
     titel = "🔄 Ny Kuponanalyse (efter dine justeringer)" if er_aendret else "🎯 Kuponanalyse af dit scannede spil"
+
+    samlet_pct = float(ny_a["pct"])
+    samlet_stjerner = max(1, min(5, round(samlet_pct / 16.0)))
+    samlet_risiko = max(1, min(5, 6 - samlet_stjerner))
+
     sml_html = (
         f"<div style='font-size:12px;color:#FBBF24;margin-top:8px;'>Sammenligning: Oprindeligt odds {gl_a['odds']:.2f} ({gl_a['pct']}%) → Nyt odds {ny_a['odds']:.2f} ({ny_a['pct']}%)</div>"
         if er_aendret
@@ -149,7 +154,8 @@ def vis_billed_scanner():
     st.markdown(
         f"<div style='background:#0F172A;color:#F8FAFC;padding:16px;border-radius:10px;border:1px solid #334155;margin-top:10px;'>"
         f"<div style='font-size:16px;font-weight:700;color:#34D399;'>{titel}</div>"
-        f"<div style='font-size:14px;color:#CBD5E1;margin-top:4px;'>Totalodds: <b>{ny_a['odds']:.2f}</b> &nbsp;|&nbsp; Træfsikkerhed: <b>{ny_a['pct']}%</b> &nbsp;|&nbsp; Mulig gevinst: <b>{ny_a['gevinst']:.2f} kr.</b></div>"
+        f"<div style='font-size:14px;color:#CBD5E1;margin-top:4px;'>Totalodds: <b>{ny_a['odds']:.2f}</b> &nbsp;|&nbsp; Træfsikkerhed: <b>{samlet_pct}%</b> &nbsp;|&nbsp; Mulig gevinst: <b>{ny_a['gevinst']:.2f} kr.</b></div>"
+        f"<div style='font-size:13px;color:#9CA3AF;margin-top:4px;'>Samlet vurdering: {'⭐' * samlet_stjerner} &nbsp;|&nbsp; Risiko: {'🔥' * samlet_risiko}</div>"
         f"<div style='font-size:13px;color:#E2E8F0;margin-top:8px;'>{ny_a['dom']}</div>{sml_html}</div>",
         unsafe_allow_html=True,
     )
