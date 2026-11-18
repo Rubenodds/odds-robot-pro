@@ -27,7 +27,6 @@ def _hent_gemini_noegle() -> str:
     return os.environ.get("GEMINI_API_KEY", "").strip()
 
 
-
 def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     img = Image.open(io.BytesIO(billede_bytes)).convert("RGB")
     buf = io.BytesIO()
@@ -35,9 +34,10 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     b64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
 
     prompt = (
-        "Du aflæser et skærmbillede af en fodbold-kupon fra en bookmaker (f.eks. Bet365, Danske Spil, Unibet, Betano, NordicBet m.fl.). "
-        "Udtræk KUN kampe hvor BEGGE holdnavne (hjemmehold og udehold) er synlige på billedet. "
-        "Ignorer afklippede halvkampe i toppen eller bunden hvor et af holdnavnene mangler, "
+        "Du aflæser et skærmbillede af en fodbold-kupon fra en bookmaker "
+        "(f.eks. Bet365, Danske Spil, Unibet, Betano, NordicBet m.fl.). "
+        "Udtræk KUN kampe hvor BEGGE holdnavne (hjemmehold og udehold) er synlige. "
+        "Ignorer afklippede halvkampe hvor et af holdnavnene mangler, "
         "og ignorer live-stillinger (f.eks. 0-0, 1. halvleg - Slut) og bundmenuer. "
         "Returner KUN ren JSON i præcis dette format uden markdown: "
         '{"indsats": 100.0, "kampe": [{"hjemme": "Hold A", "ude": "Hold B", "spil": "Valgt spil", "odds": 1.52}]}'
@@ -55,7 +55,10 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
         "generationConfig": {"temperature": 0.0, "response_mime_type": "application/json"},
     }
 
-    url = f"https://googleapis.com{api_key}"
+    host = "://googleapis.com"
+    sti = "/v1beta/models/gemini-2.5-flash:generateContent"
+    url = f"https://{host}{sti}?key={api_key}"
+
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
@@ -65,7 +68,7 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     with urllib.request.urlopen(req, timeout=25) as resp:
         data = json.loads(resp.read().decode("utf-8"))
 
-    tekst = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    tekst = data["candidates"]["content"]["parts"]["text"].strip()
     tekst = re.sub(r"^```json\s*|\s*```$", "", tekst).strip()
     parsed = json.loads(tekst)
 
