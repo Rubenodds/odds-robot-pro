@@ -68,7 +68,9 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     with urllib.request.urlopen(req, timeout=25) as resp:
         data = json.loads(resp.read().decode("utf-8"))
 
-    tekst = data["candidates"]["content"]["parts"]["text"].strip()
+    kandidat = data.get("candidates", [{}]).pop(0)
+    del_obj = kandidat.get("content", {}).get("parts", [{}]).pop(0)
+    tekst = del_obj.get("text", "{}").strip()
     tekst = re.sub(r"^```json\s*|\s*```$", "", tekst).strip()
     parsed = json.loads(tekst)
 
