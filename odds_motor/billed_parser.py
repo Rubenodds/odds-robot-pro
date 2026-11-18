@@ -212,3 +212,5 @@ def vis_billed_scanner():
 
     if st.button("🗑️ Ryd kupon", key="btn_billed_ryd", use_container_width=True):
         for k_navn in ("kupon_kampe", "sidste_fil_id", "billed_gemt_ok", "scan_info"):
+            st.session_state.pop(k_navn, None)
+        st.rerun()
