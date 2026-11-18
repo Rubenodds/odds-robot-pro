@@ -3,6 +3,7 @@ import io
 import json
 import os
 import re
+import time
 import urllib.request
 from PIL import Image
 
@@ -77,18 +78,33 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     }
 
     host = ".".join(["generativelanguage", "googleapis", "com"])
-    model_navn = _find_aktiv_model(host, api_key)
-    sti = "/v1beta/models/" + model_navn + ":generateContent"
-    url = "https://" + host + sti + "?key=" + api_key
+    hoved_model = _find_aktiv_model(host, api_key)
+    modeller_at_proeve = [hoved_model, "gemini-3.5-flash-lite", "gemini-3.8-flash"]
 
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=25) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
+    data = None
+    sidste_fejl = None
+    for m_navn in modeller_at_proeve:
+        sti = "/v1beta/models/" + m_navn + ":generateContent"
+        url = "https://" + host + sti + "?key=" + api_key
+        for forsoeg in range(2):
+            try:
+                req = urllib.request.Request(
+                    url,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=25) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                break
+            except Exception as err:
+                sidste_fejl = err
+                time.sleep(2)
+        if data is not None:
+            break
+
+    if data is None:
+        raise sidste_fejl or RuntimeError("Kunne ikke hente svar fra Gemini")
 
     kandidat = data.get("candidates", [{}]).pop(0)
     del_obj = kandidat.get("content", {}).get("parts", [{}]).pop(0)
