@@ -159,12 +159,25 @@ def vis_billed_scanner():
     elif st.button("🚀 SPILLET (Gem i Historik)", type="primary", key="btn_billed_spillet", use_container_width=True):
         with st.spinner("⏳ Gemmer kupon i Cloud-historik..."):
             kamp_linjer = [f"{x['kamp']} ({x['spil']}) [@ {x['odds']:.2f}]" for x in aktive_valg]
-            gem_data.gem_kupon_i_historik(
-                kilde="Billed Scanner", kampe=kamp_linjer, odds=ny_a["odds"], indsats=indsats
-            )
+            try:
+                gem_data.gem_kupon_i_historik(
+                    kilde="Billed Scanner",
+                    kampe=kamp_linjer,
+                    odds=float(ny_a["odds"]),
+                    indsats=float(indsats),
+                )
+            except TypeError:
+                gem_data.gem_kupon_i_historik(
+                    " | ".join(kamp_linjer),
+                    float(ny_a["odds"]),
+                    float(indsats),
+                )
+            except Exception as e:
+                st.error(f"❌ Kunne ikke gemme i Supabase: {e}")
+                st.stop()
+
             st.session_state["billed_gemt_ok"] = (
-                st.session_state.get("sidste_gem_ok")
-                or f"✅ OK – Kupon ({len(kamp_linjer)} kampe @ {ny_a['odds']:.2f}) er gemt!"
+                f"✅ OK – Kupon ({len(kamp_linjer)} kampe @ {ny_a['odds']:.2f}) er gemt i Supabase!"
             )
             st.rerun()
 
