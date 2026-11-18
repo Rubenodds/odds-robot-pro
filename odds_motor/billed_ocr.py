@@ -55,9 +55,9 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
         "generationConfig": {"temperature": 0.0, "response_mime_type": "application/json"},
     }
 
-    host = "://googleapis.com"
+   host = ".".join(["generativelanguage", "googleapis", "com"])
     sti = "/v1beta/models/gemini-2.5-flash:generateContent"
-    url = f"https://{host}{sti}?key={api_key}"
+    url = "https://" + host + sti + "?key=" + api_key
 
     req = urllib.request.Request(
         url,
