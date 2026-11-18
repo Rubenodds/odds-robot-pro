@@ -1,12 +1,16 @@
 import os, json, base64, urllib.request, urllib.error
-from datetime import datetime, timedelta
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import streamlit as st
 
 FIL_STI = "historik/gemte_kuponer.json"
 LOKAL_STI = os.path.join("historik", "backup_kuponer.json")
 
 def _dansk_tid():
-    return (datetime.utcnow() + timedelta(hours=1)).strftime("%d-%m-%Y %H:%M")
+    try:
+        return datetime.now(ZoneInfo("Europe/Copenhagen")).strftime("%d-%m-%Y %H:%M")
+    except Exception:
+        return datetime.now().strftime("%d-%m-%Y %H:%M")
 
 def _gh_cfg():
     try:
@@ -42,15 +46,20 @@ def _gh_laes():
     url = f"https://github.com{repo}/contents/{FIL_STI}"
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json", "User-Agent": "OddsRobotPro"})
     try:
-        with urllib.request.urlopen(req, timeout=5) as res:
+        with urllib.request.urlopen(req, timeout=4) as res:
             d = json.loads(res.read().decode("utf-8"))
             raekker = json.loads(base64.b64decode(d["content"]).decode("utf-8"))
             st.session_state["kupon_sha"] = d.get("sha")
+            st.session_state.pop("gh_fejl", None)
             _lokal_skriv(raekker)
             return raekker, d.get("sha")
     except urllib.error.HTTPError as e:
-        return ([], None) if e.code == 404 else (_lokal_laes(), None)
-    except Exception:
+        if e.code == 404:
+            return [], None
+        st.session_state["gh_fejl"] = f"HTTP {e.code}"
+        return _lokal_laes(), None
+    except Exception as e:
+        st.session_state["gh_fejl"] = str(e)[:40]
         return _lokal_laes(), None
 
 def _gh_skriv(raekker, sha=None):
@@ -64,13 +73,16 @@ def _gh_skriv(raekker, sha=None):
         body["sha"] = sha
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json", "User-Agent": "OddsRobotPro"}, method="PUT")
     try:
-        with urllib.request.urlopen(req, timeout=6) as res:
+        with urllib.request.urlopen(req, timeout=5) as res:
             if res.status in (200, 201):
                 ny_d = json.loads(res.read().decode("utf-8"))
                 st.session_state["kupon_sha"] = (ny_d.get("content") or {}).get("sha")
+                st.session_state.pop("gh_fejl", None)
                 return True
-    except Exception:
-        pass
+    except urllib.error.HTTPError as e:
+        st.session_state["gh_fejl"] = f"HTTP {e.code}"
+    except Exception as e:
+        st.session_state["gh_fejl"] = str(e)[:40]
     return False
 
 def hent_alle_kuponer():
@@ -97,19 +109,24 @@ def gem_kupon_i_historik(*args, **kwargs):
     raekker.insert(0, {"id": nyt_id, "dato": dato, "kilde": kilde, "kampe": f"{len(kampe)} kampe ({dato})", "detaljer": json.dumps(kampe, ensure_ascii=False), "odds": odds, "indsats": indsats, "mulig_gevinst": round(odds * indsats, 2), "status": "[AFVENTER]"})
     cloud_ok = _gh_skriv(raekker, sha)
     st.session_state["kupon_ram_cache"] = raekker
-    msg = f"✅ OK – Kupon ({len(kampe)} kampe @ {odds}) er tilføjet til historikken!" + (" (Cloud ☁️)" if cloud_ok else " (Kun lokal ⚠️)")
+    fejl = st.session_state.get("gh_fejl")
+    status_txt = " (Cloud ☁️)" if cloud_ok else f" (Kun lokal ⚠️ {fejl or ''})"
+    msg = f"✅ OK – Kupon ({len(kampe)} kampe @ {odds}) er tilføjet til historikken!{status_txt}"
     st.session_state["sidste_gem_ok"] = msg
     st.success(msg)
     return True
 
 def slet_kupon(kupon_id):
     raekker = list(hent_alle_kuponer())
-    sha = st.session_state.get("kupon_sha")
-    if not sha:
-        raekker, sha = _gh_laes()
     ny = [r for r in raekker if int(r.get("id", -1)) != int(kupon_id)]
     st.session_state["kupon_ram_cache"] = ny
-    _gh_skriv(ny, sha)
+    sha = st.session_state.get("kupon_sha")
+    if not sha:
+        _, sha = _gh_laes()
+    if not _gh_skriv(ny, sha):
+        _, ny_sha = _gh_laes()
+        if ny_sha:
+            _gh_skriv(ny, ny_sha)
     return True
 
 gem_kupon = gem_kupon_i_historik
