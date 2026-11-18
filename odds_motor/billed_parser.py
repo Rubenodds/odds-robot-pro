@@ -1,7 +1,6 @@
 import streamlit as st
 from PIL import Image
 from odds_motor import billed_ocr
-from odds_motor.kupon_hjaelp import beregn_total_odds, ryd_hele_kuponen
 
 
 def _normaliser_kamp(kamp_str: str) -> str:
@@ -86,12 +85,12 @@ def vis_billed_scanner():
             )
             return
 
-        ryd_hele_kuponen()
-        for k in alle_fundne:
-            st.session_state["kupon_kampe"].append(k)
-
+        st.session_state["kupon_kampe"] = list(alle_fundne)
         st.session_state["kupon_indsats"] = 100.0
-        st.session_state["kupon_total_odds"] = beregn_total_odds(alle_fundne)
+        total_odds = 1.0
+        for k in alle_fundne:
+            total_odds *= float(k.get("odds", 1.0))
+        st.session_state["kupon_total_odds"] = round(total_odds, 2)
 
         msg = f"✅ {len(alle_fundne)} kampe indlæst fra {len(filer)} billeder!"
         if dubletter > 0:
