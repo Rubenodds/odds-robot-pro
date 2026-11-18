@@ -3,7 +3,14 @@ from PIL import Image
 from odds_motor import billed_ocr
 
 
-def _normaliser_kamp(kamp_str: str) -> str:
+def _hent_felt(obj, navn, standard=""):
+    if isinstance(obj, dict):
+        return obj.get(navn, standard)
+    return getattr(obj, navn, standard)
+
+
+def _normaliser_kamp(k) -> str:
+    kamp_str = str(_hent_felt(k, "kamp", "") or _hent_felt(k, "match", "") or k)
     return "".join(ch.lower() for ch in kamp_str if ch.isalnum())
 
 
@@ -17,13 +24,18 @@ def _kald_ocr(fil_bytes: bytes) -> list:
     ):
         fn = getattr(billed_ocr, navn, None)
         if callable(fn):
-            return fn(fil_bytes)
+            res = fn(fil_bytes)
+            if isinstance(res, tuple):
+                return list(res[0]) if res else []
+            return list(res) if res else []
     for attr in dir(billed_ocr):
         if not attr.startswith("_"):
             fn = getattr(billed_ocr, attr)
             if callable(fn):
                 try:
                     res = fn(fil_bytes)
+                    if isinstance(res, tuple) and res and isinstance(res[0], list):
+                        return res[0]
                     if isinstance(res, list):
                         return res
                 except Exception:
@@ -71,7 +83,7 @@ def vis_billed_scanner():
                 fil.seek(0)
                 kampe_fra_fil = _kald_ocr(fil.read())
                 for k in kampe_fra_fil:
-                    noegle = _normaliser_kamp(k.get("kamp", ""))
+                    noegle = _normaliser_kamp(k)
                     if noegle and noegle in sete_kampe:
                         dubletter += 1
                         continue
@@ -89,7 +101,11 @@ def vis_billed_scanner():
         st.session_state["kupon_indsats"] = 100.0
         total_odds = 1.0
         for k in alle_fundne:
-            total_odds *= float(k.get("odds", 1.0))
+            odds_val = _hent_felt(k, "odds", 1.0)
+            try:
+                total_odds *= float(str(odds_val).replace(",", "."))
+            except ValueError:
+                pass
         st.session_state["kupon_total_odds"] = round(total_odds, 2)
 
         msg = f"✅ {len(alle_fundne)} kampe indlæst fra {len(filer)} billeder!"
