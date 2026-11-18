@@ -1,5 +1,16 @@
 [
   {
+    "id": 6,
+    "dato": "18-11-2026 22:31",
+    "kilde": "Scanner",
+    "kampe": "6 kampe (18-11-2026 22:31)",
+    "detaljer": "[\"Utebo - Sabadell (Over 1.5) [@ 1.28]\", \"Alcoyano - Mallorca (BYG VÆDDEMÅL) [@ 1.57]\", \"CD Badajoz - Tenerife (BYG VÆDDEMÅL) [@ 1.86]\", \"Deportivo Minera - Cartagena (Over 1.5) [@ 1.44]\", \"Reus FC Reddis - Real Unión (BYG VÆDDEMÅL) [@ 2.37]\", \"Portugalete - Real Unión (BYG VÆDDEMÅL) [@ 1.52]\"]",
+    "odds": 19.39,
+    "indsats": 100.0,
+    "mulig_gevinst": 1939.0,
+    "status": "[AFVENTER]"
+  },
+  {
     "id": 5,
     "dato": "18-11-2026 22:30",
     "kilde": "Scanner",
