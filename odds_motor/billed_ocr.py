@@ -27,6 +27,27 @@ def _hent_gemini_noegle() -> str:
     return os.environ.get("GEMINI_API_KEY", "").strip()
 
 
+def _find_aktiv_model(host: str, api_key: str) -> str:
+    try:
+        list_url = "https://" + host + "/v1beta/models?key=" + api_key
+        with urllib.request.urlopen(list_url, timeout=10) as resp:
+            info = json.loads(resp.read().decode("utf-8"))
+        kandidater = []
+        for m in info.get("models", []):
+            navn = m.get("name", "").replace("models/", "")
+            metoder = m.get("supportedGenerationMethods", [])
+            if "generateContent" in metoder and "flash" in navn and "tts" not in navn and "image" not in navn:
+                kandidater.append(navn)
+        for foretrukken in ("gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash-lite"):
+            if foretrukken in kandidater:
+                return foretrukken
+        if kandidater:
+            return kandidater.pop()
+    except Exception:
+        pass
+    return "gemini-3.8-flash"
+
+
 def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     img = Image.open(io.BytesIO(billede_bytes)).convert("RGB")
     buf = io.BytesIO()
@@ -52,11 +73,12 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
                 ]
             }
         ],
-        "generationConfig": {"temperature": 0.0, "response_mime_type": "application/json"},
+        "generationConfig": {"response_mime_type": "application/json"},
     }
 
     host = ".".join(["generativelanguage", "googleapis", "com"])
-    sti = "/v1beta/models/gemini-2.5-flash:generateContent"
+    model_navn = _find_aktiv_model(host, api_key)
+    sti = "/v1beta/models/" + model_navn + ":generateContent"
     url = "https://" + host + sti + "?key=" + api_key
 
     req = urllib.request.Request(
