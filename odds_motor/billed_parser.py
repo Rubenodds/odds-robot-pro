@@ -1,4 +1,3 @@
-import re
 import streamlit as st
 from PIL import Image
 from odds_motor import billed_ocr as ocr, billed_hjaelp as bh
@@ -7,25 +6,6 @@ from historik import gem_data
 
 def _normaliser_tekst(txt: str) -> str:
     return "".join(ch.lower() for ch in str(txt) if ch.isalnum())
-
-
-def _er_gyldig_kamp(k: dict) -> bool:
-    kamp = str(k.get("kamp", "")).strip()
-    if not kamp or " - " not in kamp:
-        return False
-    hjemme, ude = [x.strip() for x in kamp.split(" - ", 1)]
-    if len(hjemme) < 3 or len(ude) < 3:
-        return False
-    for del_navn in (hjemme, ude):
-        lav = del_navn.lower()
-        if any(s in lav for s in ("tillaegstid", "tillægstid", "ila2", "halvleg", "vaeddemal", "væddemål", "casino", "live")):
-            return False
-        if re.search(r"[(){}\[\]?!@#$%^&*=<>]", del_navn):
-            return False
-        bogstaver = sum(1 for c in del_navn if c.isalpha())
-        if bogstaver < 3 or (bogstaver / max(1, len(del_navn))) < 0.65:
-            return False
-    return True
 
 
 def _er_dublet(k: dict, sete_kampe: list) -> bool:
@@ -63,7 +43,7 @@ def _godt_og_skidt(a):
 def vis_billed_scanner():
     st.markdown("### 🧾 Kupon & Billed Scanner (1 eller flere skærmbilleder)")
     st.caption(
-        "Har du en lang kupon? Vælg 2-3 skærmbilleder på én gang — robotten fletter dem sammen og fjerner automatisk overlap."
+        "Vælg 1 eller flere skærmbilleder på én gang — robotten fletter dem sammen til én samlet kupon uden dubletter."
     )
 
     filer = st.file_uploader(
@@ -86,34 +66,32 @@ def vis_billed_scanner():
                 )
 
         if st.session_state.get("sidste_fil_id") != fil_sig:
-            alle_kampe, sete_kampe, dubletter = [], [], 0
-            sidste_indsats = 100.0
-            with st.spinner("🔍 Aflæser skærmbilleder og fletter kuponen sammen..."):
+            with st.spinner("🔍 Fletter billeder sammen og aflæser hele kuponen i ét kald..."):
+                bytes_liste = []
                 for fil in sorterede_filer:
                     fil.seek(0)
-                    kampe_del, indsats_del, _ = ocr.udtraek_kupon_fra_billede(fil.read())
-                    if indsats_del and indsats_del > 0:
-                        sidste_indsats = float(indsats_del)
-                    for k in kampe_del:
-                        if not _er_gyldig_kamp(k):
-                            continue
-                        if _er_dublet(k, sete_kampe):
-                            dubletter += 1
-                            continue
-                        sete_kampe.append(
-                            {
-                                "kamp": _normaliser_tekst(k.get("kamp", "")),
-                                "hjemme": _normaliser_tekst(k.get("hjemme", "")),
-                                "ude": _normaliser_tekst(k.get("ude", "")),
-                                "odds": round(float(k.get("odds", 0.0)), 2),
-                            }
-                        )
-                        alle_kampe.append(k)
+                    bytes_liste.append(fil.read())
+
+                raakampe, sidste_indsats, _ = ocr.udtraek_kupon_fra_flere_billeder(bytes_liste)
+                alle_kampe, sete_kampe, dubletter = [], [], 0
+                for k in raakampe:
+                    if _er_dublet(k, sete_kampe):
+                        dubletter += 1
+                        continue
+                    sete_kampe.append(
+                        {
+                            "kamp": _normaliser_tekst(k.get("kamp", "")),
+                            "hjemme": _normaliser_tekst(k.get("hjemme", "")),
+                            "ude": _normaliser_tekst(k.get("ude", "")),
+                            "odds": round(float(k.get("odds", 0.0)), 2),
+                        }
+                    )
+                    alle_kampe.append(k)
 
             st.session_state.update(
                 {
                     "kupon_kampe": alle_kampe,
-                    "kupon_indsats": sidste_indsats,
+                    "kupon_indsats": float(sidste_indsats or 100.0),
                     "sidste_fil_id": fil_sig,
                     "scan_info": (
                         f"✅ {len(alle_kampe)} kampe indlæst fra {len(sorterede_filer)} billeder"
@@ -234,5 +212,3 @@ def vis_billed_scanner():
 
     if st.button("🗑️ Ryd kupon", key="btn_billed_ryd", use_container_width=True):
         for k_navn in ("kupon_kampe", "sidste_fil_id", "billed_gemt_ok", "scan_info"):
-            st.session_state.pop(k_navn, None)
-        st.rerun()
