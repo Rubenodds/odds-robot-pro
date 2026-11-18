@@ -1,87 +1,76 @@
 import streamlit as st
-from odds_motor import billed_ocr as ocr, billed_hjaelp as bh
-from historik import gem_data
+from PIL import Image
+from odds_motor.billed_ocr import udtraek_kampe_fra_billede
+from odds_motor.kupon_hjaelp import beregn_total_odds, ryd_hele_kuponen
 
-def _godt_og_skidt(a):
-    o, p = float(a.get("odds", 1.85)), float(a.get("pct", 50.0))
-    godt = f"Stærk værdi på {a['spil']} ({p}% træfsikkerhed)" if p >= 52 else f"Høj udbetalingsfaktor (@ {o:.2f}) ved fuld træffer"
-    skidt = f"Høj varians og lav hitrate ({p}%) gør kampen til kuponens risikopunkt" if o >= 2.25 else f"Lavere enkeltodds (@ {o:.2f}) kræver fuld disciplin uden uventede røde kort"
-    return godt, skidt
+
+def _normaliser_kamp(kamp_str: str) -> str:
+    return "".join(ch.lower() for ch in kamp_str if ch.isalnum())
+
 
 def vis_billed_scanner():
-    st.markdown("### 🧾 Kupon & Billed Scanner")
-    fil = st.file_uploader("Upload screenshot af kupon", type=["png", "jpg", "jpeg"], key="billed_uploader")
-    fil_id = getattr(fil, "file_id", None) or (f"{fil.name}_{fil.size}" if fil else None)
-    if fil is not None and st.session_state.get("sidste_fil_id") != fil_id:
-        kampe, indsats, _ = ocr.udtraek_kupon_fra_billede(fil.read())
-        st.session_state.update({"kupon_kampe": kampe, "kupon_indsats": indsats, "sidste_fil_id": fil_id})
-        st.session_state.pop("billed_gemt_ok", None)
-
-    kampe = st.session_state.get("kupon_kampe", [])
-    indsats = st.number_input("Indsats (kr. — std. 100 kr.)", min_value=1.0, value=float(st.session_state.get("kupon_indsats", 100.0)), step=10.0, key="billed_kr")
-    if not kampe:
-        st.info("Upload et kuponbillede for at se robottens scanning og kuponanalyse.")
-        return
-
-    oprindelige, aktive_valg = [], []
-    for idx, k in enumerate(kampe):
-        a = bh.analyser_kupon_kamp(k)
-        oprindelige.append({"kamp": a["kamp"], "spil": a["spil"], "odds": a["odds"], "pct": a["pct"]})
-        godt, skidt = _godt_og_skidt(a)
-        meta_html = f"<div style='font-size:12px;color:#60A5FA;margin-top:4px;'>{a['meta']}</div>" if a.get("meta") else ""
-        st.markdown(
-            f"<div style='background:#141923;color:#F3F4F6;padding:14px;border-radius:10px;border-left:4px solid #10B981;margin-bottom:8px;'>"
-            f"<div style='font-size:16px;font-weight:700;'>{idx+1}. {a['kamp']} &nbsp;|&nbsp; Odds: <span style='color:#34D399;'>{a['odds']:.2f}</span> ({a['pct']}%)</div>"
-            f"<div style='font-size:13px;color:#9CA3AF;margin:4px 0;'>Spil: <b>{a['spil']}</b> &nbsp;|&nbsp; {'⭐'*a['stjerner']} &nbsp;|&nbsp; {'🔥'*a['risiko']}</div>"
-            f"<div style='font-size:13px;color:#34D399;margin-top:4px;'>✅ <b>Godt:</b> {godt}</div>"
-            f"<div style='font-size:13px;color:#FBBF24;margin-top:2px;'>⚠️ <b>Skidt:</b> {skidt}</div>"
-            f"{meta_html}</div>",
-            unsafe_allow_html=True,
-        )
-        v_spil, v_odds, v_pct = a["spil"], a["odds"], a["pct"]
-        if a.get("alternativer"):
-            with st.expander(f"💡 Robotten har {len(a['alternativer'])} forslag til kamp {idx+1} (vælg ét eller flere)"):
-                valgte_alt = []
-                for i_alt, alt in enumerate(a["alternativer"]):
-                    if st.checkbox(f"{alt['label']} @ {alt['odds']:.2f} ({alt['pct']}%)", key=f"alt_{idx}_{i_alt}"):
-                        valgte_alt.append(alt)
-                    hvorfor = alt.get("hvorfor") or f"Øger sandsynligheden til {alt['pct']}% og balancerer kuponens samlede risiko bedre end {a['spil']}."
-                    st.caption(f"💡 **Hvorfor?** {hvorfor}")
-                if valgte_alt:
-                    v_spil = " + ".join(x["label"].split(": ")[-1] for x in valgte_alt)
-                    rabat = 0.90 if len(valgte_alt) > 1 else 1.0
-                    komb_o, komb_p = 1.0, 1.0
-                    for x in valgte_alt:
-                        komb_o *= x["odds"]
-                        komb_p *= (x["pct"] / 100.0)
-                    v_odds = round(komb_o * rabat, 2)
-                    v_pct = round(min(85.0, komb_p * 100.0 * (1.08 if len(valgte_alt) > 1 else 1.0)), 1)
-                    st.caption(f"✅ Aktivt valg på kamp {idx+1}: {v_spil} @ {v_odds:.2f} ({v_pct}%)")
-        aktive_valg.append({"kamp": a["kamp"], "spil": v_spil, "odds": v_odds, "pct": v_pct})
-
-    gl_a, ny_a = bh.samlet_kupon_analyse(oprindelige, indsats), bh.samlet_kupon_analyse(aktive_valg, indsats)
-    er_aendret = any(o["spil"] != n["spil"] for o, n in zip(oprindelige, aktive_valg))
-    titel = "🔄 Ny Kuponanalyse (efter dine justeringer)" if er_aendret else "🎯 Kuponanalyse af dit scannede spil"
-    sml_html = f"<div style='font-size:12px;color:#FBBF24;margin-top:8px;'>Sammenligning: Oprindeligt odds {gl_a['odds']:.2f} ({gl_a['pct']}%) → Nyt odds {ny_a['odds']:.2f} ({ny_a['pct']}%)</div>" if er_aendret else ""
-
-    st.markdown(
-        f"<div style='background:#0F172A;color:#F8FAFC;padding:16px;border-radius:10px;border:1px solid #334155;margin-top:10px;'>"
-        f"<div style='font-size:16px;font-weight:700;color:#34D399;'>{titel}</div>"
-        f"<div style='font-size:14px;color:#CBD5E1;margin-top:4px;'>Totalodds: <b>{ny_a['odds']:.2f}</b> &nbsp;|&nbsp; Træfsikkerhed: <b>{ny_a['pct']}%</b> &nbsp;|&nbsp; Mulig gevinst: <b>{ny_a['gevinst']:.2f} kr.</b></div>"
-        f"<div style='font-size:13px;color:#E2E8F0;margin-top:8px;'>{ny_a['dom']}</div>{sml_html}</div>",
-        unsafe_allow_html=True,
+    """Uploader af et eller flere Bet365-skærmbilleder og tilføjer alle kampe uden dubletter."""
+    st.markdown("### 📸 Scan Bet365-kupon (1 eller flere skærmbilleder)")
+    st.caption(
+        "Har du en lang kupon? Vælg 2-3 skærmbilleder på én gang — robotten fletter dem sammen og fjerner automatisk overlap."
     )
 
-    if ok_msg := st.session_state.get("billed_gemt_ok"):
-        st.success(ok_msg)
-    elif st.button("🚀 SPILLET (Gem i Historik)", type="primary", key="btn_billed_spillet", use_container_width=True):
-        with st.spinner("⏳ Gemmer kupon i Cloud-historik..."):
-            kamp_linjer = [f"{x['kamp']} ({x['spil']}) [@ {x['odds']:.2f}]" for x in aktive_valg]
-            gem_data.gem_kupon_i_historik(kilde="Billed Scanner", kampe=kamp_linjer, odds=ny_a["odds"], indsats=indsats)
-            st.session_state["billed_gemt_ok"] = st.session_state.get("sidste_gem_ok") or f"✅ OK – Kupon ({len(kamp_linjer)} kampe @ {ny_a['odds']:.2f}) er gemt!"
-            st.rerun()
+    filer = st.file_uploader(
+        "Vælg eller træk ét eller flere skærmbilleder ind her",
+        type=["png", "jpg", "jpeg", "webp"],
+        accept_multiple_files=True,
+        key="bet365_multi_billede_upload",
+    )
 
-    if st.button("🗑️ Ryd kupon", key="btn_billed_ryd", use_container_width=True):
-        for k_navn in ("kupon_kampe", "sidste_fil_id", "billed_gemt_ok"):
-            st.session_state.pop(k_navn, None)
+    if not filer:
+        return
+
+    cols = st.columns(min(len(filer), 3))
+    for idx, fil in enumerate(filer):
+        with cols[idx % 3]:
+            st.image(
+                Image.open(fil),
+                caption=f"Billede {idx + 1}: {fil.name}",
+                use_container_width=True,
+            )
+
+    if st.button(
+        f"🔍 Scan {len(filer)} {'billede' if len(filer) == 1 else 'billeder'} og indlæs kupon",
+        type="primary",
+        use_container_width=True,
+    ):
+        alle_fundne = []
+        sete_kampe = set()
+        dubletter = 0
+
+        with st.spinner("Aflæser skærmbilleder og fletter kuponen sammen..."):
+            for fil in filer:
+                fil.seek(0)
+                kampe_fra_fil = udtraek_kampe_fra_billede(fil.read())
+                for k in kampe_fra_fil:
+                    noegle = _normaliser_kamp(k.get("kamp", ""))
+                    if noegle and noegle in sete_kampe:
+                        dubletter += 1
+                        continue
+                    if noegle:
+                        sete_kampe.add(noegle)
+                    alle_fundne.append(k)
+
+        if not alle_fundne:
+            st.error(
+                "Kunne ikke finde hele kamp-linjer (Hold A - Hold B) på billederne. Tjek at begge holdnavne er synlige."
+            )
+            return
+
+        ryd_hele_kuponen()
+        for k in alle_fundne:
+            st.session_state["kupon_kampe"].append(k)
+
+        st.session_state["kupon_indsats"] = 100.0
+        st.session_state["kupon_total_odds"] = beregn_total_odds(alle_fundne)
+
+        msg = f"✅ {len(alle_fundne)} kampe indlæst fra {len(filer)} billeder!"
+        if dubletter > 0:
+            msg += f" ({dubletter} overlappende kamp{'e' if dubletter > 1 else ''} filtreret fra)"
+        st.success(msg)
         st.rerun()
