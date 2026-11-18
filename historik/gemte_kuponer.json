@@ -1,5 +1,16 @@
 [
   {
+    "id": 2,
+    "dato": "18-11-2026 19:02",
+    "kilde": "Scanner",
+    "kampe": "5 kampe (18-11-2026 19:02)",
+    "detaljer": "[\"Ay Real Union 10) - O$q (Over 0.5 mal i kampen) [@ 1.52]\", \"Utebo (0) - fog (Kampresultat) [@ 1.28]\", \"Alcoyano - Mallorca (Over 1.5 mali kampen + - Resultat: Mallorca) [@ 1.57]\", \"CD Badajoz - le Tenerife (Resultat: Tenerife + © Over 1.5 mali kampen) [@ 1.86]\", \"Deportiva Minera - If FC Cartagena (Kampresultat) [@ 1.44]\"]",
+    "odds": 8.18,
+    "indsats": 100.0,
+    "mulig_gevinst": 818.0,
+    "status": "[AFVENTER]"
+  },
+  {
     "id": 1,
     "dato": "18-11-2026 19:02",
     "kilde": "Scanner",
