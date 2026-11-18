@@ -9,8 +9,9 @@ STOJ = (
     "session", "ansvarsfuldt", "genbrug", "del", "luk væddemål",
     "luk vaddemal", "indsats", "gevinst", "fuldtid", "total antal",
     "byg væddemål", "byg vaddemal", "indskiftning", "kr.", "triple",
-    "double", "single", "kupon"
+    "double", "single", "kupon", "dobbeltchance", "tillægstid", "tillaegstid"
 )
+SPIL_ORD = ("resultat:", "over ", "under ", "begge hold", "hjørne", "kort", "skud", "eller uafgjort", "uafgjort eller")
 
 def _rens_tekst(linje):
     t = re.sub(r"\b(man|tir|ons|tor|fre|lør|lor|søn|son)\s+\d{1,2}\s+[a-zæøå]{3,4}\b", "", linje, flags=re.I)
@@ -21,19 +22,17 @@ def _rens_tekst(linje):
 
 def _er_stoj(linje):
     lav = linje.lower().strip()
-    if len(lav) < 3:
-        return True
-    return any(s in lav for s in STOJ)
+    return len(lav) < 3 or any(s in lav for s in STOJ)
 
 def udtraek_kupon_fra_billede(billede_bytes):
     if pytesseract is None:
         return [], 100.0, 0.0
-    img = Image.open(io.BytesIO(billede_bytes))
-    img = ImageOps.grayscale(img)
+    img = ImageOps.grayscale(Image.open(io.BytesIO(billede_bytes)))
     w, h = img.size
-    if w < 1000:
-        img = img.resize((w * 2, h * 2))
-    tekst = pytesseract.image_to_string(img, lang="dan+eng")
+    if w < 1600:
+        skala = 2 if w >= 800 else 3
+        img = img.resize((w * skala, h * skala))
+    tekst = pytesseract.image_to_string(img, lang="dan+eng", config="--psm 6")
     return parse_kupon_tekst(tekst)
 
 def parse_kupon_tekst(tekst):
@@ -52,14 +51,21 @@ def parse_kupon_tekst(tekst):
 
     kampe, blok = [], []
     for l in linjer:
-        if any(x in l.lower() for x in ("indsats", "luk væddemål", "luk vaddemal")):
+        lav = l.lower()
+        if any(x in lav for x in ("indsats", "luk væddemål", "luk vaddemal")):
             break
-        blok.append(l)
-        if re.search(r"\b\d{1,2}:\d{2}\b", l) and len(blok) >= 2:
-            k = _tolk_kampblok(blok)
-            if k:
+        if ("byg væddemål" in lav or "byg vaddemal" in lav) and len(blok) >= 3:
+            if k := _tolk_kampblok(blok):
                 kampe.append(k)
             blok = []
+        blok.append(l)
+        if re.search(r"\b\d{1,2}:\d{2}\b", l) and len(blok) >= 3:
+            if k := _tolk_kampblok(blok):
+                kampe.append(k)
+            blok = []
+    if len(blok) >= 3:
+        if k := _tolk_kampblok(blok):
+            kampe.append(k)
 
     if kampe and kupon_odds <= 1.0:
         p = 1.0
@@ -71,34 +77,26 @@ def parse_kupon_tekst(tekst):
 def _tolk_kampblok(blok):
     odds = 0.0
     for l in blok:
-        if any(x in l.lower() for x in ("resultat:", "over ", "under ", "begge hold")):
-            continue
-        m = re.search(r"\b(\d{1,2}[.,]\d{2})\b", l)
-        if m:
-            val = float(m.group(1).replace(",", "."))
-            if 1.05 <= val <= 50.0:
-                odds = val
-                break
+        ren_l = re.sub(r"\b(over|under)\s+\d+([.,]\d+)?\b", "", l, flags=re.I)
+        m = re.search(r"\b(\d{1,2}[.,]\d{2})\b", ren_l)
+        if m and 1.05 <= float(m.group(1).replace(",", ".")) <= 50.0:
+            odds = float(m.group(1).replace(",", "."))
+            break
     if odds <= 1.01:
         return None
-    spil_dele = []
+    spil_dele, kandidater = [], []
     for l in blok:
-        if any(x in l.lower() for x in ("resultat:", "over ", "under ", "begge hold", "hjørne", "kort", "skud")):
+        lav = l.lower()
+        if any(x in lav for x in SPIL_ORD):
             ren = re.sub(r"^[o0•\-F\s]{1,4}", "", l).strip()
             ren = re.sub(r"\s+\d{1,2}[.,]\d{2}$", "", ren).strip()
             if ren and ren not in spil_dele:
                 spil_dele.append(ren)
-    kandidater = []
-    for l in blok:
-        if _er_stoj(l) or re.search(r"\b\d{1,2}[.,]\d{2}\b", l):
-            continue
-        if any(x in l.lower() for x in ("resultat:", "over ", "under ", "begge hold", "hjørne", "kort", "skud")):
-            continue
-        ren = _rens_tekst(l)
-        if len(ren) >= 3 and ren not in kandidater:
-            kandidater.append(ren)
+        elif not _er_stoj(l) and not re.search(r"\b\d{1,2}[.,]\d{2}\b", l):
+            ren = _rens_tekst(l)
+            if len(ren) >= 3 and ren not in kandidater:
+                kandidater.append(ren)
     if len(kandidater) < 2:
         return None
     hjemme, ude = kandidater[-2], kandidater[-1]
-    spil = " + ".join(spil_dele) if spil_dele else "Kampresultat"
-    return {"kamp": f"{hjemme} - {ude}", "hjemme": hjemme, "ude": ude, "spil": spil, "odds": odds}
+    return {"kamp": f"{hjemme} - {ude}", "hjemme": hjemme, "ude": ude, "spil": " + ".join(spil_dele) if spil_dele else "Kampresultat", "odds": odds}
