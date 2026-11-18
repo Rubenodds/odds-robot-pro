@@ -1,11 +1,35 @@
 import streamlit as st
 from PIL import Image
-from odds_motor.billed_ocr import udtraek_kampe_fra_billede
+from odds_motor import billed_ocr
 from odds_motor.kupon_hjaelp import beregn_total_odds, ryd_hele_kuponen
 
 
 def _normaliser_kamp(kamp_str: str) -> str:
     return "".join(ch.lower() for ch in kamp_str if ch.isalnum())
+
+
+def _kald_ocr(fil_bytes: bytes) -> list:
+    for navn in (
+        "udtraek_kampe_fra_billede",
+        "scan_billede_for_kampe",
+        "parse_billede",
+        "analyser_billede",
+        "udtraek_kupon_fra_billede",
+    ):
+        fn = getattr(billed_ocr, navn, None)
+        if callable(fn):
+            return fn(fil_bytes)
+    for attr in dir(billed_ocr):
+        if not attr.startswith("_"):
+            fn = getattr(billed_ocr, attr)
+            if callable(fn):
+                try:
+                    res = fn(fil_bytes)
+                    if isinstance(res, list):
+                        return res
+                except Exception:
+                    continue
+    return []
 
 
 def vis_billed_scanner():
@@ -46,7 +70,7 @@ def vis_billed_scanner():
         with st.spinner("Aflæser skærmbilleder og fletter kuponen sammen..."):
             for fil in filer:
                 fil.seek(0)
-                kampe_fra_fil = udtraek_kampe_fra_billede(fil.read())
+                kampe_fra_fil = _kald_ocr(fil.read())
                 for k in kampe_fra_fil:
                     noegle = _normaliser_kamp(k.get("kamp", ""))
                     if noegle and noegle in sete_kampe:
