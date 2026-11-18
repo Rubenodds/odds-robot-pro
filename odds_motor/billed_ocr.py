@@ -86,7 +86,7 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     for m_navn in modeller_at_proeve:
         sti = "/v1beta/models/" + m_navn + ":generateContent"
         url = "https://" + host + sti + "?key=" + api_key
-        for forsoeg in range(2):
+        for _ in range(2):
             try:
                 req = urllib.request.Request(
                     url,
@@ -115,10 +115,16 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     indsats = float(parsed.get("indsats") or 100.0)
     kampe = []
     for item in parsed.get("kampe", []):
-        hjemme = str(item.get("hjemme", "")).strip()
-        ude = str(item.get("ude", "")).strip()
-        spil = str(item.get("spil", "Kampresultat")).strip()
-        odds = float(str(item.get("odds", 0)).replace(",", "."))
+        hjemme = str(item.get("hjemme") or "").strip()
+        ude = str(item.get("ude") or "").strip()
+        spil = str(item.get("spil") or "Kampresultat").strip()
+        raa_odds = item.get("odds")
+        if raa_odds in (None, "", "None", "null"):
+            continue
+        try:
+            odds = float(str(raa_odds).replace(",", "."))
+        except ValueError:
+            continue
         if hjemme and ude and odds > 1.01:
             kampe.append(
                 {
