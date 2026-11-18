@@ -4,17 +4,12 @@ import json
 import os
 import re
 import urllib.request
-from PIL import Image, ImageOps
+from PIL import Image
 
 try:
     import streamlit as st
 except Exception:
     st = None
-
-try:
-    import pytesseract
-except Exception:
-    pytesseract = None
 
 
 def _hent_gemini_noegle() -> str:
@@ -34,7 +29,7 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     b64_img = base64.b64encode(buf.getvalue()).decode("utf-8")
 
     prompt = (
-        "Du aflæser et skærmbillede af en Bet365 fodbold-kupon. "
+        "Du aflæser et skærmbillede af en fodbold-kupon fra en bookmaker (f.eks. Bet365, Danske Spil, Unibet, Betano, NordicBet m.fl.). "
         "Udtræk KUN kampe hvor BEGGE holdnavne (hjemmehold og udehold) er synlige på billedet. "
         "Ignorer afklippede halvkampe i toppen eller bunden hvor et af holdnavnene mangler, "
         "og ignorer live-stillinger (f.eks. 0-0, 1. halvleg - Slut) og bundmenuer. "
@@ -94,24 +89,13 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
 
 def udtraek_kupon_fra_billede(billede_bytes: bytes):
     api_key = _hent_gemini_noegle()
-    if api_key:
-        try:
-            kampe, indsats, total = _laes_med_gemini(billede_bytes, api_key)
-            if kampe:
-                return kampe, indsats, total
-        except Exception:
-            pass
-
-    if pytesseract is None:
+    if not api_key:
+        if st is not None:
+            st.error("❌ GEMINI_API_KEY blev ikke fundet i Streamlit Secrets.")
         return [], 100.0, 0.0
-    img = ImageOps.grayscale(Image.open(io.BytesIO(billede_bytes)))
-    w, h = img.size
-    if w < 1600:
-        skala = 2 if w >= 800 else 3
-        img = img.resize((w * skala, h * skala))
-    tekst = pytesseract.image_to_string(img, lang="dan+eng", config="--psm 6")
-    return parse_kupon_tekst(tekst)
-
-
-def parse_kupon_tekst(tekst: str):
-    return [], 100.0, 0.0
+    try:
+        return _laes_med_gemini(billede_bytes, api_key)
+    except Exception as e:
+        if st is not None:
+            st.error(f"❌ Gemini-fejl ved billedlæsning: {e}")
+        return [], 100.0, 0.0
