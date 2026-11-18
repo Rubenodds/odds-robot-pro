@@ -16,7 +16,6 @@ def _er_gyldig_kamp(k: dict) -> bool:
     hjemme, ude = [x.strip() for x in kamp.split(" - ", 1)]
     if len(hjemme) < 3 or len(ude) < 3:
         return False
-    # Afvis afklippede bund-linjer med OCR-ikoner, tal-støj eller 'tillaegstid'
     for del_navn in (hjemme, ude):
         lav = del_navn.lower()
         if any(s in lav for s in ("tillaegstid", "tillægstid", "ila2", "halvleg", "vaeddemal", "væddemål", "casino", "live")):
@@ -44,6 +43,11 @@ def _er_dublet(k: dict, sete_kampe: list) -> bool:
             ):
                 return True
     return False
+
+
+def _godt_og_skidt(a):
+    o, p = float(a.get("odds", 1.85)), float(a.get("pct", 50.0))
+    godt = (
         f"Stærk værdi på {a['spil']} ({p}% træfsikkerhed)"
         if p >= 52
         else f"Høj udbetalingsfaktor (@ {o:.2f}) ved fuld træffer"
@@ -70,9 +74,10 @@ def vis_billed_scanner():
     )
 
     if filer:
-        fil_sig = "|".join(f"{f.name}_{f.size}" for f in filer)
-        cols = st.columns(min(len(filer), 3))
-        for idx, fil in enumerate(filer):
+        sorterede_filer = sorted(filer, key=lambda f: f.name)
+        fil_sig = "|".join(f"{f.name}_{f.size}" for f in sorterede_filer)
+        cols = st.columns(min(len(sorterede_filer), 3))
+        for idx, fil in enumerate(sorterede_filer):
             with cols[idx % 3]:
                 st.image(
                     Image.open(fil),
@@ -84,12 +89,14 @@ def vis_billed_scanner():
             alle_kampe, sete_kampe, dubletter = [], [], 0
             sidste_indsats = 100.0
             with st.spinner("🔍 Aflæser skærmbilleder og fletter kuponen sammen..."):
-                for fil in filer:
+                for fil in sorterede_filer:
                     fil.seek(0)
                     kampe_del, indsats_del, _ = ocr.udtraek_kupon_fra_billede(fil.read())
                     if indsats_del and indsats_del > 0:
                         sidste_indsats = float(indsats_del)
                     for k in kampe_del:
+                        if not _er_gyldig_kamp(k):
+                            continue
                         if _er_dublet(k, sete_kampe):
                             dubletter += 1
                             continue
@@ -109,7 +116,7 @@ def vis_billed_scanner():
                     "kupon_indsats": sidste_indsats,
                     "sidste_fil_id": fil_sig,
                     "scan_info": (
-                        f"✅ {len(alle_kampe)} kampe indlæst fra {len(filer)} billeder"
+                        f"✅ {len(alle_kampe)} kampe indlæst fra {len(sorterede_filer)} billeder"
                         + (f" ({dubletter} dublet{'ter' if dubletter > 1 else ''} fjernet)" if dubletter else "")
                     ),
                 }
@@ -204,27 +211,3 @@ def vis_billed_scanner():
         with st.spinner("⏳ Gemmer kupon i Cloud-historik..."):
             kamp_linjer = [f"{x['kamp']} ({x['spil']}) [@ {x['odds']:.2f}]" for x in aktive_valg]
             try:
-                gem_data.gem_kupon_i_historik(
-                    kilde="Billed Scanner",
-                    kampe=kamp_linjer,
-                    odds=float(ny_a["odds"]),
-                    indsats=float(indsats),
-                )
-            except TypeError:
-                gem_data.gem_kupon_i_historik(
-                    " | ".join(kamp_linjer),
-                    float(ny_a["odds"]),
-                    float(indsats),
-                )
-            except Exception as e:
-                st.error(f"❌ Kunne ikke gemme i Supabase: {e}")
-                st.stop()
-
-            st.session_state["billed_gemt_ok"] = (
-                f"✅ OK – Kupon ({len(kamp_linjer)} kampe @ {ny_a['odds']:.2f}) er gemt i Supabase!"
-            )
-            st.rerun()
-
-    if st.button("🗑️ Ryd kupon", key="btn_billed_ryd", use_container_width=True):
-        for k_navn in ("kupon_kampe", "sidste_fil_id", "billed_gemt_ok", "scan_info"):
-            st.session_state.pop(k_navn, None)
