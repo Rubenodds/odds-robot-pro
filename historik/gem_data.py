@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import base64
 import urllib.request
 import urllib.error
@@ -127,6 +128,11 @@ def hent_alle_kuponer():
 
 
 def gem_kupon_i_historik(*args, **kwargs):
+    nu = time.time()
+    if nu - float(st.session_state.get("_sidste_gem_tid", 0.0)) < 3.0:
+        return True
+    st.session_state["_sidste_gem_tid"] = nu
+
     kilde, kampe, tal = "Scanner", [], []
     for a in args:
         if isinstance(a, (list, tuple)) and a:
@@ -174,8 +180,8 @@ def gem_kupon_i_historik(*args, **kwargs):
     status_txt = " (Cloud ☁️)" if cloud_ok else f" (Kun lokal ⚠️ {fejl or ''})"
     msg = f"✅ OK – Kupon ({len(kampe)} kampe @ {odds}) er tilføjet til historikken!{status_txt}"
     st.session_state["sidste_gem_ok"] = msg
-    st.success(msg)
-    return True
+    st.toast(msg, icon="✅")
+    st.rerun()
 
 
 def slet_kupon(kupon_id):
