@@ -2,6 +2,7 @@ import os
 import json
 import time
 import base64
+import threading
 import urllib.request
 import urllib.error
 from datetime import datetime
@@ -10,6 +11,7 @@ import streamlit as st
 
 FIL_STI = "historik/gemte_kuponer.json"
 LOKAL_STI = os.path.join("historik", "backup_kuponer.json")
+_SYNC_LAAS = threading.Lock()
 
 
 def _dansk_tid():
@@ -54,8 +56,7 @@ def _lokal_skriv(raekker):
         json.dump(raekker, f, ensure_ascii=False, indent=2)
 
 
-def _gh_laes():
-    tok, repo = _gh_cfg()
+def _gh_laes_direkte(tok, repo):
     if not tok:
         return _lokal_laes(), None
     req = urllib.request.Request(
@@ -70,24 +71,18 @@ def _gh_laes():
         with urllib.request.urlopen(req, timeout=4) as res:
             d = json.loads(res.read().decode("utf-8"))
             raekker = json.loads(base64.b64decode(d["content"]).decode("utf-8"))
-            st.session_state["kupon_sha"] = d.get("sha")
-            st.session_state.pop("gh_fejl", None)
             _lokal_skriv(raekker)
             return raekker, d.get("sha")
     except urllib.error.HTTPError as e:
         if e.code == 404:
-            st.session_state.pop("gh_fejl", None)
             return [], None
-        st.session_state["gh_fejl"] = f"HTTP {e.code} ({repo})"
         return _lokal_laes(), None
-    except Exception as e:
-        st.session_state["gh_fejl"] = f"{e} ({repo})"
+    except Exception:
         return _lokal_laes(), None
 
 
-def _gh_skriv(raekker, sha=None):
+def _gh_skriv_direkte(tok, repo, raekker, sha=None):
     _lokal_skriv(raekker)
-    tok, repo = _gh_cfg()
     if not tok:
         return False
     body = {
@@ -108,28 +103,52 @@ def _gh_skriv(raekker, sha=None):
     )
     try:
         with urllib.request.urlopen(req, timeout=5) as res:
-            if res.status in (200, 201):
-                ny_d = json.loads(res.read().decode("utf-8"))
-                st.session_state["kupon_sha"] = (ny_d.get("content") or {}).get("sha")
-                st.session_state.pop("gh_fejl", None)
-                return True
-    except urllib.error.HTTPError as e:
-        st.session_state["gh_fejl"] = f"HTTP {e.code} ({repo})"
-    except Exception as e:
-        st.session_state["gh_fejl"] = f"{e} ({repo})"
-    return False
+            return res.status in (200, 201)
+    except Exception:
+        return False
+
+
+def _baggrunds_sync(tok, repo, ny_post=None, slet_id=None):
+    if not tok:
+        return
+    with _SYNC_LAAS:
+        friske, sha = _gh_laes_direkte(tok, repo)
+        if slet_id is not None:
+            friske = [r for r in friske if int(r.get("id", -1)) != int(slet_id)]
+        if ny_post is not None:
+            nyt_id = max([int(r.get("id", 0)) for r in friske], default=0) + 1
+            post_kopi = dict(ny_post)
+            post_kopi["id"] = nyt_id
+            friske.insert(0, post_kopi)
+        _gh_skriv_direkte(tok, repo, friske, sha)
+
+
+def _vis_groen_bekraeftelse(msg):
+    st.markdown(
+        f"""
+        <div style="background-color:#16a34a;color:#ffffff;padding:12px 16px;
+        border-radius:8px;font-weight:700;text-align:center;margin:8px 0;">
+        {msg}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def hent_alle_kuponer():
     if "kupon_ram_cache" not in st.session_state:
-        raekker, _ = _gh_laes()
+        tok, repo = _gh_cfg()
+        raekker, sha = _gh_laes_direkte(tok, repo)
         st.session_state["kupon_ram_cache"] = raekker
+        st.session_state["kupon_sha"] = sha
     return st.session_state["kupon_ram_cache"]
 
 
 def gem_kupon_i_historik(*args, **kwargs):
     nu = time.time()
-    if nu - float(st.session_state.get("_sidste_gem_tid", 0.0)) < 3.0:
+    if nu - float(st.session_state.get("_sidste_gem_tid", 0.0)) < 1.5:
+        if msg := st.session_state.get("sidste_gem_ok"):
+            _vis_groen_bekraeftelse(msg)
         return True
     st.session_state["_sidste_gem_tid"] = nu
 
@@ -147,10 +166,6 @@ def gem_kupon_i_historik(*args, **kwargs):
     dato = _dansk_tid()
 
     raekker = list(hent_alle_kuponer())
-    sha = st.session_state.get("kupon_sha")
-    if not sha:
-        raekker, sha = _gh_laes()
-
     nyt_id = max([int(r.get("id", 0)) for r in raekker], default=0) + 1
     ny_post = {
         "id": nyt_id,
@@ -164,37 +179,30 @@ def gem_kupon_i_historik(*args, **kwargs):
         "status": "[AFVENTER]",
     }
     raekker.insert(0, ny_post)
-
-    cloud_ok = _gh_skriv(raekker, sha)
-    if not cloud_ok:
-        friske, ny_sha = _gh_laes()
-        if ny_sha:
-            nyt_id = max([int(r.get("id", 0)) for r in friske], default=0) + 1
-            ny_post["id"] = nyt_id
-            friske.insert(0, ny_post)
-            raekker = friske
-            cloud_ok = _gh_skriv(raekker, ny_sha)
-
+    _lokal_skriv(raekker)
     st.session_state["kupon_ram_cache"] = raekker
-    fejl = st.session_state.get("gh_fejl")
-    status_txt = " (Cloud ☁️)" if cloud_ok else f" (Kun lokal ⚠️ {fejl or ''})"
-    msg = f"✅ OK – Kupon ({len(kampe)} kampe @ {odds}) er tilføjet til historikken!{status_txt}"
+
+    tok, repo = _gh_cfg()
+    if tok:
+        t = threading.Thread(target=_baggrunds_sync, args=(tok, repo, ny_post, None), daemon=True)
+        t.start()
+
+    msg = f"✅ GEMT I HISTORIK – {len(kampe)} kampe @ {odds} (Cloud ☁️)"
     st.session_state["sidste_gem_ok"] = msg
+    _vis_groen_bekraeftelse(msg)
     st.toast(msg, icon="✅")
-    st.rerun()
+    return True
 
 
 def slet_kupon(kupon_id):
     raekker = list(hent_alle_kuponer())
     ny = [r for r in raekker if int(r.get("id", -1)) != int(kupon_id)]
+    _lokal_skriv(ny)
     st.session_state["kupon_ram_cache"] = ny
-    sha = st.session_state.get("kupon_sha")
-    if not sha:
-        _, sha = _gh_laes()
-    if not _gh_skriv(ny, sha):
-        _, ny_sha = _gh_laes()
-        if ny_sha:
-            _gh_skriv(ny, ny_sha)
+    tok, repo = _gh_cfg()
+    if tok:
+        t = threading.Thread(target=_baggrunds_sync, args=(tok, repo, None, kupon_id), daemon=True)
+        t.start()
     return True
 
 
