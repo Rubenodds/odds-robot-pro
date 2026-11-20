@@ -1,5 +1,6 @@
 import datetime
 import re
+import time
 import requests
 
 def _h(*parts):
@@ -33,6 +34,7 @@ FOTMOB_LIGA_IDS = {
 
 _DOMMER_CACHE = {}
 _ALLE_FOTMOB_LIGAER = {}
+_LIGA_KAMPE_CACHE = {}
 
 def _hent_alle_fotmob_ligaer():
     if _ALLE_FOTMOB_LIGAER:
@@ -71,12 +73,27 @@ def _find_fotmob_liga_id(slug="", liga=""):
                 return lid
     return None
 
+def _hent_liga_kampe(liga_id):
+    nu = time.time()
+    gemt = _LIGA_KAMPE_CACHE.get(liga_id)
+    if gemt and (nu - gemt.get("ts", 0)) < 900:
+        return gemt.get("kampe") or []
+    try:
+        lg = requests.get(f"https://{FOTMOB_HOST}/api/leagues", params={"id": liga_id}, headers=HDR, timeout=4).json()
+        kampe = (((lg.get("matches") or {}).get("allMatches")) or [])
+        if kampe:
+            _LIGA_KAMPE_CACHE[liga_id] = {"ts": nu, "kampe": kampe}
+        return kampe
+    except Exception:
+        return []
+
 def _hold_noegleord(navn):
     stop = {
         "fc", "cf", "ac", "sc", "bk", "if", "fk", "sk", "cd", "ud", "rcd",
         "real", "club", "athletic", "united", "city", "town", "rovers",
         "wanderers", "wednesday", "albion", "sporting", "borussia", "eintracht",
         "hellas", "calcio", "munich", "munchen", "red", "diamonds", "sanga",
+        "queens", "park", "vfl", "holstein",
     }
     dele = [re.sub(r"[^a-zA-ZæøåÆØÅ]", "", w).lower() for w in str(navn or "").split()]
     kerne = [w for w in dele if len(w) >= 4 and w not in stop]
@@ -91,18 +108,13 @@ def _hent_fotmob_dommer(hj, ud, slug="", liga=""):
 
     liga_id = _find_fotmob_liga_id(slug, liga)
     if liga_id:
-        try:
-            lg = requests.get(f"https://{FOTMOB_HOST}/api/leagues", params={"id": liga_id}, headers=HDR, timeout=4).json()
-            alle_kampe = (((lg.get("matches") or {}).get("allMatches")) or [])
-            for m in alle_kampe:
-                hn = str(((m.get("home") or {}).get("name")) or "").lower()
-                an = str(((m.get("away") or {}).get("name")) or "").lower()
-                if (hk in hn or hk in an) and (uk in hn or uk in an):
-                    match_id = m.get("id")
-                    if match_id:
-                        break
-        except Exception:
-            pass
+        for m in _hent_liga_kampe(liga_id):
+            hn = str(((m.get("home") or {}).get("name")) or "").lower()
+            an = str(((m.get("away") or {}).get("name")) or "").lower()
+            if (hk in hn or hk in an) and (uk in hn or uk in an):
+                match_id = m.get("id")
+                if match_id:
+                    break
 
     if not match_id:
         try:
