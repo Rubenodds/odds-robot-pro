@@ -48,7 +48,7 @@ def hurtig_kontekst(comp, hj, ud, slug="all"):
         "ev_id": str(comp.get("id") or ""), "slug": slug,
         "dt_iso": comp.get("date") or comp.get("startDate") or "",
         "by": by_navn, "hj_form": hj_form, "ud_form": ud_form,
-        "dommer": "Ikke udpeget endnu", "vejr": None, "skader": 0,
+        "dommer": "Ikke udpeget endnu", "h2h": "", "vejr": None, "skader": 0,
         "justering_pct": 0.0, "odds_raw": comp.get("odds") or [],
     }
 
@@ -77,6 +77,38 @@ def _hent_vejr_direkte(hj, by):
         pass
     return None
 
+def _udtraek_h2h(s, hj, ud):
+    try:
+        h2h_blokke = s.get("headToHeadGames") or []
+        alle_kampe = []
+        for blok in h2h_blokke:
+            alle_kampe.extend(blok.get("events") or [])
+        if not alle_kampe:
+            return ""
+        hj_sejre, ud_sejre, uafgjort = 0, 0, 0
+        seneste_res = []
+        for ev in alle_kampe[:5]:
+            comps = ev.get("competitors") or []
+            if len(comps) >= 2:
+                c1 = comps.pop(0)
+                c2 = comps.pop(0)
+                n1 = (c1.get("team") or {}).get("displayName", "")
+                n2 = (c2.get("team") or {}).get("displayName", "")
+                s1 = int(float(c1.get("score") or 0))
+                s2 = int(float(c2.get("score") or 0))
+                if len(seneste_res) < 2:
+                    seneste_res.append(f"{n1} {s1}-{s2} {n2}")
+                if s1 == s2:
+                    uafgjort += 1
+                elif (s1 > s2 and hj.lower()[:5] in n1.lower()) or (s2 > s1 and hj.lower()[:5] in n2.lower()):
+                    hj_sejre += 1
+                else:
+                    ud_sejre += 1
+        snit_str = f" (senest: {', '.join(seneste_res)})" if seneste_res else ""
+        return f"Sidste {len(alle_kampe[:5])}: {hj} {hj_sejre}V - {uafgjort}U - {ud} {ud_sejre}V{snit_str}"
+    except Exception:
+        return ""
+
 def berig_valgte_kampe(kampe):
     kampe = list(kampe) if kampe else []
     for k in kampe:
@@ -89,6 +121,9 @@ def berig_valgte_kampe(kampe):
             try:
                 s = requests.get(f"https://{SUM_HOST}/apis/site/v2/sports/soccer/{slug}/summary", params={"event": ev_id}, headers=HDR, timeout=4).json()
                 ctx["skader"] = sum(len(x.get("injuries") or []) for x in (s.get("injuries") or []))
+                h2h_txt = _udtraek_h2h(s, k.get("hj", ""), k.get("ud", ""))
+                if h2h_txt:
+                    ctx["h2h"] = h2h_txt
             except Exception:
                 pass
         ctx["vejr"] = _hent_vejr_direkte(k.get("hj", ""), ctx.get("by", ""))
