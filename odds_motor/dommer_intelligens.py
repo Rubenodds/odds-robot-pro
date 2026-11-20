@@ -11,10 +11,20 @@ HDR = {
     "Accept-Language": "da-DK,da;q=0.9,en-US;q=0.8,en;q=0.7",
 }
 FOTMOB_HOST = _h("www", "fotmob", "com")
-SOFA_HOST = _h("api", "sofascore", "com")
 SITE_HOST = _h("site", "api", "espn", "com")
 DDG_HOST = _h("html", "duckduckgo", "com")
 BING_HOST = _h("www", "bing", "com")
+
+FOTMOB_LIGA_IDS = {
+    "eng.1": 47, "eng.2": 48, "eng.3": 108, "eng.4": 109,
+    "esp.1": 87, "esp.2": 140,
+    "ger.1": 54, "ger.2": 146,
+    "ita.1": 55, "ita.2": 86,
+    "fra.1": 53, "fra.2": 110,
+    "den.1": 46, "den.2": 85,
+    "ned.1": 57, "por.1": 61, "bel.1": 40,
+    "uefa.champions": 42, "uefa.europa": 73,
+}
 
 _DOMMER_CACHE = {}
 
@@ -29,68 +39,76 @@ def _hold_noegleord(navn):
     kerne = [w for w in dele if len(w) >= 4 and w not in stop]
     return next(iter(kerne), next((w for w in dele if len(w) >= 3), ""))
 
-def _hent_fotmob_dommer(hj, ud):
-    try:
-        hk = _hold_noegleord(hj)
-        uk = _hold_noegleord(ud)
-        if not hk or not uk:
-            return ""
-        s_url = f"https://{FOTMOB_HOST}/api/search/suggest"
-        for term in (f"{hj} {ud}", hj, ud):
-            res = requests.get(s_url, params={"hits": 15, "lang": "en", "term": term}, headers=HDR, timeout=4).json()
-            for grp in (res if isinstance(res, list) else []):
-                for sug in (grp.get("suggestions") or []):
-                    if sug.get("type") == "match":
-                        txt = str(sug.get("name") or "").lower()
-                        if hk in txt and uk in txt:
-                            match_id = sug.get("id")
-                            if match_id:
-                                det = requests.get(f"https://{FOTMOB_HOST}/api/matchDetails", params={"matchId": match_id}, headers=HDR, timeout=4).json()
-                                info_box = (((det.get("content") or {}).get("matchFacts") or {}).get("infoBox") or {})
-                                ref_obj = info_box.get("Referee") or {}
-                                navn = str(ref_obj.get("text") or "").strip()
-                                if navn:
-                                    return navn
-    except Exception:
-        pass
-    return ""
+def _hent_fotmob_dommer(hj, ud, slug=""):
+    hk = _hold_noegleord(hj)
+    uk = _hold_noegleord(ud)
+    if not hk or not uk:
+        return ""
+    match_id = None
 
-def _hent_sofascore_dommer(hj, ud):
-    try:
-        sofa_hdr = dict(HDR)
-        sofa_hdr["Referer"] = "https://" + _h("www", "sofascore", "com") + "/"
-        sofa_hdr["Origin"] = "https://" + _h("www", "sofascore", "com")
-        hk = _hold_noegleord(hj)
-        uk = _hold_noegleord(ud)
-        for q in (f"{hj} {ud}", hj):
-            res = requests.get(f"https://{SOFA_HOST}/api/v1/search/events", params={"q": q}, headers=sofa_hdr, timeout=4).json()
-            for ev in (res.get("events") or [])[:8]:
-                hn = str((ev.get("homeTeam") or {}).get("name") or "").lower()
-                an = str((ev.get("awayTeam") or {}).get("name") or "").lower()
+    # 1. Slå direkte op i FotMob ligaens kampprogram
+    liga_id = FOTMOB_LIGA_IDS.get(str(slug or "").lower())
+    if liga_id:
+        try:
+            lg = requests.get(f"https://{FOTMOB_HOST}/api/leagues", params={"id": liga_id}, headers=HDR, timeout=4).json()
+            alle_kampe = (((lg.get("matches") or {}).get("allMatches")) or [])
+            for m in alle_kampe:
+                hn = str(((m.get("home") or {}).get("name")) or "").lower()
+                an = str(((m.get("away") or {}).get("name")) or "").lower()
                 if (hk in hn or hk in an) and (uk in hn or uk in an):
-                    ev_id = ev.get("id")
-                    if ev_id:
-                        det = requests.get(f"https://{SOFA_HOST}/api/v1/event/{ev_id}", headers=sofa_hdr, timeout=4).json()
-                        ref = (det.get("event") or {}).get("referee") or {}
-                        ref_navn = str(ref.get("name") or "").strip()
-                        if ref_navn:
-                            gule = ref.get("yellowCards")
-                            kampe = ref.get("games")
-                            if gule and kampe and int(kampe) > 0:
-                                snit = round(float(gule) / float(kampe), 1)
-                                return f"{ref_navn} (snit {snit} gule/kamp)"
-                            return ref_navn
-    except Exception:
-        pass
+                    match_id = m.get("id")
+                    if match_id:
+                        break
+        except Exception:
+            pass
+
+    # 2. Søg via FotMob search/suggest hvis ikke fundet via liga-id
+    if not match_id:
+        try:
+            s_url = f"https://{FOTMOB_HOST}/api/search/suggest"
+            for term in (f"{hj} {ud}", hj, ud):
+                res = requests.get(s_url, params={"hits": 15, "lang": "en", "term": term}, headers=HDR, timeout=4).json()
+                for grp in (res if isinstance(res, list) else []):
+                    for sug in (grp.get("suggestions") or []):
+                        if sug.get("type") == "match":
+                            txt = str(sug.get("name") or "").lower()
+                            if hk in txt and uk in txt:
+                                match_id = sug.get("id")
+                                break
+                    if match_id:
+                        break
+                if match_id:
+                    break
+        except Exception:
+            pass
+
+    # 3. Hent dommer fra FotMob matchDetails
+    if match_id:
+        try:
+            det = requests.get(f"https://{FOTMOB_HOST}/api/matchDetails", params={"matchId": match_id}, headers=HDR, timeout=4).json()
+            info_box = (((det.get("content") or {}).get("matchFacts") or {}).get("infoBox") or {})
+            ref_obj = info_box.get("Referee") or {}
+            navn = str(ref_obj.get("text") or "").strip()
+            if navn:
+                return navn
+        except Exception:
+            pass
     return ""
 
-def _hent_espn_scoreboard_dommer(hj, ud, slug):
+def _hent_espn_dommer(hj, ud, ev_id="", slug=""):
     try:
         hk = _hold_noegleord(hj)
         uk = _hold_noegleord(ud)
+        kandidat_slugs = list(dict.fromkeys([s for s in (slug, "eng.1", "eng.2", "eng.3", "esp.1", "esp.2", "ger.1", "ger.2", "ita.1", "ita.2", "fra.1", "den.1") if s and s != "all"]))
+        if ev_id and slug and slug != "all":
+            sm = requests.get(f"https://{SITE_HOST}/apis/site/v2/sports/soccer/{slug}/summary", params={"event": ev_id}, headers=HDR, timeout=3).json()
+            for off in ((sm.get("gameInfo") or {}).get("officials") or []):
+                n = str(off.get("displayName") or off.get("fullName") or "").strip()
+                if n:
+                    return n
         nu = datetime.date.today()
         dato_sp = f"{(nu - datetime.timedelta(days=1)).strftime('%Y%m%d')}-{(nu + datetime.timedelta(days=2)).strftime('%Y%m%d')}"
-        for s_try in list(dict.fromkeys([s for s in (slug, "eng.1", "eng.2", "eng.3", "esp.1", "esp.2", "ger.1", "ger.2", "ita.1", "ita.2", "fra.1", "den.1", "jpn.1") if s and s != "all"]))[:5]:
+        for s_try in kandidat_slugs[:5]:
             sb = requests.get(f"https://{SITE_HOST}/apis/site/v2/sports/soccer/{s_try}/scoreboard", params={"dates": dato_sp}, headers=HDR, timeout=3).json()
             for ev in (sb.get("events") or []):
                 for comp in (ev.get("competitions") or []):
@@ -101,10 +119,10 @@ def _hent_espn_scoreboard_dommer(hj, ud, slug):
                             n = str(off.get("displayName") or off.get("fullName") or "").strip()
                             if n:
                                 return n
-                        ev_id = str(ev.get("id") or "")
-                        if ev_id:
-                            sm = requests.get(f"https://{SITE_HOST}/apis/site/v2/sports/soccer/{s_try}/summary", params={"event": ev_id}, headers=HDR, timeout=3).json()
-                            for off in ((sm.get("gameInfo") or {}).get("officials") or []):
+                        fid = str(ev.get("id") or "")
+                        if fid:
+                            sm2 = requests.get(f"https://{SITE_HOST}/apis/site/v2/sports/soccer/{s_try}/summary", params={"event": fid}, headers=HDR, timeout=3).json()
+                            for off in ((sm2.get("gameInfo") or {}).get("officials") or []):
                                 n = str(off.get("displayName") or off.get("fullName") or "").strip()
                                 if n:
                                     return n
@@ -149,9 +167,8 @@ def hent_dommer(hj, ud, ev_id="", slug="all", dt_iso=""):
         return _DOMMER_CACHE[cache_key]
 
     for fn in (
-        lambda: _hent_fotmob_dommer(hj, ud),
-        lambda: _hent_sofascore_dommer(hj, ud),
-        lambda: _hent_espn_scoreboard_dommer(hj, ud, slug),
+        lambda: _hent_fotmob_dommer(hj, ud, slug),
+        lambda: _hent_espn_dommer(hj, ud, ev_id, slug),
         lambda: _hent_web_dommer(hj, ud),
     ):
         fundet = fn()
@@ -164,9 +181,6 @@ def hent_dommer(hj, ud, ev_id="", slug="all", dt_iso=""):
 def dommer_effekt(dommer, liga=""):
     if not dommer or "ikke" in str(dommer).lower():
         return 0.0, ""
-    m = re.search(r"snit\s+(\d+(?:\.\d+)?)", str(dommer))
-    if m and float(m.group(1)) >= 4.2:
-        return 2.0, f"Kortglad dommer: {dommer}"
     er_kortrig = any(x in str(liga).lower() for x in ("brasil", "copa", "libertadores", "spanien", "italien", "segunda", "serie", "la liga"))
     if er_kortrig:
         return 1.5, f"Dommer {dommer} i kortrig turnering (øget kort-/straffepotentiale)"
