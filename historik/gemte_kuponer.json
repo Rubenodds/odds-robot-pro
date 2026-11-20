@@ -1,5 +1,16 @@
 [
   {
+    "id": 14,
+    "dato": "20-11-2026 19:57",
+    "kilde": "Scanner",
+    "kampe": "2 kampe (20-11-2026 19:57)",
+    "detaljer": "[\"Athletic Club - Espanyol (Athletic Club vinder & Begge hold scorer) [20-11-2026 kl. 21:00]\", \"Barnsley - Sheffield Wednesday (Barnsley vinder & Begge hold scorer) [20-11-2026 kl. 21:00]\"]",
+    "odds": 6.02,
+    "indsats": 100.0,
+    "mulig_gevinst": 602.0,
+    "status": "[AFVENTER]"
+  },
+  {
     "id": 13,
     "dato": "20-11-2026 19:54",
     "kilde": "Scanner",
