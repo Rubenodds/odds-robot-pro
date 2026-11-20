@@ -1,5 +1,16 @@
 [
   {
+    "id": 10,
+    "dato": "20-11-2026 14:59",
+    "kilde": "Scanner",
+    "kampe": "5 kampe (20-11-2026 14:59)",
+    "detaljer": "[\"SV Darmstadt 98 - 1. FC Heidenheim 1846 (1. FC Heidenheim 1846 vinder & Over 1.5 mål) [20-11-2026 kl. 18:30]\", \"Arminia Bielefeld - 1. FC Magdeburg (1. FC Magdeburg vinder & Over 1.5 mål) [20-11-2026 kl. 18:30]\", \"AGF - Lyngby Boldklub (AGF vinder & Over 1.5 mål) [20-11-2026 kl. 19:00]\", \"Barnsley - Sheffield Wednesday (Barnsley vinder & Over 1.5 mål) [20-11-2026 kl. 21:00]\", \"Troyes - Le Havre AC (Le Havre AC vinder & Over 1.5 mål) [20-11-2026 kl. 20:45]\"]",
+    "odds": 10.05,
+    "indsats": 100.0,
+    "mulig_gevinst": 1005.0,
+    "status": "[AFVENTER]"
+  },
+  {
     "id": 9,
     "dato": "20-11-2026 14:58",
     "kilde": "Scanner",
