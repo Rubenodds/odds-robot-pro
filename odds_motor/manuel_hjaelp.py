@@ -2,15 +2,15 @@ import streamlit as st
 
 def _hent_ekstra_ctx(k):
     ctx = dict(k.get("ctx") or {})
-    if not ctx.get("dommer") or not ctx.get("h2h"):
+    if not ctx.get("h2h") or "ikke" in str(ctx.get("dommer") or "ikke").lower():
         try:
             from odds_motor import kamp_intelligens
             beriget = kamp_intelligens.berig_valgte_kampe([dict(k)])
             if beriget:
                 ny_ctx = beriget.pop(0).get("ctx") or {}
-                for nøgle, værdi in ny_ctx.items():
-                    if værdi and not ctx.get(nøgle):
-                        ctx[nøgle] = værdi
+                for noegle, vaerdi in ny_ctx.items():
+                    if vaerdi and (not ctx.get(noegle) or "ikke" in str(ctx.get(noegle)).lower()):
+                        ctx[noegle] = vaerdi
         except Exception:
             pass
     return ctx
@@ -21,33 +21,49 @@ def begrundelse(k):
     ctx = _hent_ekstra_ctx(k)
     k["ctx"] = ctx
     hj, ud = k.get("hj", "Hjemmehold"), k.get("ud", "Udehold")
+    valgt = str(k.get("valgt_hold") or hj)
+    modst = ud if valgt.lower().strip() == hj.lower().strip() else hj
     spil = ", ".join(k.get("kombinationer") or [k.get("spil") or "Valgt spil"])
     odds = float(k.get("b365") or k.get("odds") or 1.85)
     imp = round(100.0 / max(1.01, odds), 1)
+
     hf, uf = str(ctx.get("hj_form") or ""), str(ctx.get("ud_form") or "")
-    hw, uw = hf.count("W"), uf.count("W")
+    valgt_form = uf if valgt == ud else hf
+    modst_form = hf if valgt == ud else uf
+    vw, mw = valgt_form.count("W"), modst_form.count("W")
+    ml = modst_form.count("L")
+
     vejr = ctx.get("vejr") or {}
     vind = float(vejr.get("vind", 0) or 0) if isinstance(vejr, dict) else 0.0
 
-    dele = [f"**{hj if hw > uw else ud}** har stærkest form ({max(hw, uw)}/5 sejre)"] if (hf and uf and hw != uw) else [f"Odds **{odds}** modsvarer **{imp}%** markedssandsynlighed"]
+    dele = []
+    if valgt_form and modst_form and vw > mw:
+        dele.append(f"**{valgt}** kommer ind i stærkest form ({vw}/5 sejre mod {modst}s {mw}/5)")
+    elif valgt_form and modst_form and mw == 0:
+        dele.append(f"**{modst}** er helt uden sejre i de sidste 5 kampe ({modst_form}), hvilket giver værdi på **{valgt}** til odds **{odds}**")
+    elif odds >= 2.80:
+        dele.append(f"Højodds-værdispil på **{valgt}** til odds **{odds}** ({imp}% chance) mod et sårbart **{modst}**-mandskab ({modst_form or 'svingende form'})")
+    else:
+        dele.append(f"Odds **{odds}** på **{valgt}** modsvarer **{imp}%** markedssandsynlighed")
+
     if k.get("api_kilde"):
         dele.append(f"direkte hentet fra bettingsidernes udbud ({k['api_kilde']})")
     elif vind >= 9.0:
         dele.append(f"kraftig blæst ({vind} m/s) giver flere dødbolde og hjørnespark")
     elif any(w in spil.lower() for w in ("over", "scorer", "skud")):
-        dele.append("offensiv volumen og sårbar defensiv peger mod chancer og afslutninger")
+        dele.append("begge holds offensive åbninger peger mod mål og chancer")
     else:
         dele.append("stabilt kampvejr understøtter styrkeforholdet")
 
     meta_dele = []
-    dommer = ctx.get("dommer") or ctx.get("referee") or ""
+    dommer = str(ctx.get("dommer") or "").strip()
     kort_snit = ctx.get("dommer_kort") or ctx.get("kort_snit") or ""
-    if dommer:
+    if dommer and "ikke" not in dommer.lower():
         meta_dele.append(f"🟨 **Dommer:** {dommer}" + (f" ({kort_snit} kort/kamp)" if kort_snit else ""))
     else:
         meta_dele.append("🟨 **Dommer:** Afventer officiel påsætning")
 
-    h2h = ctx.get("h2h") or ctx.get("h2h_tekst") or ctx.get("indbyrdes") or ""
+    h2h = str(ctx.get("h2h") or ctx.get("h2h_tekst") or ctx.get("indbyrdes") or "").strip()
     if h2h:
         meta_dele.append(f"⚔️ **H2H:** {h2h}")
     elif hf and uf:
@@ -60,7 +76,7 @@ def _find_rigtigt_marked(k, maal_pr_kamp, kun_res=False):
     try:
         from udvidelser.marked_motor import hent_reelle_muligheder
         muligheder, kilde, _ = hent_reelle_muligheder({
-            "id": k.get("id", ""), "liga_kode": k.get("liga_kode", "eng.1"),
+            "id": k.get("id", ""), "liga_kode": (k.get("ctx") or {}).get("slug") or k.get("liga_kode", "eng.1"),
             "hjemme": k.get("hj", ""), "ude": k.get("ud", ""), "odds_api_id": k.get("odds_api_id", "")
         })
         valgt = str(k.get("valgt_hold") or "").lower().strip()
@@ -103,7 +119,6 @@ def _beregn_realistisk_hold_odds(k, maal_pr_kamp):
         basis_1x2 = 2.05 + (diff * 0.14) + (0.35 if er_udehold else -0.15)
         basis_1x2 = max(1.42, min(4.80, basis_1x2))
 
-    # Juster let efter ønsket mål-odds, men bevar hver kamps unikke styrkeforhold
     skala = max(0.85, min(1.30, (maal_pr_kamp / 1.85) ** 0.35))
     return round(max(1.30, min(8.50, basis_1x2 * skala)), 2)
 
