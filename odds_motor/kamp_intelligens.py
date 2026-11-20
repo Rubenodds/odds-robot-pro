@@ -1,5 +1,6 @@
 import datetime
 import requests
+import streamlit as st
 
 def _h(*parts):
     return ".".join(parts)
@@ -12,9 +13,10 @@ WTTR_HOST = _h("wttr", "in")
 LIGA_TIL_SLUG = {
     "bundesliga": "ger.1", "2. bundesliga": "ger.2", "premier league": "eng.1",
     "championship": "eng.2", "la liga": "esp.1", "laliga": "esp.1",
-    "serie a": "ita.1", "ligue 1": "fra.1", "ligue 2": "fra.2",
-    "superliga": "den.1", "1. division": "den.2", "eredivisie": "ned.1",
-    "primeira liga": "por.1", "pro league": "bel.1", "champions league": "uefa.champions",
+    "segunda": "esp.2", "serie a": "ita.1", "serie b": "ita.2",
+    "ligue 1": "fra.1", "ligue 2": "fra.2", "superliga": "den.1",
+    "1. division": "den.2", "eredivisie": "ned.1", "primeira liga": "por.1",
+    "pro league": "bel.1", "champions league": "uefa.champions",
     "europa league": "uefa.europa", "nations league": "uefa.nations",
 }
 
@@ -61,13 +63,14 @@ def hurtig_kontekst(comp, hj, ud, slug="all"):
     by_navn = addr.get("city") or (next(iter(HOLD_BY[hj])) if hj in HOLD_BY else hj)
     return {"ev_id": str(comp.get("id") or ""), "slug": slug, "dt_iso": comp.get("date") or "", "by": by_navn, "hj_form": hj_form, "ud_form": ud_form, "dommer": "Ikke udpeget endnu", "h2h": "", "vejr": None, "skader": 0, "justering_pct": 0.0, "odds_raw": comp.get("odds") or []}
 
+@st.cache_data(ttl=900, show_spinner=False)
 def _hent_vejr_direkte(hj, by):
     info = HOLD_BY.get(hj)
     by_navn = by or hj
     if info:
         by_navn, lat, lon = info
         try:
-            cur = requests.get(f"https://{WX_HOST}/v1/forecast", params={"latitude": lat, "longitude": lon, "current": "temperature_2m,precipitation,wind_speed_10m"}, timeout=4).json().get("current") or {}
+            cur = requests.get(f"https://{WX_HOST}/v1/forecast", params={"latitude": lat, "longitude": lon, "current": "temperature_2m,precipitation,wind_speed_10m"}, timeout=3).json().get("current") or {}
             if "temperature_2m" in cur:
                 tp, regn, vind = float(cur["temperature_2m"]), float(cur.get("precipitation", 0)), float(cur.get("wind_speed_10m", 0)) / 3.6
                 eff = "Kraftig regn/blæst" if (regn >= 1.5 or vind >= 10) else ("Vådt/frisk vind" if (regn > 0.2 or vind >= 6.5) else "Tørt & roligt")
@@ -75,7 +78,7 @@ def _hent_vejr_direkte(hj, by):
         except Exception:
             pass
     try:
-        c0 = next(iter(requests.get(f"https://{WTTR_HOST}/{by_navn}", params={"format": "j1"}, headers=HDR, timeout=4).json().get("current_condition") or []), {})
+        c0 = next(iter(requests.get(f"https://{WTTR_HOST}/{by_navn}", params={"format": "j1"}, headers=HDR, timeout=3).json().get("current_condition") or []), {})
         if "temp_C" in c0:
             tp, regn, vind = float(c0["temp_C"]), float(c0.get("precipMM", 0)), float(c0.get("windspeedKmph", 0)) / 3.6
             eff = "Kraftig regn/blæst" if (regn >= 1.5 or vind >= 10) else ("Vådt/frisk vind" if (regn > 0.2 or vind >= 6.5) else "Tørt & roligt")
@@ -83,6 +86,15 @@ def _hent_vejr_direkte(hj, by):
     except Exception:
         pass
     return None
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _hent_summary_data(slug, ev_id):
+    if not ev_id:
+        return {}
+    try:
+        return requests.get(f"https://{SUM_HOST}/apis/site/v2/sports/soccer/{slug}/summary", params={"event": ev_id}, headers=HDR, timeout=3).json()
+    except Exception:
+        return {}
 
 def _udtraek_h2h(s, hj, ud):
     try:
@@ -123,16 +135,13 @@ def berig_valgte_kampe(kampe):
                 dommer = dommer_intelligens.hent_dommer(k.get("hj", ""), k.get("ud", ""), ev_id, slug, ctx.get("dt_iso") or "") or ""
             except Exception:
                 pass
-            if ev_id:
-                try:
-                    s = requests.get(f"https://{SUM_HOST}/apis/site/v2/sports/soccer/{slug}/summary", params={"event": ev_id}, headers=HDR, timeout=4).json()
-                    ctx["skader"] = sum(len(x.get("injuries") or []) for x in (s.get("injuries") or []))
-                    if not dommer or "ikke" in dommer.lower():
-                        offs = ((s.get("gameInfo") or {}).get("officials") or [])
-                        dommer = next((o.get("displayName") or o.get("fullName") or "" for o in offs if o.get("displayName") or o.get("fullName")), dommer)
-                    ctx["h2h"] = _udtraek_h2h(s, k.get("hj", ""), k.get("ud", "")) or ctx.get("h2h", "")
-                except Exception:
-                    pass
+            s = _hent_summary_data(slug, ev_id)
+            if s:
+                ctx["skader"] = sum(len(x.get("injuries") or []) for x in (s.get("injuries") or []))
+                if not dommer or "ikke" in dommer.lower():
+                    offs = ((s.get("gameInfo") or {}).get("officials") or [])
+                    dommer = next((o.get("displayName") or o.get("fullName") or "" for o in offs if o.get("displayName") or o.get("fullName")), dommer)
+                ctx["h2h"] = _udtraek_h2h(s, k.get("hj", ""), k.get("ud", "")) or ctx.get("h2h", "")
             ctx["dommer"] = dommer or "Ikke udpeget endnu"
             ctx["vejr"] = _hent_vejr_direkte(k.get("hj", ""), ctx.get("by", ""))
             ctx["justering_pct"] = round((1.5 if ctx["vejr"] and ctx["vejr"]["effekt"] != "Tørt & roligt" else 0.0) + (1.0 if "ikke" not in ctx["dommer"].lower() else 0.0) + min(3.0, ctx.get("skader", 0) * 0.5), 1)
