@@ -1,3 +1,4 @@
+import datetime
 import requests
 from odds_motor import dommer_intelligens
 
@@ -44,7 +45,7 @@ def _gaet_slug(k, ctx):
     for noegle, slug in LIGA_TIL_SLUG.items():
         if noegle in liga_txt:
             return slug
-    return str(ctx.get("slug") or "ger.1")
+    return str(ctx.get("slug") or "den.1")
 
 def til_decimal_odds(val):
     try:
@@ -101,14 +102,14 @@ def _hent_vejr_direkte(hj, by):
 
 def _udtraek_h2h(s, hj, ud):
     try:
-        h2h_blokke = s.get("headToHeadGames") or []
         alle_kampe = []
-        for blok in h2h_blokke:
+        for blok in (s.get("headToHeadGames") or []):
             alle_kampe.extend(blok.get("events") or [])
         if not alle_kampe:
             return ""
         hj_sejre, ud_sejre, uafgjort = 0, 0, 0
         seneste_res = []
+        hj_kort = hj.lower().split().pop(0)[:4]
         for ev in alle_kampe[:5]:
             comps = list(ev.get("competitors") or [])
             if len(comps) >= 2:
@@ -122,31 +123,47 @@ def _udtraek_h2h(s, hj, ud):
                     seneste_res.append(f"{n1} {s1}-{s2} {n2}")
                 if s1 == s2:
                     uafgjort += 1
-                elif (s1 > s2 and hj.lower()[:5] in n1.lower()) or (s2 > s1 and hj.lower()[:5] in n2.lower()):
+                elif (s1 > s2 and hj_kort in n1.lower()) or (s2 > s1 and hj_kort in n2.lower()):
                     hj_sejre += 1
                 else:
                     ud_sejre += 1
         snit_str = f" (senest: {', '.join(seneste_res)})" if seneste_res else ""
-        return f"Sidste {len(alle_kampe[:5])}: {hj} {hj_sejre}V - {uafgjort}U - {ud} {ud_sejre}V{snit_str}"
+        return f"Sidste {len(alle_kampe[:5])} indbyrdes: {hj} {hj_sejre}V - {uafgjort}U - {ud} {ud_sejre}V{snit_str}"
     except Exception:
         return ""
 
-def _udtraek_dommer_fra_summary(s):
+def _udtraek_dommer_og_h2h_scoreboard(slug, hj, ud):
+    dommer, h2h_txt = "", ""
     try:
-        gi = s.get("gameInfo") or {}
-        for off in (gi.get("officials") or []):
-            navn = off.get("displayName") or off.get("fullName") or ""
-            if navn:
-                return navn
-        header = s.get("header") or {}
-        for comp in (header.get("competitions") or []):
-            for off in (comp.get("officials") or []):
-                navn = off.get("displayName") or off.get("fullName") or ""
-                if navn:
-                    return navn
+        nu = datetime.date.today()
+        d_str = f"{(nu - datetime.timedelta(days=2)).strftime('%Y%m%d')}-{(nu + datetime.timedelta(days=3)).strftime('%Y%m%d')}"
+        sb = requests.get(f"https://{SUM_HOST}/apis/site/v2/sports/soccer/{slug}/scoreboard", params={"dates": d_str}, headers=HDR, timeout=4).json()
+        hj_k = hj.lower().split().pop(0)[:4]
+        ud_k = ud.lower().split().pop(0)[:4]
+        for ev in (sb.get("events") or []):
+            for comp in (ev.get("competitions") or []):
+                teams = comp.get("competitors") or []
+                navne = [(t.get("team") or {}).get("displayName", "").lower() for t in teams]
+                if any(hj_k in n for n in navne) and any(ud_k in n for n in navne):
+                    for off in (comp.get("officials") or []):
+                        navn = off.get("displayName") or off.get("fullName") or ""
+                        if navn:
+                            dommer = navn
+                            break
+                    ev_id = str(ev.get("id") or "")
+                    if ev_id:
+                        s = requests.get(f"https://{SUM_HOST}/apis/site/v2/sports/soccer/{slug}/summary", params={"event": ev_id}, headers=HDR, timeout=4).json()
+                        h2h_txt = _udtraek_h2h(s, hj, ud)
+                        if not dommer:
+                            for off in ((s.get("gameInfo") or {}).get("officials") or []):
+                                navn = off.get("displayName") or off.get("fullName") or ""
+                                if navn:
+                                    dommer = navn
+                                    break
+                    return dommer, h2h_txt
     except Exception:
         pass
-    return ""
+    return dommer, h2h_txt
 
 def berig_valgte_kampe(kampe):
     kampe = list(kampe) if kampe else []
@@ -162,17 +179,14 @@ def berig_valgte_kampe(kampe):
                 s = requests.get(f"https://{SUM_HOST}/apis/site/v2/sports/soccer/{slug}/summary", params={"event": ev_id}, headers=HDR, timeout=4).json()
                 ctx["skader"] = sum(len(x.get("injuries") or []) for x in (s.get("injuries") or []))
                 if not dommer or "ikke" in dommer.lower():
-                    sum_dommer = _udtraek_dommer_fra_summary(s)
-                    if sum_dommer:
-                        dommer = sum_dommer
+                    for off in ((s.get("gameInfo") or {}).get("officials") or []):
+                        navn = off.get("displayName") or off.get("fullName") or ""
+                        if navn:
+                            dommer = navn
+                            break
                 h2h_txt = _udtraek_h2h(s, k.get("hj", ""), k.get("ud", ""))
                 if h2h_txt:
                     ctx["h2h"] = h2h_txt
             except Exception:
                 pass
-        ctx["dommer"] = dommer or "Ikke udpeget endnu"
-        ctx["vejr"] = _hent_vejr_direkte(k.get("hj", ""), ctx.get("by", ""))
-        just = (1.5 if ctx["vejr"] and ctx["vejr"]["effekt"] != "Tørt & roligt" else 0.0) + (1.0 if "ikke" not in ctx["dommer"].lower() else 0.0) + min(3.0, ctx.get("skader", 0) * 0.5)
-        ctx["justering_pct"] = round(just, 1)
-        k["ctx"] = ctx
-    return kampe
+        if not dommer or "ikke" in dommer.lower() or not ctx.get("h2h"):
