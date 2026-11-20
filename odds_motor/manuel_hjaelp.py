@@ -1,5 +1,13 @@
 import streamlit as st
 
+def _form_til_dansk(f_str):
+    f = "".join(c for c in str(f_str or "").upper() if c in ("W", "D", "L"))[:5]
+    if not f:
+        return "Ingen nyere formdata"
+    v, u, t = f.count("W"), f.count("D"), f.count("L")
+    pt = v * 3 + u
+    return f"{v}V-{u}U-{t}T ({pt}/{len(f)*3} pt)"
+
 def _hent_ekstra_ctx(k):
     ctx = dict(k.get("ctx") or {})
     if not ctx.get("h2h") or "ikke" in str(ctx.get("dommer") or "ikke").lower():
@@ -31,20 +39,19 @@ def begrundelse(k):
     valgt_form = uf if valgt == ud else hf
     modst_form = hf if valgt == ud else uf
     vw, mw = valgt_form.count("W"), modst_form.count("W")
-    ml = modst_form.count("L")
 
     vejr = ctx.get("vejr") or {}
     vind = float(vejr.get("vind", 0) or 0) if isinstance(vejr, dict) else 0.0
 
     dele = []
     if valgt_form and modst_form and vw > mw:
-        dele.append(f"**{valgt}** kommer ind i stærkest form ({vw}/5 sejre mod {modst}s {mw}/5)")
+        dele.append(f"**{valgt}** er i bedre nuværende form ({_form_til_dansk(valgt_form)}) end {modst} ({_form_til_dansk(modst_form)})")
     elif valgt_form and modst_form and mw == 0:
-        dele.append(f"**{modst}** er helt uden sejre i de sidste 5 kampe ({modst_form}), hvilket giver værdi på **{valgt}** til odds **{odds}**")
+        dele.append(f"**{modst}** har ikke vundet i sine seneste 5 kampe ({_form_til_dansk(modst_form)}), hvilket giver værdi på **{valgt}** til odds **{odds}**")
     elif odds >= 2.80:
-        dele.append(f"Højodds-værdispil på **{valgt}** til odds **{odds}** ({imp}% chance) mod et sårbart **{modst}**-mandskab ({modst_form or 'svingende form'})")
+        dele.append(f"Højodds-værdispil på **{valgt}** til odds **{odds}** ({imp}% chance) mod et sårbart **{modst}** ({_form_til_dansk(modst_form)})")
     else:
-        dele.append(f"Odds **{odds}** på **{valgt}** modsvarer **{imp}%** markedssandsynlighed")
+        dele.append(f"Odds **{odds}** på **{valgt}** modsvarer **{imp}%** markedssandsynlighed ({_form_til_dansk(valgt_form)})")
 
     if k.get("api_kilde"):
         dele.append(f"direkte hentet fra bettingsidernes udbud ({k['api_kilde']})")
@@ -57,20 +64,19 @@ def begrundelse(k):
 
     meta_dele = []
     dommer = str(ctx.get("dommer") or "").strip()
-    kort_snit = ctx.get("dommer_kort") or ctx.get("kort_snit") or ""
     if dommer and "ikke" not in dommer.lower():
-        meta_dele.append(f"🟨 **Dommer:** {dommer}" + (f" ({kort_snit} kort/kamp)" if kort_snit else ""))
+        meta_dele.append(f"🟨 **Dommer:** {dommer}")
     else:
-        meta_dele.append("🟨 **Dommer:** Afventer officiel påsætning")
+        meta_dele.append("🟨 **Dommer:** Ikke offentliggjort af ligaen endnu")
 
-    h2h = str(ctx.get("h2h") or ctx.get("h2h_tekst") or ctx.get("indbyrdes") or "").strip()
+    h2h = str(ctx.get("h2h") or "").strip()
     if h2h:
         meta_dele.append(f"⚔️ **H2H:** {h2h}")
-    elif hf and uf:
-        meta_dele.append(f"⚔️ **Form-duel:** {hj} ({hf}) vs {ud} ({uf})")
+    else:
+        meta_dele.append(f"📈 **Nuværende form (5 kampe):** {hj} {_form_til_dansk(hf)} vs {ud} {_form_til_dansk(uf)}")
 
     hvorfor_linje = "💡 **Hvorfor?** " + ". ".join(dele) + "."
-    return f"{hvorfor_linje}\n\n{' | '.join(meta_dele)}" if meta_dele else hvorfor_linje
+    return f"{hvorfor_linje}\n\n{' | '.join(meta_dele)}"
 
 def _find_rigtigt_marked(k, maal_pr_kamp, kun_res=False):
     try:
