@@ -9,6 +9,18 @@ SUM_HOST = _h("site", "api", "espn", "com")
 WX_HOST = _h("api", "open-meteo", "com")
 WTTR_HOST = _h("wttr", "in")
 
+LIGA_TIL_SLUG = {
+    "bundesliga": "ger.1", "2. bundesliga": "ger.2", "3. liga": "ger.3",
+    "premier league": "eng.1", "championship": "eng.2", "league one": "eng.3", "league two": "eng.4",
+    "la liga": "esp.1", "segunda": "esp.2", "laliga": "esp.1",
+    "serie a": "ita.1", "serie b": "ita.2",
+    "ligue 1": "fra.1", "ligue 2": "fra.2",
+    "superliga": "den.1", "1. division": "den.2",
+    "eredivisie": "ned.1", "primeira liga": "por.1", "pro league": "bel.1",
+    "champions league": "uefa.champions", "europa league": "uefa.europa", "conference league": "uefa.europa.conf",
+    "nations league": "uefa.nations",
+}
+
 HOLD_BY = {
     "Albania": ("Tirana", 41.3275, 19.8187), "Finland": ("Helsinki", 60.1699, 24.9384),
     "Czechia": ("Prague", 50.0755, 14.4378), "Czech Republic": ("Prague", 50.0755, 14.4378),
@@ -23,6 +35,16 @@ HOLD_BY = {
     "Poland": ("Warsaw", 52.2297, 21.0122), "Austria": ("Vienna", 48.2082, 16.3738),
     "Switzerland": ("Bern", 46.9480, 7.4474), "Serbia": ("Belgrade", 44.7866, 20.4489),
 }
+
+def _gaet_slug(k, ctx):
+    for cand in (ctx.get("slug"), k.get("liga_kode")):
+        if cand and str(cand) not in ("all", "uefa.nations"):
+            return str(cand)
+    liga_txt = str(k.get("liga") or "").lower()
+    for noegle, slug in LIGA_TIL_SLUG.items():
+        if noegle in liga_txt:
+            return slug
+    return str(ctx.get("slug") or "ger.1")
 
 def til_decimal_odds(val):
     try:
@@ -88,7 +110,7 @@ def _udtraek_h2h(s, hj, ud):
         hj_sejre, ud_sejre, uafgjort = 0, 0, 0
         seneste_res = []
         for ev in alle_kampe[:5]:
-            comps = ev.get("competitors") or []
+            comps = list(ev.get("competitors") or [])
             if len(comps) >= 2:
                 c1 = comps.pop(0)
                 c2 = comps.pop(0)
@@ -109,25 +131,48 @@ def _udtraek_h2h(s, hj, ud):
     except Exception:
         return ""
 
+def _udtraek_dommer_fra_summary(s):
+    try:
+        gi = s.get("gameInfo") or {}
+        for off in (gi.get("officials") or []):
+            navn = off.get("displayName") or off.get("fullName") or ""
+            if navn:
+                return navn
+        header = s.get("header") or {}
+        for comp in (header.get("competitions") or []):
+            for off in (comp.get("officials") or []):
+                navn = off.get("displayName") or off.get("fullName") or ""
+                if navn:
+                    return navn
+    except Exception:
+        pass
+    return ""
+
 def berig_valgte_kampe(kampe):
     kampe = list(kampe) if kampe else []
     for k in kampe:
         ctx = k.get("ctx") or {}
         ev_id = str(ctx.get("ev_id") or k.get("id") or "")
-        slug = ctx.get("slug") or "uefa.nations"
+        slug = _gaet_slug(k, ctx)
+        ctx["slug"] = slug
         dt_iso = ctx.get("dt_iso") or (k.get("dk_dt").isoformat() if k.get("dk_dt") else "")
-        ctx["dommer"] = dommer_intelligens.hent_dommer(k.get("hj", ""), k.get("ud", ""), ev_id, slug, dt_iso)
+        dommer = dommer_intelligens.hent_dommer(k.get("hj", ""), k.get("ud", ""), ev_id, slug, dt_iso)
         if ev_id:
             try:
                 s = requests.get(f"https://{SUM_HOST}/apis/site/v2/sports/soccer/{slug}/summary", params={"event": ev_id}, headers=HDR, timeout=4).json()
                 ctx["skader"] = sum(len(x.get("injuries") or []) for x in (s.get("injuries") or []))
+                if not dommer or "ikke" in dommer.lower():
+                    sum_dommer = _udtraek_dommer_fra_summary(s)
+                    if sum_dommer:
+                        dommer = sum_dommer
                 h2h_txt = _udtraek_h2h(s, k.get("hj", ""), k.get("ud", ""))
                 if h2h_txt:
                     ctx["h2h"] = h2h_txt
             except Exception:
                 pass
+        ctx["dommer"] = dommer or "Ikke udpeget endnu"
         ctx["vejr"] = _hent_vejr_direkte(k.get("hj", ""), ctx.get("by", ""))
-        just = (1.5 if ctx["vejr"] and ctx["vejr"]["effekt"] != "Tørt & roligt" else 0.0) + (1.0 if ctx["dommer"] != "Ikke udpeget endnu" else 0.0) + min(3.0, ctx.get("skader", 0) * 0.5)
+        just = (1.5 if ctx["vejr"] and ctx["vejr"]["effekt"] != "Tørt & roligt" else 0.0) + (1.0 if "ikke" not in ctx["dommer"].lower() else 0.0) + min(3.0, ctx.get("skader", 0) * 0.5)
         ctx["justering_pct"] = round(just, 1)
         k["ctx"] = ctx
     return kampe
