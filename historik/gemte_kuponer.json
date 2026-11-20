@@ -1,5 +1,16 @@
 [
   {
+    "id": 12,
+    "dato": "20-11-2026 15:37",
+    "kilde": "Scanner",
+    "kampe": "2 kampe (20-11-2026 15:37)",
+    "detaljer": "[\"AGF - Lyngby Boldklub (AGF vinder & Begge hold scorer) [20-11-2026 kl. 19:00]\", \"Troyes - Le Havre AC (Le Havre AC vinder & Begge hold scorer) [20-11-2026 kl. 20:45]\"]",
+    "odds": 14.35,
+    "indsats": 100.0,
+    "mulig_gevinst": 1435.0,
+    "status": "[AFVENTER]"
+  },
+  {
     "id": 11,
     "dato": "20-11-2026 15:06",
     "kilde": "Scanner",
