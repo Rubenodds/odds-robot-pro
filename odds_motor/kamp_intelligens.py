@@ -11,30 +11,56 @@ WX_HOST = _h("api", "open-meteo", "com")
 WTTR_HOST = _h("wttr", "in")
 
 LIGA_TIL_SLUG = {
-    "bundesliga": "ger.1", "2. bundesliga": "ger.2", "3. liga": "ger.3",
-    "premier league": "eng.1", "championship": "eng.2", "league one": "eng.3", "league two": "eng.4",
-    "la liga": "esp.1", "segunda": "esp.2", "laliga": "esp.1",
-    "serie a": "ita.1", "serie b": "ita.2",
-    "ligue 1": "fra.1", "ligue 2": "fra.2",
-    "superliga": "den.1", "1. division": "den.2",
-    "eredivisie": "ned.1", "primeira liga": "por.1", "pro league": "bel.1",
-    "champions league": "uefa.champions", "europa league": "uefa.europa", "conference league": "uefa.europa.conf",
+    "bundesliga": "ger.1",
+    "2. bundesliga": "ger.2",
+    "3. liga": "ger.3",
+    "premier league": "eng.1",
+    "championship": "eng.2",
+    "league one": "eng.3",
+    "league two": "eng.4",
+    "la liga": "esp.1",
+    "segunda": "esp.2",
+    "laliga": "esp.1",
+    "serie a": "ita.1",
+    "serie b": "ita.2",
+    "ligue 1": "fra.1",
+    "ligue 2": "fra.2",
+    "superliga": "den.1",
+    "1. division": "den.2",
+    "eredivisie": "ned.1",
+    "primeira liga": "por.1",
+    "pro league": "bel.1",
+    "champions league": "uefa.champions",
+    "europa league": "uefa.europa",
+    "conference league": "uefa.europa.conf",
     "nations league": "uefa.nations",
 }
 
 HOLD_BY = {
-    "Albania": ("Tirana", 41.3275, 19.8187), "Finland": ("Helsinki", 60.1699, 24.9384),
-    "Czechia": ("Prague", 50.0755, 14.4378), "Czech Republic": ("Prague", 50.0755, 14.4378),
-    "Spain": ("Madrid", 40.4168, -3.7038), "England": ("London", 51.5074, -0.1278),
-    "Croatia": ("Zagreb", 45.8150, 15.9819), "Denmark": ("Copenhagen", 55.6761, 12.5683),
-    "Sweden": ("Stockholm", 59.3293, 18.0686), "Norway": ("Oslo", 59.9139, 10.7522),
-    "Germany": ("Berlin", 52.5200, 13.4050), "France": ("Paris", 48.8566, 2.3522),
-    "Italy": ("Rome", 41.9028, 12.4964), "Portugal": ("Lisbon", 38.7223, -9.1393),
-    "Netherlands": ("Amsterdam", 52.3676, 4.9041), "Belgium": ("Brussels", 50.8503, 4.3517),
-    "Türkiye": ("Istanbul", 41.0082, 28.9784), "Turkey": ("Istanbul", 41.0082, 28.9784),
-    "Scotland": ("Glasgow", 55.8642, -4.2518), "Wales": ("Cardiff", 51.4816, -3.1791),
-    "Poland": ("Warsaw", 52.2297, 21.0122), "Austria": ("Vienna", 48.2082, 16.3738),
-    "Switzerland": ("Bern", 46.9480, 7.4474), "Serbia": ("Belgrade", 44.7866, 20.4489),
+    "Albania": ("Tirana", 41.3275, 19.8187),
+    "Finland": ("Helsinki", 60.1699, 24.9384),
+    "Czechia": ("Prague", 50.0755, 14.4378),
+    "Czech Republic": ("Prague", 50.0755, 14.4378),
+    "Spain": ("Madrid", 40.4168, -3.7038),
+    "England": ("London", 51.5074, -0.1278),
+    "Croatia": ("Zagreb", 45.8150, 15.9819),
+    "Denmark": ("Copenhagen", 55.6761, 12.5683),
+    "Sweden": ("Stockholm", 59.3293, 18.0686),
+    "Norway": ("Oslo", 59.9139, 10.7522),
+    "Germany": ("Berlin", 52.5200, 13.4050),
+    "France": ("Paris", 48.8566, 2.3522),
+    "Italy": ("Rome", 41.9028, 12.4964),
+    "Portugal": ("Lisbon", 38.7223, -9.1393),
+    "Netherlands": ("Amsterdam", 52.3676, 4.9041),
+    "Belgium": ("Brussels", 50.8503, 4.3517),
+    "Türkiye": ("Istanbul", 41.0082, 28.9784),
+    "Turkey": ("Istanbul", 41.0082, 28.9784),
+    "Scotland": ("Glasgow", 55.8642, -4.2518),
+    "Wales": ("Cardiff", 51.4816, -3.1791),
+    "Poland": ("Warsaw", 52.2297, 21.0122),
+    "Austria": ("Vienna", 48.2082, 16.3738),
+    "Switzerland": ("Bern", 46.9480, 7.4474),
+    "Serbia": ("Belgrade", 44.7866, 20.4489),
 }
 
 def _gaet_slug(k, ctx):
@@ -68,11 +94,18 @@ def hurtig_kontekst(comp, hj, ud, slug="all"):
     addr = venue.get("address") or {}
     by_navn = addr.get("city") or (next(iter(HOLD_BY[hj])) if hj in HOLD_BY else hj)
     return {
-        "ev_id": str(comp.get("id") or ""), "slug": slug,
+        "ev_id": str(comp.get("id") or ""),
+        "slug": slug,
         "dt_iso": comp.get("date") or comp.get("startDate") or "",
-        "by": by_navn, "hj_form": hj_form, "ud_form": ud_form,
-        "dommer": "Ikke udpeget endnu", "h2h": "", "vejr": None, "skader": 0,
-        "justering_pct": 0.0, "odds_raw": comp.get("odds") or [],
+        "by": by_navn,
+        "hj_form": hj_form,
+        "ud_form": ud_form,
+        "dommer": "Ikke udpeget endnu",
+        "h2h": "",
+        "vejr": None,
+        "skader": 0,
+        "justering_pct": 0.0,
+        "odds_raw": comp.get("odds") or [],
     }
 
 def _hent_vejr_direkte(hj, by):
@@ -84,7 +117,9 @@ def _hent_vejr_direkte(hj, by):
             w = requests.get(f"https://{WX_HOST}/v1/forecast", params={"latitude": lat, "longitude": lon, "current": "temperature_2m,precipitation,wind_speed_10m"}, timeout=4).json()
             cur = w.get("current") or {}
             if "temperature_2m" in cur:
-                tp, regn, vind = float(cur["temperature_2m"]), float(cur.get("precipitation", 0)), float(cur.get("wind_speed_10m", 0)) / 3.6
+                tp = float(cur["temperature_2m"])
+                regn = float(cur.get("precipitation", 0))
+                vind = float(cur.get("wind_speed_10m", 0)) / 3.6
                 eff = "Kraftig regn/blæst" if (regn >= 1.5 or vind >= 10) else ("Vådt/frisk vind" if (regn > 0.2 or vind >= 6.5) else "Tørt & roligt")
                 return {"temp": round(tp, 1), "regn": round(regn, 1), "vind": round(vind, 1), "effekt": eff}
         except Exception:
@@ -93,7 +128,9 @@ def _hent_vejr_direkte(hj, by):
         w2 = requests.get(f"https://{WTTR_HOST}/{by_navn}", params={"format": "j1"}, headers=HDR, timeout=5).json()
         c0 = next(iter(w2.get("current_condition") or []), {})
         if "temp_C" in c0:
-            tp, regn, vind = float(c0["temp_C"]), float(c0.get("precipMM", 0)), float(c0.get("windspeedKmph", 0)) / 3.6
+            tp = float(c0["temp_C"])
+            regn = float(c0.get("precipMM", 0))
+            vind = float(c0.get("windspeedKmph", 0)) / 3.6
             eff = "Kraftig regn/blæst" if (regn >= 1.5 or vind >= 10) else ("Vådt/frisk vind" if (regn > 0.2 or vind >= 6.5) else "Tørt & roligt")
             return {"temp": round(tp, 1), "regn": round(regn, 1), "vind": round(vind, 1), "effekt": eff}
     except Exception:
@@ -189,4 +226,3 @@ def berig_valgte_kampe(kampe):
                     ctx["h2h"] = h2h_txt
             except Exception:
                 pass
-        if not dommer or "ikke" in dommer.lower() or not ctx.get("h2h"):
