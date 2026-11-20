@@ -1,14 +1,15 @@
+import datetime
 import re
 import requests
+import streamlit as st
 
 def _h(*parts):
     return ".".join(parts)
 
-HDR = {"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)"}
+HDR = {"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)", "Accept": "application/json"}
 SITE_HOST = _h("site", "api", "espn", "com")
 CORE_HOST = _h("sports", "core", "api", "espn", "com")
 TSDB_HOST = _h("www", "thesportsdb", "com")
-BING_HOST = _h("www", "bing", "com")
 
 def _find_navn(obj):
     if isinstance(obj, dict):
@@ -32,41 +33,58 @@ def _find_navn(obj):
                 return res
     return ""
 
-def hent_dommer(hj, ud, ev_id="", slug="all", dt_iso=""):
-    if ev_id:
-        for s_try in list(dict.fromkeys([slug or "all", "bra.1", "bra.2", "uefa.nations", "fifa.worldq.uefa", "all"])):
-            try:
-                u1 = f"https://{SITE_HOST}/apis/site/v2/sports/soccer/{s_try}/summary"
-                s = requests.get(u1, params={"event": ev_id}, headers=HDR, timeout=4).json()
-                if dom := _find_navn(s):
-                    return dom
-            except Exception:
-                pass
-            try:
-                u2 = f"https://{CORE_HOST}/v2/sports/soccer/leagues/{s_try}/events/{ev_id}/competitions/{ev_id}/officials"
-                c = requests.get(u2, headers=HDR, timeout=4).json()
-                if dom := _find_navn(c):
-                    return dom
-                for it in (c.get("items") or []):
-                    ref_u = it.get("$ref") if isinstance(it, dict) else ""
-                    if ref_u:
-                        d = requests.get(ref_u, headers=HDR, timeout=3).json()
-                        if n := (d.get("displayName") or d.get("fullName")):
-                            return str(n).strip()
-            except Exception:
-                pass
+@st.cache_data(ttl=900, show_spinner=False)
+def _hent_scoreboard_cached(slug, dato_sp):
     try:
-        r = requests.get(f"https://{TSDB_HOST}/api/v1/json/3/searchevents.php", params={"e": f"{hj}_vs_{ud}"}, headers=HDR, timeout=4).json()
+        u = f"https://{SITE_HOST}/apis/site/v2/sports/soccer/{slug}/scoreboard"
+        return requests.get(u, params={"dates": dato_sp}, headers=HDR, timeout=3).json()
+    except Exception:
+        return {}
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _hent_summary_cached(slug, ev_id):
+    try:
+        u = f"https://{SITE_HOST}/apis/site/v2/sports/soccer/{slug}/summary"
+        return requests.get(u, params={"event": ev_id}, headers=HDR, timeout=3).json()
+    except Exception:
+        return {}
+
+@st.cache_data(ttl=900, show_spinner=False)
+def hent_dommer(hj, ud, ev_id="", slug="all", dt_iso=""):
+    kandidat_slugs = list(dict.fromkeys([s for s in (slug, "ger.1", "ger.2", "esp.1", "esp.2", "ita.1", "ita.2", "fra.1", "fra.2", "eng.1", "den.1") if s and s != "all"]))
+
+    # 1. Tjek ESPN Summary på primær liga-slug
+    if ev_id and slug and slug != "all":
+        s = _hent_summary_cached(slug, ev_id)
+        if dom := _find_navn(s):
+            return dom
+
+    # 2. Tjek ESPN Scoreboard (her ligger dagens kampdommere oftest)
+    nu = datetime.date.today()
+    dato_sp = f"{(nu - datetime.timedelta(days=1)).strftime('%Y%m%d')}-{(nu + datetime.timedelta(days=2)).strftime('%Y%m%d')}"
+    hj_k = str(hj or "").lower().split().pop(0)[:4]
+    ud_k = str(ud or "").lower().split().pop(0)[:4]
+
+    for s_try in kandidat_slugs[:5]:
+        sb = _hent_scoreboard_cached(s_try, dato_sp)
+        for ev in (sb.get("events") or []):
+            for comp in (ev.get("competitions") or []):
+                teams = comp.get("competitors") or []
+                navne = [(t.get("team") or {}).get("displayName", "").lower() for t in teams]
+                if any(hj_k in n for n in navne) and any(ud_k in n for n in navne):
+                    if dom := _find_navn(comp.get("officials") or []):
+                        return dom
+                    fundet_id = str(ev.get("id") or "")
+                    if fundet_id:
+                        s2 = _hent_summary_cached(s_try, fundet_id)
+                        if dom := _find_navn(s2):
+                            return dom
+
+    # 3. Hurtig fallback til TheSportsDB
+    try:
+        r = requests.get(f"https://{TSDB_HOST}/api/v1/json/3/searchevents.php", params={"e": f"{hj}_vs_{ud}"}, headers=HDR, timeout=3).json()
         if dom := _find_navn(r):
             return dom
-    except Exception:
-        pass
-    try:
-        q = f'"{hj}" "{ud}" referee OR arbitro'
-        html = requests.get(f"https://{BING_HOST}/search", params={"q": q}, headers=HDR, timeout=4).text
-        m = re.search(r"(?:Referee|Árbitro|Arbitro)[:\s]+([A-ZÀ-Ž][a-zà-ž]+(?:\s+[A-ZÀ-Ž][a-zà-ž\.]+){1,2})", html)
-        if m and len(m.group(1).strip()) >= 5:
-            return m.group(1).strip()
     except Exception:
         pass
     return ""
@@ -74,7 +92,7 @@ def hent_dommer(hj, ud, ev_id="", slug="all", dt_iso=""):
 def dommer_effekt(dommer, liga=""):
     if not dommer:
         return 0.0, ""
-    er_sydamerika = any(x in str(liga).lower() for x in ("brasil", "copa", "libertadores", "spanien", "italien"))
-    if er_sydamerika:
+    er_kortrig = any(x in str(liga).lower() for x in ("brasil", "copa", "libertadores", "spanien", "italien", "segunda", "serie"))
+    if er_kortrig:
         return 1.5, f"Dommer {dommer} i kortrig turnering (øget kort-/straffepotentiale)"
     return 1.0, f"Dommer {dommer} bekræftet"
