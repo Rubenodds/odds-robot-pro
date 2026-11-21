@@ -29,18 +29,11 @@ def _hent_gemini_noegle() -> str:
     return os.environ.get("GEMINI_API_KEY", "").strip()
 
 
-def _skaler_ned(im: Image.Image, maks_b: int = 1100) -> Image.Image:
-    if im.width > maks_b:
-        ny_h = int(im.height * (maks_b / im.width))
-        return im.resize((maks_b, ny_h))
-    return im
-
-
 def _flet_billeder_til_et(billeder_bytes_liste: list) -> bytes:
-    billeder = [_skaler_ned(Image.open(io.BytesIO(b)).convert("RGB")) for b in billeder_bytes_liste]
+    billeder = [Image.open(io.BytesIO(b)).convert("RGB") for b in billeder_bytes_liste]
     if len(billeder) == 1:
         buf = io.BytesIO()
-        billeder.pop(0).save(buf, format="JPEG", quality=82)
+        billeder.pop(0).save(buf, format="JPEG", quality=85)
         return buf.getvalue()
 
     maks_bredde = max(im.width for im in billeder)
@@ -59,7 +52,7 @@ def _flet_billeder_til_et(billeder_bytes_liste: list) -> bytes:
         y += im.height
 
     buf = io.BytesIO()
-    samlet.save(buf, format="JPEG", quality=82)
+    samlet.save(buf, format="JPEG", quality=85)
     return buf.getvalue()
 
 
@@ -79,7 +72,7 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
     }
 
     host = ".".join(["generativelanguage", "googleapis", "com"])
-    modeller = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]
+    modeller = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash"]
 
     data = None
     sidste_fejl = None
@@ -92,7 +85,7 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=45) as resp:
+            with urllib.request.urlopen(req, timeout=20) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             break
         except urllib.error.HTTPError as err:
@@ -101,12 +94,9 @@ def _laes_med_gemini(billede_bytes: bytes, api_key: str):
                 time.sleep(1.5)
                 continue
             raise
-        except Exception as err:
-            sidste_fejl = err
-            continue
 
     if data is None:
-        raise sidste_fejl or RuntimeError("Gemini svarede ikke i tide – prøv igen om et øjeblik")
+        raise sidste_fejl or RuntimeError("Alle Gemini-modeller har midlertidigt ramt kvotegrænsen (429)")
 
     kandidat = data.get("candidates", [{}]).pop(0)
     del_obj = kandidat.get("content", {}).get("parts", [{}]).pop(0)
