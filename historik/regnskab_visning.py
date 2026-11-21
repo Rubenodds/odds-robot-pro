@@ -10,10 +10,17 @@ from historik.gem_data import hent_alle_kuponer, _gh_laes, _gh_skriv, _gh_cfg
 
 HOST = ".".join(["site", "api", "espn", "com"])
 LIGAER = [
-    "eng.1", "eng.2", "eng.3", "esp.1", "esp.2", "ger.1", "ger.2",
+    "eng.1", "eng.2", "eng.3", "eng.4", "esp.1", "esp.2", "ger.1", "ger.2",
     "ita.1", "ita.2", "fra.1", "fra.2", "den.1", "den.2", "ned.1",
     "por.1", "bel.1", "nor.1", "swe.1", "uefa.champions", "uefa.europa",
 ]
+
+
+def _norm(txt):
+    t = str(txt or "").lower().strip()
+    t = t.replace("athletic club", "athletic bilbao").replace("sheff wed", "sheffield wednesday")
+    t = re.sub(r"\b(fc|cf|ac|sc|bk|if|fk|club|united|city)\b", "", t)
+    return re.sub(r"\s+", " ", t).strip()
 
 
 def _formater_ben(item):
@@ -27,16 +34,18 @@ def _formater_ben(item):
     return str(item or "").strip()
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def _hent_slutresultater():
     nu = datetime.date.today()
-    d_sp = f"{(nu - datetime.timedelta(days=4)).strftime('%Y%m%d')}-{nu.strftime('%Y%m%d')}"
+    d_sp = f"{(nu - datetime.timedelta(days=5)).strftime('%Y%m%d')}-{nu.strftime('%Y%m%d')}"
     res = []
     for lg in LIGAER:
         try:
             u = f"https://{HOST}/apis/site/v2/sports/soccer/{lg}/scoreboard"
             data = requests.get(u, params={"dates": d_sp}, timeout=3).json()
             for ev in (data.get("events") or []):
-                if not (((ev.get("status") or {}).get("type")) or {}).get("completed"):
+                st_type = (((ev.get("status") or {}).get("type")) or {})
+                if not (st_type.get("completed") or st_type.get("state") == "post"):
                     continue
                 for comp in (ev.get("competitions") or []):
                     cs = list(comp.get("competitors") or [])
@@ -44,8 +53,8 @@ def _hent_slutresultater():
                         h = next((c for c in cs if c.get("homeAway") == "home"), cs.pop(0))
                         a = next((c for c in cs if c.get("homeAway") == "away"), cs.pop(0))
                         res.append({
-                            "hj": str((h.get("team") or {}).get("displayName") or ""),
-                            "ud": str((a.get("team") or {}).get("displayName") or ""),
+                            "hj": _norm((h.get("team") or {}).get("displayName") or ""),
+                            "ud": _norm((a.get("team") or {}).get("displayName") or ""),
                             "hs": int(float(h.get("score") or 0)),
                             "as": int(float(a.get("score") or 0)),
                         })
@@ -54,19 +63,25 @@ def _hent_slutresultater():
     return res
 
 
+def _match_hold(q, navn):
+    q1 = _norm(q)[:6]
+    n1 = _norm(navn)
+    return bool(q1) and (q1 in n1 or n1[:6] in q1)
+
+
 def _vurd_ben(item, res_liste):
     t = _formater_ben(item)
     m_hold = re.search(r"([A-Za-zÀ-ÿ0-9\s\.\-]+?)\s+-\s+([A-Za-zÀ-ÿ0-9\s\.\-]+?)(?:\s*\(|$)", t)
     if not m_hold:
         return None
-    hj_q = m_hold.group(1).strip().lower()[:5]
-    ud_q = m_hold.group(2).strip().lower()[:5]
-    kamp = next((r for r in res_liste if hj_q in r["hj"].lower() and ud_q in r["ud"].lower()), None)
+    hj_raw, ud_raw = m_hold.group(1).strip(), m_hold.group(2).strip()
+    kamp = next((r for r in res_liste if _match_hold(hj_raw, r["hj"]) and _match_hold(ud_raw, r["ud"])), None)
     if not kamp:
         return None
     hs, as_, tot = kamp["hs"], kamp["as"], kamp["hs"] + kamp["as"]
     m_sp = re.search(r"\(([^)]+)\)", t)
-    spil = (m_sp.group(1) if m_sp else t).lower()
+    spil = _norm(m_sp.group(1) if m_sp else t)
+    hj_k, ud_k = _norm(hj_raw)[:5], _norm(ud_raw)[:5]
     for d in [p.strip() for p in spil.split("&")]:
         if "begge hold scorer" in d:
             if not ((hs > 0 and as_ > 0) if "nej" not in d else (hs == 0 or as_ == 0)):
@@ -80,19 +95,15 @@ def _vurd_ben(item, res_liste):
             if m_tal and not (tot < float(m_tal.group(1))):
                 return False
         elif "el. uafgjort" in d or "eller uafgjort" in d or "1x" in d or "x2" in d:
-            if (hj_q in d and not (hs >= as_)) or (ud_q in d and not (as_ >= hs)):
+            if (hj_k in d and not (hs >= as_)) or (ud_k in d and not (as_ >= hs)):
                 return False
         elif "vinder" in d:
-            if (hj_q in d and not (hs > as_)) or (ud_q in d and not (as_ > hs)):
+            if (hj_k in d and not (hs > as_)) or (ud_k in d and not (as_ > hs)):
                 return False
     return True
 
 
-def _auto_tjek_afventende(raekker, tvunget=False):
-    nu = time.time()
-    if not tvunget and (nu - float(st.session_state.get("_sidste_res_tjek", 0.0))) < 600:
-        return raekker
-    st.session_state["_sidste_res_tjek"] = nu
+def _auto_tjek_afventende(raekker):
     if not any(r.get("status") == "[AFVENTER]" for r in raekker):
         return raekker
     res_liste = _hent_slutresultater()
@@ -193,8 +204,8 @@ def vis_regnskab():
     c_aar, c_btn = st.columns((3, 1))
     valgt_aar = c_aar.selectbox("📅 Regnskabsår", aar_liste + ["Alle år (Total)"], index=0, key="regnskab_aar", label_visibility="collapsed")
     if c_btn.button("🔄 Tjek", key="btn_synk_cloud", use_container_width=True):
+        st.cache_data.clear()
         st.session_state.pop("kupon_ram_cache", None)
-        st.session_state.pop("_sidste_res_tjek", None)
         st.rerun()
 
     filtreret = raekker if valgt_aar.startswith("Alle") else [r for r in raekker if str(r.get("dato", ""))[6:10] == valgt_aar]
