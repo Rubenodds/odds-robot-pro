@@ -108,6 +108,23 @@ def _gh_skriv_direkte(tok, repo, raekker, sha=None):
         return False
 
 
+def _gh_laes():
+    tok, repo = _gh_cfg()
+    raekker, sha = _gh_laes_direkte(tok, repo)
+    st.session_state["kupon_sha"] = sha
+    return raekker, sha
+
+
+def _gh_skriv(raekker, sha=None):
+    tok, repo = _gh_cfg()
+    ok = _gh_skriv_direkte(tok, repo, raekker, sha)
+    if ok and tok:
+        _, ny_sha = _gh_laes_direkte(tok, repo)
+        if ny_sha:
+            st.session_state["kupon_sha"] = ny_sha
+    return ok
+
+
 def _baggrunds_sync(tok, repo, ny_post=None, slet_id=None):
     if not tok:
         return
