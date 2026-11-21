@@ -33,7 +33,7 @@ def _flet_billeder_til_et(billeder_bytes_liste: list) -> bytes:
     billeder = [Image.open(io.BytesIO(b)).convert("RGB") for b in billeder_bytes_liste]
     if len(billeder) == 1:
         buf = io.BytesIO()
-        billeder.save(buf, format="JPEG", quality=85)
+        billeder.pop(0).save(buf, format="JPEG", quality=85)
         return buf.getvalue()
 
     maks_bredde = max(im.width for im in billeder)
