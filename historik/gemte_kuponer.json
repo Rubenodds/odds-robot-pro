@@ -1,5 +1,16 @@
 [
   {
+    "id": 15,
+    "dato": "21-11-2026 13:18",
+    "kilde": "Scanner",
+    "kampe": "3 kampe (21-11-2026 13:18)",
+    "detaljer": "[\"CD Alaves - Deportivo A Coruna (Over 1.0) [@ 3.50]\", \"Rayo Vallecano - Valencia (BYG VÆDDEMÅL) [@ 2.55]\", \"Napoli - Torino (BYG VÆDDEMÅL) [@ 1.80]\"]",
+    "odds": 16.06,
+    "indsats": 100.0,
+    "mulig_gevinst": 1606.0,
+    "status": "[AFVENTER]"
+  },
+  {
     "id": 14,
     "dato": "20-11-2026 19:57",
     "kilde": "Scanner",
