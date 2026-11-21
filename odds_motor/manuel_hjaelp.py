@@ -10,27 +10,43 @@ def _form_til_dansk(f_str):
 
 def _hent_ekstra_ctx(k):
     ctx = dict(k.get("ctx") or {})
-    if not ctx.get("h2h") or "ikke" in str(ctx.get("dommer") or "ikke").lower():
+    dom = str(ctx.get("dommer") or "")
+    if not dom or "ikke" in dom.lower():
         try:
-            from odds_motor import kamp_intelligens
-            beriget = kamp_intelligens.berig_valgte_kampe([dict(k)])
-            if beriget:
-                ny_ctx = beriget.pop(0).get("ctx") or {}
-                for noegle, vaerdi in ny_ctx.items():
-                    if vaerdi and (not ctx.get(noegle) or "ikke" in str(ctx.get(noegle)).lower()):
-                        ctx[noegle] = vaerdi
+            from odds_motor import dommer_intelligens
+            fundet = dommer_intelligens.hent_dommer(
+                k.get("hj", ""),
+                k.get("ud", ""),
+                str(ctx.get("ev_id") or k.get("id") or ""),
+                str(ctx.get("slug") or k.get("liga_kode") or "all"),
+                str(ctx.get("dt_iso") or ""),
+                str(k.get("liga") or ""),
+            )
+            if fundet:
+                ctx["dommer"] = fundet
         except Exception:
             pass
     return ctx
+
+def _find_spil_hold(hj, ud, spil_txt, fallback_valgt=""):
+    s = str(spil_txt or "").lower()
+    if ud and ud.lower()[:5] in s and hj.lower()[:5] not in s:
+        return ud, hj
+    if hj and hj.lower()[:5] in s and ud.lower()[:5] not in s:
+        return hj, ud
+    if fallback_valgt:
+        modst = ud if fallback_valgt.lower().strip() == hj.lower().strip() else hj
+        return fallback_valgt, modst
+    return hj, ud
 
 def begrundelse(k):
     if not isinstance(k, dict):
         return "💡 **Hvorfor?** Verificeret bookmaker-marked."
     ctx = _hent_ekstra_ctx(k)
     k["ctx"] = ctx
-    hj, ud = k.get("hj", "Hjemmehold"), k.get("ud", "Udehold")
-    valgt = str(k.get("valgt_hold") or hj)
-    modst = ud if valgt.lower().strip() == hj.lower().strip() else hj
+    hj, ud = str(k.get("hj") or "Hjemmehold"), str(k.get("ud") or "Udehold")
+    spil = ", ".join(k.get("kombinationer") or [k.get("spil") or "Valgt spil"])
+    valgt, modst = _find_spil_hold(hj, ud, spil, str(k.get("valgt_hold") or ""))
     odds = float(k.get("b365") or k.get("odds") or 0.0)
     imp = round(100.0 / max(1.01, odds), 1) if odds > 1.0 else 0.0
 
@@ -43,9 +59,9 @@ def begrundelse(k):
     if valgt_form and modst_form and vw > mw:
         dele.append(f"**{valgt}** har bedre dokumenteret form ({_form_til_dansk(valgt_form)}) end {modst} ({_form_til_dansk(modst_form)})")
     elif odds > 1.0:
-        dele.append(f"Verificeret bookmaker-odds **{odds}** på **{valgt}** ({imp}% markedssandsynlighed)")
+        dele.append(f"Verificeret bookmaker-odds **{odds}** på **{spil}** ({imp}% markedssandsynlighed)")
     else:
-        dele.append(f"Ingen verificerede bookmaker-odds fundet på **{valgt}** i API'et")
+        dele.append(f"Ingen verificerede bookmaker-odds fundet på **{spil}**")
 
     if k.get("api_kilde"):
         dele.append(f"kilde: {k['api_kilde']}")
@@ -55,7 +71,7 @@ def begrundelse(k):
     if dommer and "ikke" not in dommer.lower():
         meta_dele.append(f"🟨 **Dommer:** {dommer}")
     else:
-        meta_dele.append("🟨 **Dommer:** Ikke offentliggjort i API endnu")
+        meta_dele.append("🟨 **Dommer:** Ikke offentliggjort endnu")
 
     h2h = str(ctx.get("h2h") or "").strip()
     if h2h:
@@ -67,7 +83,6 @@ def begrundelse(k):
     return f"{hvorfor_linje}\n\n{' | '.join(meta_dele)}"
 
 def _hent_kun_rigtigt_marked(k, maal_pr_kamp, kun_res=False):
-    # 1. Hent rigtige markeder fra The Odds API via marked_motor
     try:
         from udvidelser.marked_motor import hent_reelle_muligheder
         muligheder, kilde, _ = hent_reelle_muligheder({
@@ -91,7 +106,6 @@ def _hent_kun_rigtigt_marked(k, maal_pr_kamp, kun_res=False):
     except Exception:
         pass
 
-    # 2. Hent evt. verificeret 1X2-basisodds direkte fra kamp-objektet (uden at opfinde noget)
     direkte_odds = float(k.get("b365") or k.get("odds") or 0.0)
     if direkte_odds > 1.01:
         valgt = k.get("valgt_hold") or k.get("hj", "Hjemmehold")
