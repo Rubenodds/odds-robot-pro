@@ -16,6 +16,17 @@ LIGAER = [
 ]
 
 
+def _formater_ben(item):
+    if isinstance(item, dict):
+        hj = item.get("hj") or item.get("hjemme") or ""
+        ud = item.get("ud") or item.get("ude") or ""
+        kombi = ", ".join(item.get("kombinationer") or []) or item.get("spil") or ""
+        odds = item.get("b365") or item.get("odds") or ""
+        o_txt = f" @ {odds}" if odds else ""
+        return f"{hj} - {ud} ({kombi}){o_txt}".strip()
+    return str(item or "").strip()
+
+
 def _hent_slutresultater():
     nu = datetime.date.today()
     d_sp = f"{(nu - datetime.timedelta(days=4)).strftime('%Y%m%d')}-{nu.strftime('%Y%m%d')}"
@@ -43,8 +54,8 @@ def _hent_slutresultater():
     return res
 
 
-def _vurd_ben(tekst, res_liste):
-    t = str(tekst or "")
+def _vurd_ben(item, res_liste):
+    t = _formater_ben(item)
     m_hold = re.search(r"([A-Za-zÀ-ÿ0-9\s\.\-]+?)\s+-\s+([A-Za-zÀ-ÿ0-9\s\.\-]+?)(?:\s*\(|$)", t)
     if not m_hold:
         return None
@@ -68,7 +79,7 @@ def _vurd_ben(tekst, res_liste):
             m_tal = re.search(r"under\s+(\d+(?:\.\d+)?)", d)
             if m_tal and not (tot < float(m_tal.group(1))):
                 return False
-        elif "el. uafgjort" in d or "1x" in d or "x2" in d:
+        elif "el. uafgjort" in d or "eller uafgjort" in d or "1x" in d or "x2" in d:
             if (hj_q in d and not (hs >= as_)) or (ud_q in d and not (as_ >= hs)):
                 return False
         elif "vinder" in d:
@@ -140,18 +151,18 @@ def _tegn_kuponer(liste_r, fane_prefix):
     valgm = ["✅ Vundet", "❌ Tabt", "⏳ Afventer"]
     idx_map = {"VUNDET": 0, "TABT": 1, "[AFVENTER]": 2}
     for dag, kuponer in dage.items():
-        with st.expander(f"📁 {dag}  ({len(kuponer)} kupon{'er' if len(kuponer) != 1 else ''})", expanded=False):
+        with st.expander(f"📁 {dag} ({len(kuponer)} kupon{'er' if len(kuponer) != 1 else ''})", expanded=False):
             for r in kuponer:
                 kid = r["id"]
                 st_ikon = {"VUNDET": "✅", "TABT": "❌"}.get(r.get("status"), "⏳")
-                st.markdown(f"**{st_ikon} Kupon #{kid}** • Odds **{r.get('odds')}** • Mulig gevinst **{r.get('mulig_gevinst')} kr.**")
+                st.markdown(f"**{st_ikon} Kupon #{kid}** • Odds **{r.get('odds')}** • Indsats **{r.get('indsats', 100):.0f} kr.** • Gevinst **{r.get('mulig_gevinst')} kr.**")
                 raw = r.get("detaljer") or r.get("kampe")
                 try:
                     kampe = json.loads(raw) if isinstance(raw, str) and raw.startswith("[") else [raw]
                 except Exception:
                     kampe = [raw]
                 for k in kampe:
-                    st.caption(f"• {k}")
+                    st.caption(f"⚽ {_formater_ben(k)}")
                 c1, c2, c3 = st.columns((2, 1, 1))
                 valg = c1.selectbox("Status", valgm, index=idx_map.get(r.get("status"), 2), key=f"s_{fane_prefix}_{kid}", label_visibility="collapsed")
                 if c2.button("Gem", key=f"b_{fane_prefix}_{kid}", use_container_width=True):
@@ -166,15 +177,8 @@ def _tegn_kuponer(liste_r, fane_prefix):
 def vis_regnskab():
     tok, _ = _gh_cfg()
     fejl = st.session_state.get("gh_fejl")
-    c_top1, c_top2 = st.columns((3, 1))
-    if tok and not fejl:
-        c_top1.caption("☁️ **Cloud & Auto-Resultat aktiv** — kuponer tjekkes automatisk og gemmes pr. år.")
-    else:
-        c_top1.warning(f"⚠️ Cloud-status: {fejl or 'Mangler GitHub-token i Secrets'}")
-    if c_top2.button("🔄 Synk & Tjek", key="btn_synk_cloud", use_container_width=True):
-        st.session_state.pop("kupon_ram_cache", None)
-        st.session_state.pop("_sidste_res_tjek", None)
-        st.rerun()
+    if fejl or not tok:
+        st.warning(f"⚠️ Cloud-status: {fejl or 'Mangler GitHub-token i Secrets'}")
 
     raekker = _auto_tjek_afventende(list(hent_alle_kuponer()))
     if not raekker:
@@ -185,7 +189,13 @@ def vis_regnskab():
     aktuelt_aar = str(datetime.date.today().year)
     if aktuelt_aar not in aar_liste:
         aar_liste.insert(0, aktuelt_aar)
-    valgt_aar = st.selectbox("📅 Regnskabsår:", aar_liste + ["Alle år (Total)"], index=0, key="regnskab_aar")
+
+    c_aar, c_btn = st.columns((3, 1))
+    valgt_aar = c_aar.selectbox("📅 Regnskabsår", aar_liste + ["Alle år (Total)"], index=0, key="regnskab_aar", label_visibility="collapsed")
+    if c_btn.button("🔄 Tjek", key="btn_synk_cloud", use_container_width=True):
+        st.session_state.pop("kupon_ram_cache", None)
+        st.session_state.pop("_sidste_res_tjek", None)
+        st.rerun()
 
     filtreret = raekker if valgt_aar.startswith("Alle") else [r for r in raekker if str(r.get("dato", ""))[6:10] == valgt_aar]
     df = pd.DataFrame(filtreret) if filtreret else pd.DataFrame(columns=["status", "indsats", "mulig_gevinst"])
@@ -197,11 +207,10 @@ def vis_regnskab():
     hit = (len(vun) / len(afg) * 100.0) if len(afg) else 0.0
     roi = (udb / oms * 100.0) if oms else 0.0
 
-    st.info(f"💰 **{valgt_aar} Netto:** {netto:+.2f} kr.  |  🎯 **Hitrate:** {hit:.1f}% ({len(vun)}/{len(afg)})  |  📈 **Tilbagebetaling:** {roi:.1f}%")
     m1, m2, m3 = st.columns(3)
-    m1.metric("Samlet Indsats", f"{oms:.0f} kr.")
-    m2.metric("Samlet Udbetaling", f"{udb:.0f} kr.")
-    m3.metric("Overskud / Underskud", f"{netto:+.0f} kr.")
+    m1.metric("💰 Netto", f"{netto:+.0f} kr.", f"Indsats: {oms:.0f} kr.")
+    m2.metric("🎯 Hitrate", f"{hit:.1f}%", f"{len(vun)}/{len(afg)} vundet")
+    m3.metric("📈 Tilbagebetaling", f"{roi:.1f}%", f"Udbetalt: {udb:.0f} kr.")
 
     f1, f2, f3 = st.tabs(["⏳ Afventer", "✅ Afgjorte", "🗂️ Alle"])
     with f1:
