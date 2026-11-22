@@ -16,42 +16,46 @@ def _scan_repo():
                         kode = fp.read()
                     trae = ast.parse(kode)
                     funk = [n.name for n in trae.body if isinstance(n, ast.FunctionDef)]
-                    har_dommer_txt = "Ikke offentliggjort" in kode or "hent_dommer" in kode
-                    rapport.append({
-                        "fil": sti,
-                        "tegn": len(kode),
-                        "funktioner": funk,
-                        "dommer_ref": har_dommer_txt,
-                        "fejl": "",
-                    })
+                    rapport.append({"fil": sti, "tegn": len(kode), "funktioner": funk, "fejl": ""})
                 except Exception as e:
-                    rapport.append({"fil": sti, "tegn": 0, "funktioner": [], "dommer_ref": False, "fejl": str(e)})
+                    rapport.append({"fil": sti, "tegn": 0, "funktioner": [], "fejl": str(e)})
     return rapport
 
 
-def vis_system_tjek(hj="Osasuna", ud="Málaga"):
-    with st.expander("🔧 Systemtjek & Live Arkitektur-kort (Kun til udvikling)", expanded=False):
-        rapport = _scan_repo()
-        fejl_filer = [r for r in rapport if r["fejl"]]
-        if fejl_filer:
-            for ff in fejl_filer:
-                st.error(f"Syntaksfejl i {ff['fil']}: {ff['fejl']}")
-        else:
-            st.success(f"Alle {len(rapport)} Python-filer er syntaks-ok!")
+def _uddrag(sti, soegeord=("dommer", "official", "Ikke offentliggjort")):
+    if not os.path.exists(sti):
+        return ""
+    ud = []
+    with open(sti, "r", encoding="utf-8") as fp:
+        for nr, linje in enumerate(fp, 1):
+            if any(o.lower() in linje.lower() for o in soegeord):
+                ud.append(f"L{nr}: {linje.rstrip()}")
+    return "\n".join(ud[:25])
 
-        st.markdown("**Filer der styrer dommer-tekst:**")
-        for r in rapport:
-            if r["dommer_ref"]:
-                st.code(f"{r['fil']} ({r['tegn']} tegn) -> Funktioner: {', '.join(r['funktioner'])}")
+
+def vis_system_tjek(hj="Liverpool", ud="Manchester City"):
+    with st.expander("🔧 Systemtjek & Live Arkitektur-kort (Kun til udvikling)", expanded=True):
+        rapport = _scan_repo()
+        for ff in [r for r in rapport if r["fejl"]]:
+            st.error(f"Syntaksfejl i {ff['fil']}: {ff['fejl']}")
 
         if st.button("🧪 Test live dommer-kald nu", key="btn_test_dommer_sys"):
             try:
                 from odds_motor import dommer_intelligens as di
                 d = di.hent_dommer(hj, ud)
                 eff, txt = di.dommer_effekt(d, hj=hj, ud=ud)
-                st.info(f"Resultat for {hj} vs {ud}: dommer='{d}' | effekt={eff} | tekst='{txt}'")
+                st.session_state["sys_dommer_test"] = f"{hj} vs {ud} -> dommer='{d}' | effekt={eff} | tekst='{txt}'"
             except Exception:
-                st.error(traceback.format_exc())
+                st.session_state["sys_dommer_test"] = traceback.format_exc()
+
+        if "sys_dommer_test" in st.session_state:
+            st.info(st.session_state["sys_dommer_test"])
+
+        for f_sti in ("odds_motor/kamp_intelligens.py", "odds_motor/manuel_hjaelp.py"):
+            snit = _uddrag(f_sti)
+            if snit:
+                st.caption(f"Dommer-linjer i {f_sti}:")
+                st.code(snit)
 
         kort = "\n".join(f"- {r['fil']} ({r['tegn']}t): {', '.join(r['funktioner'])}" for r in rapport)
-        st.text_area("📋 Kopiér dette arkitektur-kort til AI ved ny chat:", kort, height=160)
+        st.text_area("📋 Kopiér dette arkitektur-kort til AI:", kort, height=140)
