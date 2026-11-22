@@ -11,6 +11,7 @@ HDR = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/128.0 Saf
 ESPN_H = _h("site", "api", "espn", "com")
 SDB_H = _h("www", "thesportsdb", "com")
 BING_H = _h("www", "bing", "com")
+GNEWS_H = _h("news", "google", "com")
 _DOMMER_CACHE = {}
 _FORBUDT = {"Stadion", "Stadium", "Runde", "Match", "League", "Live", "Score", "Stats", "Odds", "Preview", "Var", "Assistant", "Fourth", "Official", "Kickoff", "Result", "Highlights"}
 
@@ -27,7 +28,7 @@ def _find_navn(tekst, hj="", ud=""):
     hold_ord = set(re.findall(r"[A-Za-zÀ-ž]{3,}", f"{hj} {ud}"))
     for pat in (
         r"(?:Referee|Dommer|Schiedsrichter|Árbitro|Arbitro|Main\s+referee)[:\.\s\-]+([A-ZÀ-Ž][a-zà-ž]+(?:\s+[A-ZÀ-Ž][a-zà-ž\.\-']+){1,2})",
-        r"([A-ZÀ-Ž][a-zà-ž]+(?:\s+[A-ZÀ-Ž][a-zà-ž\.\-']+){1,2})\s+(?:to referee|will referee|is the referee|named referee|appointed referee|er dommer|dømmer|skal dømme|arbitrerà)",
+        r"([A-ZÀ-Ž][a-zà-ž]+(?:\s+[A-ZÀ-Ž][a-zà-ž\.\-']+){1,2})\s*(?:\((?:Referee|Dommer|Arbitro)\)|to referee|will referee|is the referee|named referee|appointed referee|er dommer|dømmer|skal dømme)",
     ):
         for m in re.finditer(pat, ren):
             kand = m.group(1).strip().rstrip(".,;:|")
@@ -63,29 +64,24 @@ def _espn_dommer(hj, ud, ev_id="", slug=""):
     return ""
 
 
-def _sportsdb_dommer(hj, ud):
+def _web_dommer(hj, ud):
     hk, uk = _ren(hj), _ren(ud)
     if not hk or not uk:
         return ""
     for q in (f"{hk}_vs_{uk}", f"{hj}_vs_{ud}".replace(" ", "_")):
         try:
-            r = requests.get(f"https://{SDB_H}/api/v1/json/3/searchevents.php?e={urllib.parse.quote(q)}", headers=HDR, timeout=3).json()
+            r = requests.get(f"https://{SDB_H}/api/v1/json/3/searchevents.php?e={urllib.parse.quote(q)}", headers=HDR, timeout=2.5).json()
             for ev in (r.get("event") or [])[:5]:
                 ref = str(ev.get("strReferee") or "").strip()
                 if len(ref) >= 5 and " " in ref:
                     return ref
         except Exception:
             pass
-    return ""
-
-
-def _bing_rss_dommer(hj, ud):
-    hk, uk = _ren(hj), _ren(ud)
-    if not hk or not uk:
-        return ""
-    for q in (f"{hk} {uk} referee", f"{hk} {uk} arbitro"):
+    for u in (
+        f"https://{BING_H}/search?q={urllib.parse.quote(f'{hk} {uk} referee')}&format=rss",
+        f"https://{GNEWS_H}/rss/search?q={urllib.parse.quote(f'{hk} {uk} referee')}&hl=en&gl=US&ceid=US:en",
+    ):
         try:
-            u = f"https://{BING_H}/search?q={urllib.parse.quote(q)}&format=rss"
             root = ET.fromstring(requests.get(u, headers=HDR, timeout=3).text)
             for item in root.findall(".//item")[:8]:
                 txt = f"{item.findtext('title') or ''} {item.findtext('description') or ''}"
@@ -101,29 +97,20 @@ def hent_dommer(hj, ud, ev_id="", slug="all", dt_iso="", liga=""):
     key = f"{_ren(hj)}|{_ren(ud)}"
     if key in _DOMMER_CACHE:
         return _DOMMER_CACHE[key]
-    fundet = _espn_dommer(hj, ud, ev_id, slug) or _sportsdb_dommer(hj, ud) or _bing_rss_dommer(hj, ud)
+    fundet = _espn_dommer(hj, ud, ev_id, slug) or _web_dommer(hj, ud)
     if fundet:
+        try:
+            from udvidelser.historik_statistik import hent_dommer_profil
+            p = hent_dommer_profil(fundet)
+            if p and p.get("kort_snit"):
+                fundet = f"{fundet} ({p['kort_snit']} kort/kamp)"
+        except Exception:
+            pass
         _DOMMER_CACHE[key] = fundet
     return fundet
 
 
 def dommer_effekt(dommer, liga="", hj="", ud=""):
-    dele, eff = [], 0.0
-    if dommer and "ikke" not in str(dommer).lower():
-        eff = 1.0
-        try:
-            from udvidelser.historik_statistik import hent_dommer_profil
-            p = hent_dommer_profil(dommer)
-            eff = float(p.get("effekt", 1.0))
-            dele.append(f"Dommer {dommer} ({p.get('kort_snit', 4.0)} kort/kamp)")
-        except Exception:
-            dele.append(f"Dommer {dommer} bekræftet")
-    if hj and ud:
-        try:
-            from udvidelser.historik_statistik import hent_h2h_profil
-            h2h = hent_h2h_profil(hj, ud)
-            if h2h.get("tekst"):
-                dele.append(h2h["tekst"])
-        except Exception:
-            pass
-    return eff, " | ".join(dele)
+    if not dommer or "ikke" in str(dommer).lower():
+        return 0.0, ""
+    return 1.0, f"Dommer {dommer} bekræftet"
