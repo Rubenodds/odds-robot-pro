@@ -4,6 +4,8 @@ from odds_motor import autopilot_scanner as ap, liga_favoritter, manuel_hjaelp a
 from historik import gem_data
 
 def vis_manuel_scanner():
+    from udvidelser.system_tjek import vis_system_tjek
+    vis_system_tjek()
     st.subheader("🎯 2. Manuel Kamp-Vælger & Kuponbygger")
     favs = list(liga_favoritter.hent_favorit_ligaer())
     timer = dansk_tid.vaelg_tidsramme("man", standard=12)
