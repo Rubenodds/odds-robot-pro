@@ -3,6 +3,8 @@ import os
 import traceback
 import streamlit as st
 
+VIS_BETA_TJEK = True
+
 
 def _scan_repo():
     rapport = []
@@ -23,22 +25,24 @@ def _scan_repo():
 
 
 def vis_system_tjek():
-    with st.expander("🔧 Systemtjek & Live Arkitektur-kort (Kun til udvikling)", expanded=True):
+    if not VIS_BETA_TJEK:
+        return
+    with st.expander("🔧 Beta Systemtjek & Arkitektur-kort", expanded=False):
         rapport = _scan_repo()
         for ff in [r for r in rapport if r["fejl"]]:
             st.error(f"Syntaksfejl i {ff['fil']}: {ff['fejl']}")
 
         c1, c2 = st.columns(2)
-        h_test = c1.text_input("Hjemmehold", "Osasuna", key="sys_hj")
-        u_test = c2.text_input("Udehold", "Malaga", key="sys_ud")
+        h_test = c1.text_input("Hjemmehold", "Brøndby IF", key="sys_hj")
+        u_test = c2.text_input("Udehold", "FC Midtjylland", key="sys_ud")
 
-        if st.button("🧪 Test alle 3 dommer-kilder", key="btn_test_dommer_sys"):
+        if st.button("🧪 Test dommer-kilder", key="btn_test_dommer_sys"):
             try:
                 from odds_motor import dommer_intelligens as di
                 e = di._espn_dommer(h_test, u_test)
-                s = di._sportsdb_dommer(h_test, u_test)
-                b = di._bing_rss_dommer(h_test, u_test)
-                st.session_state["sys_dom_res"] = f"ESPN='{e}' | SportsDB='{s}' | BingRSS='{b}'"
+                w = di._web_dommer(h_test, u_test)
+                samlet = di.hent_dommer(h_test, u_test)
+                st.session_state["sys_dom_res"] = f"ESPN='{e}' | Web='{w}' | Samlet='{samlet}'"
             except Exception:
                 st.session_state["sys_dom_res"] = traceback.format_exc()
 
@@ -46,4 +50,4 @@ def vis_system_tjek():
             st.info(st.session_state["sys_dom_res"])
 
         kort = "\n".join(f"- {r['fil']} ({r['tegn']}t): {', '.join(r['funktioner'])}" for r in rapport)
-        st.text_area("📋 Arkitektur-kort (gem i ai_kontrolrum/ARKITEKTUR.md):", kort, height=130)
+        st.text_area("📋 Live Arkitektur-kort:", kort, height=130)
