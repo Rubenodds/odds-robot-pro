@@ -95,14 +95,24 @@ def hent_dommer(hj, ud, ev_id="", slug="all", dt_iso="", liga=""):
     return fundet
 
 
-def dommer_effekt(dommer, liga=""):
-    if not dommer or "ikke" in str(dommer).lower():
-        return 0.0, ""
-    try:
-        from udvidelser.historik_statistik import hent_dommer_profil
-        p = hent_dommer_profil(dommer)
-        if p and p.get("kort_snit"):
-            return float(p.get("effekt", 1.0)), f"Dommer {dommer} ({p['kort_snit']} kort/kamp)"
-    except Exception:
-        pass
-    return 1.0, f"Dommer {dommer} bekræftet"
+def dommer_effekt(dommer, liga="", hj="", ud=""):
+    dele = []
+    eff = 0.0
+    if dommer and "ikke" not in str(dommer).lower():
+        eff = 1.0
+        try:
+            from udvidelser.historik_statistik import hent_dommer_profil
+            p = hent_dommer_profil(dommer)
+            eff = float(p.get("effekt", 1.0))
+            dele.append(f"Dommer {dommer} ({p.get('kort_snit', 4.0)} kort/kamp)")
+        except Exception:
+            dele.append(f"Dommer {dommer} bekræftet")
+    if hj and ud:
+        try:
+            from udvidelser.historik_statistik import hent_h2h_profil
+            h2h = hent_h2h_profil(hj, ud)
+            if h2h.get("tekst"):
+                dele.append(h2h["tekst"])
+        except Exception:
+            pass
+    return eff, " | ".join(dele)
