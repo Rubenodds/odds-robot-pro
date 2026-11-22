@@ -100,3 +100,7 @@ def vis_autopilot_scanner():
                 st.success(ok_msg)
             else:
                 st.button("🚀 SPILLET", type="primary", key="btn_auto_spillet", on_click=_gem_auto_cb, args=(valgte, bo, kr))
+
+
+from udvidelser.system_tjek import vis_system_tjek
+vis_system_tjek()
