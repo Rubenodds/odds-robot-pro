@@ -22,40 +22,28 @@ def _scan_repo():
     return rapport
 
 
-def _uddrag(sti, soegeord=("dommer", "official", "Ikke offentliggjort")):
-    if not os.path.exists(sti):
-        return ""
-    ud = []
-    with open(sti, "r", encoding="utf-8") as fp:
-        for nr, linje in enumerate(fp, 1):
-            if any(o.lower() in linje.lower() for o in soegeord):
-                ud.append(f"L{nr}: {linje.rstrip()}")
-    return "\n".join(ud[:25])
-
-
-def vis_system_tjek(hj="Liverpool", ud="Manchester City"):
+def vis_system_tjek():
     with st.expander("🔧 Systemtjek & Live Arkitektur-kort (Kun til udvikling)", expanded=True):
         rapport = _scan_repo()
         for ff in [r for r in rapport if r["fejl"]]:
             st.error(f"Syntaksfejl i {ff['fil']}: {ff['fejl']}")
 
-        if st.button("🧪 Test live dommer-kald nu", key="btn_test_dommer_sys"):
+        c1, c2 = st.columns(2)
+        h_test = c1.text_input("Hjemmehold", "Osasuna", key="sys_hj")
+        u_test = c2.text_input("Udehold", "Malaga", key="sys_ud")
+
+        if st.button("🧪 Test alle 3 dommer-kilder", key="btn_test_dommer_sys"):
             try:
                 from odds_motor import dommer_intelligens as di
-                d = di.hent_dommer(hj, ud)
-                eff, txt = di.dommer_effekt(d, hj=hj, ud=ud)
-                st.session_state["sys_dommer_test"] = f"{hj} vs {ud} -> dommer='{d}' | effekt={eff} | tekst='{txt}'"
+                e = di._espn_dommer(h_test, u_test)
+                s = di._sportsdb_dommer(h_test, u_test)
+                b = di._bing_rss_dommer(h_test, u_test)
+                st.session_state["sys_dom_res"] = f"ESPN='{e}' | SportsDB='{s}' | BingRSS='{b}'"
             except Exception:
-                st.session_state["sys_dommer_test"] = traceback.format_exc()
+                st.session_state["sys_dom_res"] = traceback.format_exc()
 
-        if "sys_dommer_test" in st.session_state:
-            st.info(st.session_state["sys_dommer_test"])
-
-        for f_sti in ("odds_motor/kamp_intelligens.py", "odds_motor/manuel_hjaelp.py"):
-            snit = _uddrag(f_sti)
-            if snit:
-                st.caption(f"Dommer-linjer i {f_sti}:")
-                st.code(snit)
+        if "sys_dom_res" in st.session_state:
+            st.info(st.session_state["sys_dom_res"])
 
         kort = "\n".join(f"- {r['fil']} ({r['tegn']}t): {', '.join(r['funktioner'])}" for r in rapport)
-        st.text_area("📋 Kopiér dette arkitektur-kort til AI:", kort, height=140)
+        st.text_area("📋 Arkitektur-kort (gem i ai_kontrolrum/ARKITEKTUR.md):", kort, height=130)
