@@ -1,3 +1,6 @@
+from udvidelser.system_tjek import vis_system_tjek
+vis_system_tjek()
+
 import math, streamlit as st
 from tidsstyring import dansk_tid
 from odds_motor import liga_favoritter, byg_kupon, kamp_intelligens, manuel_hjaelp as mh, autopilot_hjaelp as ah, autopilot_kamp_feed as kf
