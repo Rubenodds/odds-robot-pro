@@ -3,11 +3,6 @@ from datetime import datetime, timedelta
 import requests
 from udvidelser.holdnavne_oversaetter import samme_hold
 
-ESPN_LIGAER = [
-    "eng.1", "esp.1", "ita.1", "ger.1", "fra.1",
-    "den.1", "uefa.champions", "uefa.europa", "fifa.world"
-]
-
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36",
     "Accept-Language": "en-US,en;q=0.9"
@@ -20,34 +15,39 @@ def _dato_interval():
     return f"{start}-{slut}"
 
 def _hent_dommer_espn(hjemme, ude):
+    """Søger på tværs af ALLE fodboldligaer globalt på ESPN."""
     datoer = _dato_interval()
-    for liga in ESPN_LIGAER:
-        try:
-            url = f"https://espn.com{liga}/scoreboard?dates={datoer}"
-            r = requests.get(url, headers=HEADERS, timeout=5).json()
-            for ev in r.get("events", []):
-                comp = ev.get("competitions", [{}])
-                hold = [c.get("team", {}).get("displayName", "") for c in comp.get("competitors", [])]
-                if len(hold) == 2 and (
-                    (samme_hold(hjemme, hold) and samme_hold(ude, hold)) or
-                    (samme_hold(hjemme, hold) and samme_hold(ude, hold))
-                ):
-                    ev_id = ev.get("id")
-                    sum_url = f"https://espn.com{liga}/summary?event={ev_id}"
-                    s_data = requests.get(sum_url, headers=HEADERS, timeout=5).json()
-                    officials = s_data.get("gameInfo", {}).get("officials", [])
-                    if officials:
-                        return officials.get("displayName", "").strip()
-        except Exception:
-            continue
+    url = f"https://espn.com{datoer}&limit=500"
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=7).json()
+        for ev in r.get("events", []):
+            comp = ev.get("competitions", [{}])[0]
+            hold = [c.get("team", {}).get("displayName", "") for c in comp.get("competitors", [])]
+            if len(hold) == 2 and (
+                (samme_hold(hjemme, hold[0]) and samme_hold(ude, hold[1])) or
+                (samme_hold(hjemme, hold[1]) and samme_hold(ude, hold[0]))
+            ):
+                ev_id = ev.get("id")
+                liga_slug = ev.get("league", {}).get("slug", "all")
+                sum_url = f"https://espn.com{liga_slug}/summary?event={ev_id}"
+                s_data = requests.get(sum_url, headers=HEADERS, timeout=5).json()
+                officials = s_data.get("gameInfo", {}).get("officials", [])
+                if officials:
+                    return officials[0].get("displayName", "").strip()
+    except Exception:
+        pass
     return ""
 
 def _hent_dommer_web(hjemme, ude):
+    """Bred websøgning på engelsk, italiensk, spansk og dansk for alle ligaer."""
     try:
-        q = requests.utils.quote(f'"{hjemme}" "{ude}" referee')
+        q = requests.utils.quote(f'"{hjemme}" "{ude}" referee OR arbitro OR dommer')
         r = requests.get(f"https://duckduckgo.com{q}", headers=HEADERS, timeout=6)
         tekst = re.sub(r"<[^>]+>", " ", r.text)
-        m = re.search(r"(?:Referee|Arbitro|Dommer)[:\s-]+([A-ZÀ-ÿ][a-zà-ÿ'-]+(?:\s+[A-ZÀ-ÿ][a-zà-ÿ'-]+){1,2})", tekst)
+        m = re.search(
+            r"(?:Referee|Arbitro|Árbitro|Schiedsrichter|Dommer)[:\s-]+([A-ZÀ-ÿ][a-zà-ÿ'-]+(?:\s+[A-ZÀ-ÿ][a-zà-ÿ'-]+){1,2})",
+            tekst
+        )
         if m:
             return m.group(1).strip()
     except Exception:
